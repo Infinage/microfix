@@ -29,13 +29,11 @@ TEST(FieldTest, AMT) {
     ASSERT_TRUE(r4.has_value()); 
     EXPECT_EQ(r4.value(), 25);
 
-    mfix::Field f5 {.tag = 0, .value = "+23"};
-    auto r5 = mfix::convert::to_double(f5);
-    ASSERT_FALSE(r5.has_value());
-
-    mfix::Field f6 {.tag = 0, .value = "10.0a"};
-    auto r6 = mfix::convert::to_double(f6);
-    ASSERT_FALSE(r6.has_value());
+    for (auto val: {"+23", "10.0a", "", ".", "23..", ".23."}) {
+        mfix::Field f {.tag = 0, .value = val};
+        auto r = mfix::convert::to_double(f);
+        ASSERT_FALSE(r.has_value()) << "Failed for: " << val; 
+    }
 }
 
 TEST(FieldTest, BOOLEAN) {
@@ -49,10 +47,10 @@ TEST(FieldTest, BOOLEAN) {
     ASSERT_TRUE(r2.has_value()); 
     EXPECT_FALSE(r2.value());
 
-    for (auto val: {"y", "n", "true", "t"}) {
+    for (auto val: {"y", "n", "true", "t", "", "YN", "NY"}) {
         mfix::Field f{.tag = 0, .value = val};
         auto r = mfix::convert::to_bool(f);
-        ASSERT_FALSE(r.has_value());
+        ASSERT_FALSE(r.has_value()) << "Failed for: " << val; 
     }
 }
 
@@ -67,9 +65,11 @@ TEST(FieldTest, CHAR) {
     ASSERT_TRUE(r2.has_value());
     EXPECT_EQ(r2.value(), '!');
 
-    mfix::Field f3 {.tag = 0, .value = "ab"};
-    auto r3 = mfix::convert::to_char(f3);
-    ASSERT_FALSE(r3.has_value());
+    for (auto val: {"ab", ""}) {
+        mfix::Field f {.tag = 0, .value = val};
+        auto r = mfix::convert::to_char(f);
+        ASSERT_FALSE(r.has_value()) << "Failed for: " << val; 
+    }
 }
 
 TEST(FieldTest, DATA) {
@@ -102,10 +102,10 @@ TEST(FieldTest, INT) {
     ASSERT_TRUE(r4.has_value()); 
     EXPECT_EQ(r4.value(), -23);
 
-    for (auto val: {"+23", "23.0", "10a"}) {
+    for (auto val: {"+23", "23.0", "10a", "", " 23", "999999999999999999999"}) {
         mfix::Field f {.tag = 0, .value = val};
         auto r = mfix::convert::to_int(f);
-        ASSERT_FALSE(r.has_value()); 
+        ASSERT_FALSE(r.has_value()) << "Failed for: " << val; 
     }
 }
 
@@ -120,9 +120,11 @@ TEST(FieldTest, LENGTH) {
     ASSERT_TRUE(r2.has_value()); 
     EXPECT_EQ(r2.value(), 23);
 
-    mfix::Field f3 {.tag = 0, .value = "-1"};
-    auto r3 = mfix::convert::to_uint(f3);
-    ASSERT_FALSE(r3.has_value()); 
+    for (auto val: {"-1", "-0", "+23"}) {
+        mfix::Field f {.tag = 0, .value = val};
+        auto r = mfix::convert::to_uint(f);
+        ASSERT_FALSE(r.has_value()) << "Failed for: " << val; 
+    }
 }
 
 TEST(FieldTest, MULTIPLECHARVALUE) {
@@ -140,13 +142,11 @@ TEST(FieldTest, MULTIPLECHARVALUE) {
     ASSERT_EQ(r2->size(), 1);
     ASSERT_EQ(r2->at(0), '2');
 
-    mfix::Field f3 {.tag = 0, .value = "2 2"};
-    auto r3 = mfix::convert::to_char_vector(f3);
-    ASSERT_FALSE(r3.has_value());
-
-    mfix::Field f4 {.tag = 0, .value = "2 AF"};
-    auto r4 = mfix::convert::to_char_vector(f4);
-    ASSERT_FALSE(r4.has_value());
+    for (auto val: {"2 2", "2 AF", "", "A ", " A", " A "}) {
+        mfix::Field f {.tag = 0, .value = val};
+        auto r = mfix::convert::to_char_vector(f);
+        ASSERT_FALSE(r.has_value()) << "Failed for: " << val; 
+    }
 }
 
 TEST(FieldTest, MULTIPLESTRINGVALUE) {
@@ -164,9 +164,11 @@ TEST(FieldTest, MULTIPLESTRINGVALUE) {
     ASSERT_EQ(r2->size(), 1);
     ASSERT_EQ(r2->at(0), "2A");
 
-    mfix::Field f3 {.tag = 0, .value = "AA AA"};
-    auto r3 = mfix::convert::to_str_vector(f3);
-    ASSERT_FALSE(r3.has_value());
+    for (auto val: {"AA AA", "", "A ", " A"}) {
+        mfix::Field f {.tag = 0, .value = val};
+        auto r = mfix::convert::to_char_vector(f);
+        ASSERT_FALSE(r.has_value()) << "Failed for: " << val; 
+    }
 }
 
 TEST(FieldTest, LOCALMKTDATE) {
@@ -177,10 +179,13 @@ TEST(FieldTest, LOCALMKTDATE) {
     ASSERT_EQ(r1->month(), std::chrono::January);
     ASSERT_EQ(r1->year(), 2024y);
 
-    for (auto val: {"20241301",  "20241234",  "20241234a"}) {
+    auto tests = {"20241301",  "20241234",  "20241234a", "20241210 ", 
+        "", "202401", "2024-01-01"};
+
+    for (auto val: tests) {
         mfix::Field f {.tag = 0, .value = val};
         auto r = mfix::convert::to_date(f);
-        ASSERT_FALSE(r.has_value());
+        ASSERT_FALSE(r.has_value()) << "Failed for: " << val; 
     }
 }
 
@@ -192,9 +197,12 @@ TEST(FieldTest, LOCALMKTTIME) {
     ASSERT_EQ(r1->mn, 2min);
     ASSERT_EQ(r1->sc, 3s);
 
-    mfix::Field f2 {.tag = 0, .value = "01:02:03.444"};
-    auto r2 = mfix::convert::to_time(f2);
-    ASSERT_FALSE(r2.has_value());
+    auto tests = {"01:02:03.444", "", "1:2:3", "24:00:00", "00:60:00", "01:00:60"};
+    for (auto val: tests) {
+        mfix::Field f {.tag = 0, .value = val};
+        auto r = mfix::convert::to_time(f);
+        ASSERT_FALSE(r.has_value()) << "Failed for: " << val; 
+    }
 }
 
 TEST(FieldTest, TZTIMEONLY) {
@@ -239,14 +247,14 @@ TEST(FieldTest, TZTIMEONLY) {
     ASSERT_TRUE(r6.has_value());
     EXPECT_EQ(r6->offset, 90min);
 
-    // f7: Missing Offset (Should Fail for TZTime)
-    mfix::Field f7 {.tag = 0, .value = "01:02:03"};
-    auto r7 = mfix::convert::to_tztime(f7);
-    EXPECT_FALSE(r7.has_value()) << "TZTime should require an offset suffix";
+    auto tests = {"01:02:03", "01:02:03.444Z", "", "01:02Z+01", "01:02:03+13", 
+            "01:02:03-13", "1:2:3+0160"};
 
-    mfix::Field f8 {.tag = 0, .value = "01:02:03.444Z"};
-    auto r8 = mfix::convert::to_tztime(f8);
-    ASSERT_FALSE(r8.has_value());
+    for (auto val: tests) {
+        mfix::Field f {.tag = 0, .value = val};
+        auto r = mfix::convert::to_tztime(f);
+        ASSERT_FALSE(r.has_value()) << "Failed for: " << val; 
+    }
 }
 
 TEST(FieldTest, MONTHYEAR) {
@@ -284,6 +292,10 @@ TEST(FieldTest, MONTHYEAR) {
     // f6: Invalid Week (w6)
     mfix::Field f6 {.tag = 0, .value = "202401w6"};
     EXPECT_FALSE(mfix::convert::to_monthyear(f6).has_value());
+
+    // f7: Invalid Week (w0)
+    mfix::Field f7 {.tag = 0, .value = "202401w0"};
+    EXPECT_FALSE(mfix::convert::to_monthyear(f7).has_value());
 }
 
 TEST(FieldTest, TZTIMESTAMP) {
@@ -314,8 +326,9 @@ TEST(FieldTest, TZTIMESTAMP) {
     ASSERT_TRUE(r5.has_value());
     EXPECT_EQ(r5->time.ms, 123ms);
 
-    // f6: Mandatory Timezone Missing -> Should Fail
-    mfix::Field f6 {.tag = 0, .value = "20060901-07:39:00"};
-    auto r6 = mfix::convert::to_tztimestamp(f6);
-    EXPECT_FALSE(r6.has_value());
+    for (auto val: {"20060901-07:39:00", "", "20060901", "20060901T07:39:00Z"}) {
+        mfix::Field f {.tag = 0, .value = val};
+        auto r = mfix::convert::to_tztimestamp(f);
+        ASSERT_FALSE(r.has_value()) << "Failed for: " << val; 
+    }
 }

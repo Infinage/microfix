@@ -40,7 +40,7 @@ namespace mfix {
         std::chrono::month month;
         std::chrono::year year;
         std::optional<std::chrono::day> day {};
-        std::optional<std::chrono::weeks> week {};
+        std::optional<unsigned> week {};
     };
 
     namespace convert {

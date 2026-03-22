@@ -73,7 +73,8 @@ namespace mfix::convert {
      }
 
     std::optional<std::vector<char>> to_char_vector(const Field &field) {
-        if (field.value.empty()) return std::nullopt;
+        if (field.value.empty() || field.value.size() % 2 == 0) 
+            return std::nullopt;
 
         auto expectedCount = (field.value.size() + 1) / 2;
         std::unordered_set<char> set;
@@ -128,17 +129,24 @@ namespace mfix::convert {
         std::chrono::year_month_day ymd {};
         std::istringstream iss {field.value};
         iss >> std::chrono::parse("%Y%m%d", ymd);
-        if (char leftOver; iss.fail() || iss >> leftOver) 
+        if (iss.fail() || iss.peek() != EOF) 
             return std::nullopt;
         return Date{ymd};
     }
 
     std::optional<Time> to_time(const Field &field) {
-        std::chrono::seconds total_sc {};
-        std::istringstream iss {field.value};
-        iss >> std::chrono::parse("%T", total_sc);
-        if (char leftOver; iss.fail() || iss.get(leftOver))
+        std::string_view val = field.value;
+        if (val.size() != 8 || val.at(2) != ':' || val.at(5) != ':')
+             return std::nullopt;
+
+        auto hr = _convert<unsigned>(val.substr(0, 2));
+        auto mn = _convert<unsigned>(val.substr(3, 2));
+        auto sc = _convert<unsigned>(val.substr(6, 2));
+
+        if (!hr || !mn || !sc || *hr >= 24 || *mn >= 60 || *sc >= 60)
             return std::nullopt;
+
+        auto total_sc = std::chrono::seconds{*hr * 60 * 60 + *mn * 60 + *sc};
         return Time{total_sc};
     }
 
@@ -156,35 +164,15 @@ namespace mfix::convert {
         if (iss.fail()) {
             iss.clear();
             iss.str(tmp);
-            iss >> std::chrono::parse("%H:%M%Ez", total_sc, offset_mins);
+            iss >> std::chrono::parse("%R%Ez", total_sc, offset_mins);
             if (iss.fail()) return std::nullopt;
         }
 
-        if (char leftOver; iss.get(leftOver)) 
+        auto abs_offset = std::abs(offset_mins.count());
+        if (iss.peek() != EOF || abs_offset > 12 * 60) 
             return std::nullopt;
 
         return TZTime{total_sc, offset_mins};
-    }
-
-    std::optional<TZTimestamp> to_tztimestamp(const Field &field) {
-        std::chrono::year_month_day ymd {};
-        std::chrono::milliseconds total_ms {};
-        std::chrono::minutes offset_mins {};
-
-        std::string tmp = field.value;
-        if (!tmp.empty() && tmp.back() == 'Z') {
-            tmp.pop_back(); tmp += "+00";
-        }
-
-        char seperator {};
-        std::istringstream iss {tmp};
-        iss >> std::chrono::parse("%Y%m%d", ymd) >> seperator
-            >> std::chrono::parse("%T%Ez", total_ms, offset_mins);
-
-        if (char leftOver; iss.fail() || seperator != '-' || iss.get(leftOver)) 
-            return std::nullopt;
-
-        return TZTimestamp{ymd, total_ms, offset_mins};
     }
 
     std::optional<mfix::MonthYear> to_monthyear(const Field &field) {
@@ -214,7 +202,7 @@ namespace mfix::convert {
         else if (field.value.size() == 8 && (field.value[6] == 'w')) {
             int w_val = field.value[7] - '0';
             if (w_val < 1 || w_val > 5) return std::nullopt;
-            result.week = std::chrono::weeks{w_val};
+            result.week = w_val;
         }
 
         else if (field.value.size() != 6) {
@@ -222,5 +210,26 @@ namespace mfix::convert {
         }
 
         return result;
+    }
+
+    std::optional<TZTimestamp> to_tztimestamp(const Field &field) {
+        std::chrono::year_month_day ymd {};
+        std::chrono::milliseconds total_ms {};
+        std::chrono::minutes offset_mins {};
+
+        std::string tmp = field.value;
+        if (!tmp.empty() && tmp.back() == 'Z') {
+            tmp.pop_back(); tmp += "+00";
+        }
+
+        char seperator {};
+        std::istringstream iss {tmp};
+        iss >> std::chrono::parse("%Y%m%d", ymd) >> seperator
+            >> std::chrono::parse("%T%Ez", total_ms, offset_mins);
+
+        if (iss.fail() || seperator != '-' || iss.peek() != EOF) 
+            return std::nullopt;
+
+        return TZTimestamp{ymd, total_ms, offset_mins};
     }
 }
