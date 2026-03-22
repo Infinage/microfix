@@ -9,8 +9,10 @@ add_library(field INTERFACE)
 target_sources(field INTERFACE FILE_SET HEADERS 
     BASE_DIRS include FILES "include/mfix/field.hpp")
 
-add_library(converter OBJECT)
-target_sources(converter PRIVATE convert.cpp 
-    PUBLIC FILE_SET HEADERS BASE_DIRS include 
-    FILES "include/mfix/convert.hpp")
-target_link_libraries(converter PUBLIC field)
+foreach(lib IN ITEMS converter message)
+    add_library(${lib} OBJECT)
+    target_sources(${lib} PRIVATE ${lib}.cpp 
+        PUBLIC FILE_SET HEADERS BASE_DIRS include 
+        FILES "include/mfix/${lib}.hpp")
+    target_link_libraries(${lib} PUBLIC field)
+endforeach()
