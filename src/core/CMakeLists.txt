@@ -5,10 +5,12 @@ FetchContent_Declare(pugixml
 )
 FetchContent_MakeAvailable(pugixml)
 
-add_library(field OBJECT)
-target_sources(field 
-    PRIVATE field.cpp
-    PUBLIC FILE_SET HEADERS 
-    BASE_DIRS include 
-    FILES "include/mfix/field.hpp"
-)
+add_library(field INTERFACE)
+target_sources(field INTERFACE FILE_SET HEADERS 
+    BASE_DIRS include FILES "include/mfix/field.hpp")
+
+add_library(converter OBJECT)
+target_sources(converter PRIVATE convert.cpp 
+    PUBLIC FILE_SET HEADERS BASE_DIRS include 
+    FILES "include/mfix/convert.hpp")
+target_link_libraries(converter PUBLIC field)
