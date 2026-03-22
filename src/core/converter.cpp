@@ -1,17 +1,8 @@
 #include "mfix/converter.hpp"
+#include "mfix/utils.hpp"
+
 #include <unordered_set>
 #include <charconv>
-
-namespace {
-    template<typename T> [[nodiscard]] 
-    std::optional<T> _convert(std::string_view value) {
-        T result {};
-        auto *beg = value.data(), *end = beg + value.size();
-        auto [ptr, ec] = std::from_chars(beg, end, result);
-        if (ec == std::errc{} && ptr == end) return result;
-        return std::nullopt;
-    }
-}
 
 namespace mfix {
     Time::Time(std::chrono::milliseconds total) {

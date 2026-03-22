@@ -1,6 +1,7 @@
 #pragma once
 
 #include "mfix/field.hpp"
+#include <expected>
 #include <optional>
 #include <vector>
 
@@ -12,6 +13,9 @@ namespace mfix {
             std::add_const_t<R>, R>;
 
         std::vector<Field> fields;
+
+        [[nodiscard]] static std::expected<Message, std::string> 
+        from_string(std::string_view raw, char SEP = '\01');
 
         Message(std::initializer_list<Field> fields);
 

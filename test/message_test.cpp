@@ -86,11 +86,91 @@ TEST(MessageTest, ConstCorrectness) {
     mfix::Message msg{{35, "D"}};
     const mfix::Message& c_msg = msg;
 
-    // This should compile and return a const Field*
     const auto *f = c_msg.find(35);
     ASSERT_NE(f, nullptr);
     
     auto results = c_msg.findAll(35);
     using findAllType = decltype(results[0]);
     static_assert(std::is_const_v<std::remove_pointer_t<std::remove_reference_t<findAllType>>>);
+}
+
+TEST(MessageTest, FromString_Valid) {
+    std::string_view raw = "8=FIX.4.4|9=63|35=A|10=123|";
+    auto res = mfix::Message::from_string(raw, '|');
+    
+    ASSERT_TRUE(res.has_value()) << res.error();
+    ASSERT_EQ(res->code(), "A");
+    EXPECT_EQ(res->size(), 4);
+    EXPECT_EQ(res->find(8)->value, "FIX.4.4");
+}
+
+TEST(MessageTest, FromString_EmptyInput) {
+    auto res = mfix::Message::from_string("", '|');
+    ASSERT_FALSE(res.has_value());
+}
+
+TEST(MessageTest, FromString_OnlySeparator) {
+    auto res = mfix::Message::from_string("|", '|');
+    ASSERT_FALSE(res.has_value());
+}
+
+TEST(MessageTest, FromString_EmptyTag) {
+    auto res = mfix::Message::from_string("=FIX|9=12|", '|');
+    ASSERT_FALSE(res.has_value());
+}
+
+TEST(MessageTest, FromString_EmptyValue) {
+    std::string_view raw = "8=FIX.4.4|1=|35=A|";
+    auto res = mfix::Message::from_string(raw, '|');
+
+    ASSERT_TRUE(res.has_value()) << res.error();
+    auto* f = res->find(1);
+    ASSERT_NE(f, nullptr);
+    EXPECT_TRUE(f->value.empty());
+}
+
+TEST(MessageTest, FromString_Malformed_NoEquals) {
+    std::string_view raw = "8=FIX.4.4|INVALID_FIELD|35=A|";
+    auto res = mfix::Message::from_string(raw, '|');
+
+    ASSERT_FALSE(res.has_value());
+    EXPECT_TRUE(res.error().starts_with("Must have exactly one '='"));
+}
+
+TEST(MessageTest, FromString_Malformed_BadTag) {
+    std::string_view raw = "8=FIX.4.4|TAG_IS_NOT_INT=Value|";
+    auto res = mfix::Message::from_string(raw, '|');
+    
+    ASSERT_FALSE(res.has_value());
+    EXPECT_TRUE(res.error().starts_with("Tag not an INT"));
+}
+
+TEST(MessageTest, FromString_MultipleEquals) {
+    std::string_view raw = "8=FIX.4.4|58=Data=With=Equals|";
+    auto res = mfix::Message::from_string(raw, '|');
+    ASSERT_FALSE(res.has_value());
+}
+
+TEST(MessageTest, FromString_EmptyField) {
+    auto res = mfix::Message::from_string("8=FIX||9=12|", '|');
+    ASSERT_FALSE(res.has_value());
+}
+
+TEST(MessageTest, FromString_Random) {
+    auto testCases = {
+        "8=FIX.4.49=14835=D34=108049=TESTBUY152=20180920-18:14:19.508"
+        "56=TESTSELL111=63673064027889863415=USD21=238=700040=154=1"
+        "55=MSFT60=20180920-18:14:19.49210=092",
+
+        "8=FIX.4.49=7535=A34=109249=TESTBUY152=20180920-18:24:59.643"
+            "56=TESTSELL198=0108=6010=178",
+
+        "8=FIX.4.49=6335=534=109149=TESTBUY152=20180920-18:24:58.675"
+            "56=TESTSELL110=138"
+    };
+
+    for (auto fixMsg: testCases) {
+        auto res = mfix::Message::from_string(fixMsg);
+        ASSERT_TRUE(res.has_value());
+    }
 }

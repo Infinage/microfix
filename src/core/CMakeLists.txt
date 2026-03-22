@@ -11,8 +11,12 @@ target_sources(field INTERFACE FILE_SET HEADERS
 
 foreach(lib IN ITEMS converter message)
     add_library(${lib} OBJECT)
-    target_sources(${lib} PRIVATE ${lib}.cpp 
-        PUBLIC FILE_SET HEADERS BASE_DIRS include 
-        FILES "include/mfix/${lib}.hpp")
     target_link_libraries(${lib} PUBLIC field)
+    target_sources(${lib} PRIVATE ${lib}.cpp 
+        PUBLIC 
+            FILE_SET HEADERS BASE_DIRS include 
+            FILES "include/mfix/${lib}.hpp"
+        PRIVATE 
+            FILE_SET private_headers TYPE HEADERS BASE_DIRS include
+            FILES "include/mfix/utils.hpp")
 endforeach()
