@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <optional>
 #include <string_view>
 #include <charconv>
@@ -13,4 +14,6 @@ namespace mfix {
         if (ec == std::errc{} && ptr == end) return result;
         return std::nullopt;
     }
+
+    std::uint8_t checksum(std::string_view serialized);
 }

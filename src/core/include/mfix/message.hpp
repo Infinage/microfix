@@ -19,6 +19,9 @@ namespace mfix {
 
         Message(std::initializer_list<Field> fields);
 
+        [[nodiscard]] auto begin(this auto &&self) { return self.fields.begin(); }
+        [[nodiscard]] auto end(this auto &&self) { return self.fields.end(); }
+
         [[nodiscard]] bool contains(int tag) const;
         [[nodiscard]] std::optional<std::string> code() const;
 

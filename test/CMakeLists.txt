@@ -9,6 +9,10 @@ FetchContent_MakeAvailable(googletest)
 
 include(GoogleTest)
 
+add_executable(utils_test utils_test.cpp)
+target_link_libraries(utils_test PRIVATE utils GTest::gtest_main)
+gtest_discover_tests(utils_test)
+
 add_executable(conversion_test conversion_test.cpp)
 target_link_libraries(conversion_test PRIVATE converter GTest::gtest_main)
 gtest_discover_tests(conversion_test)
@@ -16,3 +20,7 @@ gtest_discover_tests(conversion_test)
 add_executable(message_test message_test.cpp)
 target_link_libraries(message_test PRIVATE message GTest::gtest_main)
 gtest_discover_tests(message_test)
+
+add_executable(spec_test spec_test.cpp)
+target_link_libraries(spec_test PRIVATE spec GTest::gtest_main)
+gtest_discover_tests(spec_test)
