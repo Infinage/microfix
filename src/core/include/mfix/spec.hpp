@@ -1,8 +1,8 @@
 #pragma once
 
+#include <string>
 #include <expected>
 #include <optional>
-#include <pugixml.hpp>
 #include <unordered_map>
 #include <vector>
 
@@ -65,12 +65,6 @@ namespace mfix {
                 std::vector<MessageSpecEntry> children {};
             };
 
-            enum class ValidationMode {
-                None,   // no validation
-                Basic,  // checksum, bodylen, required fields, groups
-                Strict, // type check, unknown fields rejected, ordering
-            };
-
             struct ValidationResult {
                 std::vector<std::string> observations;
 
@@ -80,6 +74,18 @@ namespace mfix {
                     observations.push_back(obs);
                     return *this;
                 }
+            };
+
+            enum class ValidationMode {
+                None,   // no validation
+                Basic,  // checksum, bodylen, required fields, groups
+                Strict, // type check, unknown fields rejected, ordering
+            };
+
+            struct SampleOptions {
+                bool requiredOnly;
+                std::unordered_map<DataType, std::string> defaultValueOverides;
+                std::unordered_map<int, int> groupCountOverides;
             };
 
             // Convenience types
@@ -94,15 +100,9 @@ namespace mfix {
 
             std::optional<FieldSpec> field(int tag) const;
 
-            struct SampleOptions {
-                bool requiredOnly;
-                std::unordered_map<DataType, std::string> defaultValueOverides;
-                std::unordered_map<int, int> groupCountOverides;
-            };
+            std::optional<Message> sample(const std::string &msgType, SampleOptions options = {true, {}, {}}) const;
 
-            std::optional<Message> sample(const std::string &msgType, SampleOptions options = {true, {}, {}});
-
-            ValidationResult validate(const Message &message, ValidationMode mode);
+            ValidationResult validate(const Message &message, ValidationMode mode) const;
 
         private:
             Spec() = default;

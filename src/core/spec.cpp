@@ -4,7 +4,9 @@
 #include <filesystem>
 #include <format>
 #include <stack>
+
 #include <tsl/ordered_map.h>
+#include <pugixml.hpp>
 
 #define XSTR(x) STR(x)
 #define STR(x) #x
@@ -417,7 +419,7 @@ namespace mfix {
         return it->second;
     }
 
-    std::optional<Message> Spec::sample(const std::string &msgType, SampleOptions options) {
+    std::optional<Message> Spec::sample(const std::string &msgType, SampleOptions options) const {
         auto specIt = messages.find(msgType);
         if (specIt == messages.end()) return std::nullopt;
 
