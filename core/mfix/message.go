@@ -19,7 +19,9 @@ func MessageFromString(raw string, sep string) (Message, error) {
 	result := make([]Field, numFields)
 	for nField, field := range strings.Split(raw, sep) {
 		if nField == numFields {
-			if field == "" { break; }
+			if field == "" {
+				break
+			}
 			return nil, fmt.Errorf("Last token is non empty")
 		}
 
@@ -44,7 +46,7 @@ func MessageFromString(raw string, sep string) (Message, error) {
 func (msg Message) String(sep string) string {
 	var res []string
 	for _, field := range msg {
-		res = append(res, field.string())	
+		res = append(res, field.string())
 	}
 	return strings.Join(res, sep) + sep
 }
@@ -52,7 +54,7 @@ func (msg Message) String(sep string) string {
 // Returns Field if tag is found along with its index
 // index of -1 is returned if not found
 func (msg Message) Find(tag uint16) (Field, int) {
-	return  msg.FindFrom(tag, 0)
+	return msg.FindFrom(tag, 0)
 }
 
 // Same as Find, but can provide the starting pos to being search
@@ -71,7 +73,7 @@ func (msg Message) FindAll(tag uint16) iter.Seq[Field] {
 	return func(yield func(Field) bool) {
 		for _, field := range msg {
 			if field.tag == tag {
-				if !yield(field) { 
+				if !yield(field) {
 					break
 				}
 			}

@@ -84,8 +84,8 @@ func TestMessage_WireRoundTrip(t *testing.T) {
 			// This ensures the internal slice isn't just a junk buffer that happens to stringify well
 			expectedFields := strings.Split(tt.raw, tt.sep)
 
-			if len(msg) != len(expectedFields) - 1 {
-				t.Errorf("Field count mismatch: want %d, got %d", len(expectedFields) - 1, len(msg))
+			if len(msg) != len(expectedFields)-1 {
+				t.Errorf("Field count mismatch: want %d, got %d", len(expectedFields)-1, len(msg))
 			}
 
 			for i, field := range msg {
@@ -100,7 +100,7 @@ func TestMessage_WireRoundTrip(t *testing.T) {
 
 func TestMessage_FindFrom(t *testing.T) {
 	msg := Message{{5000, "A"}, {49, "X"}, {5000, "B"}}
-	
+
 	// Find first
 	f1, i1 := msg.FindFrom(5000, 0)
 	if i1 != 0 || f1.value != "A" {
@@ -117,7 +117,7 @@ func TestMessage_FindFrom(t *testing.T) {
 func TestMessage_FindAll(t *testing.T) {
 	msg := Message{{5000, "A"}, {5000, "B"}, {49, "X"}}
 	var values []string
-	
+
 	for f := range msg.FindAll(5000) {
 		values = append(values, f.value)
 	}
