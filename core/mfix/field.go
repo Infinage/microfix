@@ -15,6 +15,11 @@ type Field struct {
 	value string
 }
 
+// Helper to write to string (Internal)
+func (f *Field) string() string {
+	return strconv.Itoa(int(f.tag)) + "=" + f.value
+}
+
 // Support FIX's custom monthyear struct
 type MonthYear struct {
 	Year  int
