@@ -1,67 +1,19 @@
 package mfix
 
 import (
-	"embed"
-	"encoding/xml"
 	"fmt"
-	"os"
-	"path/filepath"
+	"slices"
 	"strconv"
 )
 
-// BoolYN handles the FIX 'Y'/'N' attribute mapping
-type BoolYN bool
-
-func (b *BoolYN) UnmarshalXMLAttr(attr xml.Attr) error {
-	*b = BoolYN(attr.Value == "Y")
-	return nil
-}
-
-// Entry represents any item inside a message, component or group.
 type Entry struct {
-	Type     xml.Name
-	Name     string  `xml:"name,attr"`
-	Required BoolYN  `xml:"required,attr"`
-	Entries  []Entry `xml:",any"`
-}
+	Name     string // Field name
+	Required bool   // If required per spec
 
-// Struct for `<messages><message/></messages>`
-type messageDef struct {
-	Name    string  `xml:"name,attr"`
-	MsgType string  `xml:"msgtype,attr"`
-	Entries []Entry `xml:",any"`
-}
-
-// Struct for `<components><component/><components>`
-type componentDef struct {
-	Name      string  `xml:"name,attr"`
-	Entries   []Entry `xml:",any"`
-	flattened bool
-	visiting  bool
-}
-
-// Struct for `<fields><field/><field>`
-type FieldDef struct {
-	Number int    `xml:"number,attr"`
-	Name   string `xml:"name,attr"`
-	Type   string `xml:"type,attr"`
-	Enums  []struct {
-		Enum        string `xml:"enum,attr"`
-		Description string `xml:"description,attr"`
-	} `xml:"value"`
-}
-
-// RawSpec matches spec.xml exactly
-type rawSpec struct {
-	Name       xml.Name       `xml:"fix"`
-	Major      int            `xml:"major,attr"`
-	Minor      int            `xml:"minor,attr"`
-	Sp         int            `xml:"servicepack,attr"`
-	Header     []Entry        `xml:"header>*"`
-	Messages   []messageDef   `xml:"messages>message"`
-	Trailer    []Entry        `xml:"trailer>*"`
-	Components []componentDef `xml:"components>component"`
-	Fields     []FieldDef     `xml:"fields>field"`
+	// Below fields only meaningful for groups
+	IsGroup bool           // If true, expect to have entries
+	Entries []Entry        // Ordered list of nested fields
+	Lookup  map[uint16]int // Quicker lookups to point to position on Entries
 }
 
 // Cleaned struct for quicker lookups
@@ -69,72 +21,68 @@ type Spec struct {
 	Major      int
 	Minor      int
 	SP         int
-	Header     []Entry
-	Trailer    []Entry
-	Messages   map[string][]Entry  // lookup by msgtype
+	Header     Entry
+	Trailer    Entry
+	Messages   map[string]Entry    // lookup by msgtype
 	Fields     map[uint16]FieldDef // Lookup by tag ('Number')
 	FieldNames map[string]uint16   // Lookup tag by field name
 }
 
-//go:embed spec/*.xml
-var defaultSpecs embed.FS
+type componentContext struct {
+	unflattened []specEntry
+	flattened   Entry
+
+	// 0 - Not visited
+	// 1 - Currently visiting
+	// 2 - Flattened
+	state uint8
+}
 
 // Load a spec from given file path
 func LoadSpec(path string) (Spec, error) {
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		raw, err = defaultSpecs.ReadFile(filepath.Join("spec", path))
-		if err != nil {
-			return Spec{}, fmt.Errorf("Could not find spec %s in local or embedded path", path)
-		}
-	}
-
-	// Load into temp raw struct
-	var data rawSpec
-	err = xml.Unmarshal(raw, &data)
+	raw, err := loadRawSpec(path)
 	if err != nil {
 		return Spec{}, err
 	}
 
 	// Convert rawSpec to spec for faster lookups
 	var result = Spec{
-		Major:      data.Major,
-		Minor:      data.Minor,
-		SP:         data.Sp,
-		Messages:   make(map[string][]Entry),
+		Major:      raw.Major,
+		Minor:      raw.Minor,
+		SP:         raw.Sp,
+		Messages:   make(map[string]Entry),
 		Fields:     make(map[uint16]FieldDef),
 		FieldNames: make(map[string]uint16),
 	}
 
 	// Fields slice into map for quicker lookup
-	for _, field := range data.Fields {
+	for _, field := range raw.Fields {
 		tag := uint16(field.Number)
 		result.Fields[tag] = field
 		result.FieldNames[field.Name] = tag
 	}
 
 	// Load components into temp map for quicker lookup
-	var components = make(map[string]*componentDef)
-	for i := range data.Components {
-		temp := data.Components[i]
-		components[temp.Name] = &temp
+	var components = make(map[string]*componentContext)
+	for _, comp := range raw.Components {
+		components[comp.Name] = &componentContext{unflattened: comp.Entries}
 	}
 
 	// Flatten and validate header
-	result.Header, err = vflatten(data.Header, components, result.FieldNames)
+	result.Header, err = compileEntries(raw.Header, components, result.FieldNames)
 	if err != nil {
 		return Spec{}, err
 	}
 
 	// Flatten and validate trailer
-	result.Trailer, err = vflatten(data.Trailer, components, result.FieldNames)
+	result.Trailer, err = compileEntries(raw.Trailer, components, result.FieldNames)
 	if err != nil {
 		return Spec{}, err
 	}
 
 	// Iterate through message entries while flattening + validating
-	for _, message := range data.Messages {
-		flattenedMsg, err := vflatten(message.Entries, components, result.FieldNames)
+	for _, message := range raw.Messages {
+		flattenedMsg, err := compileEntries(message.Entries, components, result.FieldNames)
 		if err != nil {
 			return Spec{}, err
 		}
@@ -144,74 +92,90 @@ func LoadSpec(path string) (Spec, error) {
 	return result, nil
 }
 
-// Recursively validate fields and flatten the []Entry removing need for component map
+// Recursively validate fields and flatten the []specEntry removing need for component map
 // To save some compute, we cache flattened component results
-// Final result's entry.Type.Local will be either a field or a group
-func vflatten(message []Entry, components map[string]*componentDef,
-	fields map[string]uint16) ([]Entry, error) {
+// We write results to a more friendly struct - Entry
+func compileEntries(message []specEntry, components map[string]*componentContext,
+	fields map[string]uint16) (Entry, error) {
 
-	var flattened []Entry
-	for _, entry := range message {
-		switch entry.Type.Local {
+	var result = Entry{Lookup: make(map[uint16]int)}
+	for _, rawEntry := range message {
+		switch rawEntry.Type.Local {
 		case "field":
-			if _, ok := fields[entry.Name]; !ok {
-				return nil, fmt.Errorf("Field name not found: %v", entry.Name)
+			if _, ok := fields[rawEntry.Name]; !ok {
+				return Entry{}, fmt.Errorf("Field name not found: %v", rawEntry.Name)
 			}
-			flattened = append(flattened, entry)
+			result.Entries = append(result.Entries, Entry{Name: rawEntry.Name, Required: bool(rawEntry.Required)})
 
 		case "component":
-			component, found := components[entry.Name]
+			component, found := components[rawEntry.Name]
 			if !found {
-				return nil, fmt.Errorf("Component name not found: %v", entry.Name)
+				return Entry{}, fmt.Errorf("Component name not found: %v", rawEntry.Name)
 			}
 
-			if component.visiting {
-				return nil, fmt.Errorf("Circular component reference detected: %v", entry.Name)
+			// Already being processed
+			if component.state == 1 {
+				return Entry{}, fmt.Errorf("Circular component reference detected: %v", rawEntry.Name)
 			}
 
-			if !component.flattened {
-				component.visiting = true
-				flattenedEntries, err := vflatten(component.Entries, components, fields)
+			// Not flattened yet
+			if component.state == 0 {
+				component.state = 1
+				flattenedEntries, err := compileEntries(component.unflattened, components, fields)
 				if err != nil {
-					return nil, err
+					return Entry{}, err
 				}
 
 				// Cache the updated entries
-				component.Entries = flattenedEntries
-				component.visiting = false
-				component.flattened = true
+				component.flattened = flattenedEntries
+				component.state = 2
 			}
 
 			// Add the flattened entries into our result vector directly
 			// Remove the outer layer / node. The final output will be as if
 			// the component never existed to begin with
-			for _, compEntry := range component.Entries {
-				compEntry.Required = compEntry.Required && entry.Required
-				flattened = append(flattened, compEntry)
+			for _, compEntry := range component.flattened.Entries {
+				compEntry.Required = compEntry.Required && bool(rawEntry.Required)
+				result.Entries = append(result.Entries, compEntry)
 			}
 
 		case "group":
 			// Ensure that No<NAME> is present in fields
-			if _, ok := fields[entry.Name]; !ok {
-				return nil, fmt.Errorf("Group name %v not found in fields", entry.Name)
+			if _, ok := fields[rawEntry.Name]; !ok {
+				return Entry{}, fmt.Errorf("Group name %v not found in fields", rawEntry.Name)
 			}
 
-			nextEntries, err := vflatten(entry.Entries, components, fields)
+			// Recursively validate of entries of groups are ok, also
+			// unflatten any component that it may contain
+			groupEntry, err := compileEntries(rawEntry.Entries, components, fields)
 			if err != nil {
-				return nil, err
+				return Entry{}, err
 			}
 
-			// Added the updated group entries while retaining the
+			// Add the updated group entries while retaining the
 			// outer node to mark that current entry is a group
-			entry.Entries = nextEntries
-			flattened = append(flattened, entry)
+			// Fill in the required meta before adding it
+			groupEntry.Name = rawEntry.Name
+			groupEntry.IsGroup = true
+			groupEntry.Required = bool(rawEntry.Required)
+			for pos, child := range groupEntry.Entries {
+				tag := fields[child.Name]
+				groupEntry.Lookup[tag] = pos
+			}
+			result.Entries = append(result.Entries, groupEntry)
 
 		default:
-			return nil, fmt.Errorf("Unknown XML tag entry: %v", entry.Type.Local)
+			return Entry{}, fmt.Errorf("Unknown XML tag entry: %v", rawEntry.Type.Local)
 		}
 	}
 
-	return flattened, nil
+	// Prepare the lookup table for parent caller
+	for pos, child := range result.Entries {
+		tag := fields[child.Name]
+		result.Lookup[tag] = pos
+	}
+
+	return result, nil
 }
 
 func (spec *Spec) Field(tag uint16) (FieldDef, error) {
@@ -230,12 +194,11 @@ func (spec *Spec) Sample(msgType string, requiredOnly bool,
 	// Helper to recurse entry one at a time, if group we recurse into it otherwise just add it
 	var addEntry func(msg *Message, entry Entry, requiredOnly bool, groupCountOverides *map[uint16]int) error
 	addEntry = func(msg *Message, entry Entry, requiredOnly bool, groupCountOverides *map[uint16]int) error {
-		if requiredOnly && !bool(entry.Required) {
+		if requiredOnly && !entry.Required {
 			return nil
 		}
 
-		switch entry.Type.Local {
-		case "field":
+		if !entry.IsGroup {
 			tag, _ := spec.FieldNames[entry.Name]
 			field, _ := spec.Fields[tag]
 			var value string = field.Type
@@ -243,8 +206,7 @@ func (spec *Spec) Sample(msgType string, requiredOnly bool,
 				value = field.Enums[0].Enum
 			}
 			*msg = append(*msg, Field{tag, value})
-
-		case "group":
+		} else {
 			tag, _ := spec.FieldNames[entry.Name]
 			var repeat int
 			if count, ok := (*groupCountOverides)[tag]; ok {
@@ -256,9 +218,6 @@ func (spec *Spec) Sample(msgType string, requiredOnly bool,
 					addEntry(msg, subEntry, requiredOnly, groupCountOverides)
 				}
 			}
-
-		default:
-			return fmt.Errorf("Unexpected XML node of type %v", entry.Type.Local)
 		}
 
 		return nil
@@ -270,7 +229,7 @@ func (spec *Spec) Sample(msgType string, requiredOnly bool,
 		return result, fmt.Errorf("MsgType [%v] not found in spec", msgType)
 	}
 
-	for _, entry := range msgSpec {
+	for _, entry := range slices.Concat(spec.Header.Entries, msgSpec.Entries, spec.Trailer.Entries) {
 		err := addEntry(&result, entry, requiredOnly, &groupCountOverides)
 		if err != nil {
 			return result, err
@@ -302,62 +261,41 @@ func (spec *Spec) Validate(message *Message, mode ValidationMode) (bool, []strin
 		return false, observations
 	}
 
-	msgSpec, ok := spec.Messages[msgType.value]
-	if !ok {
-		observations = append(observations, fmt.Sprintf("Unknown MsgType '35=%v'", msgType.value))
-		return false, observations
-	}
-
-	// Set to collect all requried and optional tags
-	var requiredTags = make(map[uint16]interface{})
-	var optionalTags = make(map[uint16]interface{})
-
-	// Helper to iterate across entries and collect them
-	var collectTags = func(entries []Entry, required map[uint16]interface{}, optional map[uint16]interface{}) {
-		for _, entry := range entries {
-			tag := spec.FieldNames[entry.Name]
-			if bool(entry.Required) {
-				required[tag] = nil
-			} else {
-				optional[tag] = nil
-			}
-		}
-	}
-
-	// Collect all required + opt tags into a map
-	collectTags(spec.Header, requiredTags, optionalTags)
-	collectTags(msgSpec, requiredTags, optionalTags)
-	collectTags(spec.Trailer, requiredTags, optionalTags)
-
 	// Checksum validation if required
-	_, checksumRequired := requiredTags[10]
-	if checksumRequired {
+	if _, ok := spec.Trailer.Lookup[10]; ok {
 		checksumTag, pos := message.Find(10)
 		if pos == -1 {
 			observations = append(observations, fmt.Sprint("Missing checksum tag [10]"))
 		} else if want := fmt.Sprintf("%03d", Checksum(message)); want != checksumTag.value {
-			observations = append(observations, fmt.Sprint("Checksum validation failed: want %v, got %v", 
+			observations = append(observations, fmt.Sprintf("Checksum validation failed: want %v, got %v",
 				want, checksumTag.value))
 		}
 	}
 
 	// Bodylength validation if required
-	_, bodylenRequired := requiredTags[9]
-	if bodylenRequired {
+	if _, ok := spec.Header.Lookup[9]; ok {
 		bodylength := BodyLength(message)
 		bodyLenTag, pos := message.Find(9)
 		if pos == -1 {
 			observations = append(observations, fmt.Sprint("Missing bodylength tag [9]"))
 		} else if got, err := bodyLenTag.AsUint(); err != nil || bodylength != got {
-			observations = append(observations, fmt.Sprint("Bodylength validation failed: want %v, got %v", 
+			observations = append(observations, fmt.Sprint("Bodylength validation failed: want %v, got %v",
 				bodylength, got))
 		}
 	}
 
-	// Ensure all required fields are present
-	for _, field := range *message {
-		
-	}
+	/*
+		msgSpec, ok := spec.Messages[msgType.value]
+		if !ok {
+			observations = append(observations, fmt.Sprintf("Unknown MsgType '35=%v'", msgType.value))
+			return false, observations
+		}
+
+		// Ensure all required fields are present
+		for _, field := range *message {
+
+		}
+	*/
 
 	return len(observations) == 0, observations
 }
