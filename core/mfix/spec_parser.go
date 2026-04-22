@@ -18,7 +18,7 @@ func (b *boolYN) UnmarshalXMLAttr(attr xml.Attr) error {
 
 // Entry represents any item inside a message, component or group.
 type specEntry struct {
-	Type     xml.Name
+	XMLName  xml.Name
 	Name     string      `xml:"name,attr"`
 	Required boolYN      `xml:"required,attr"`
 	Entries  []specEntry `xml:",any"`
@@ -37,15 +37,20 @@ type componentDef struct {
 	Entries []specEntry `xml:",any"`
 }
 
+// Holding header and trailer entries
+type container struct {
+	Entries []specEntry `xml:",any"`
+}
+
 // RawSpec matches spec.xml exactly
 type rawSpec struct {
-	Name       xml.Name       `xml:"fix"`
+	Type       string         `xml:"type,attr"`
 	Major      int            `xml:"major,attr"`
 	Minor      int            `xml:"minor,attr"`
 	Sp         int            `xml:"servicepack,attr"`
-	Header     []specEntry    `xml:"header>*"`
+	Header     container      `xml:"header"`
+	Trailer    container      `xml:"trailer"`
 	Messages   []messageDef   `xml:"messages>message"`
-	Trailer    []specEntry    `xml:"trailer>*"`
 	Components []componentDef `xml:"components>component"`
 	Fields     []FieldDef     `xml:"fields>field"`
 }

@@ -147,3 +147,53 @@ func TestChecksumVerification(t *testing.T) {
 		})
 	}
 }
+
+func TestDefaultStringsAreValid(t *testing.T) {
+	// We iterate through all known FIX types to ensure our defaults pass our own validator
+	types := []string{
+		"int", "seqnum", "tagnum", "length", "numingroup",
+		"amt", "float", "percentage", "price", "priceoffset", "qty",
+		"boolean", "char", "multiplecharvalue", "multiplestringvalue",
+		"multiplevaluestring", "utcdateonly", "localmktdate", "date",
+		"utctimeonly", "localmkttime", "time", "utctimestamp", "utcdate",
+		"tztimestamp", "tztimeonly", "monthyear",
+	}
+
+	for _, dtype := range types {
+		t.Run(dtype, func(t *testing.T) {
+			val := defaultString(dtype)
+			err := validateDtype(Field{Value: val}, dtype)
+			if err != nil {
+				t.Errorf("Type [%s] has invalid default value [%s]: %v", dtype, val, err)
+			}
+		})
+	}
+}
+
+func TestValidateDtypeEdges(t *testing.T) {
+	tests := []struct {
+		name    string
+		val     string
+		dtype   string
+		wantErr bool
+	}{
+		{"Valid Int", "123", "int", false},
+		{"Invalid Int", "abc", "int", true},
+		{"Valid Float", "123.45", "price", false},
+		{"Invalid Float", "12.3.4", "price", true},
+		{"Valid Bool", "Y", "boolean", false},
+		{"Invalid Bool", "Maybe", "boolean", true},
+		{"Valid Timestamp", "20260404-12:00:00Z", "utctimestamp", false},
+		{"Empty String", "", "int", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			field := Field{Value: tt.val}
+			err := validateDtype(field, tt.dtype)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateDtype() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}

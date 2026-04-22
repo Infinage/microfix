@@ -69,13 +69,13 @@ func LoadSpec(path string) (Spec, error) {
 	}
 
 	// Flatten and validate header
-	result.Header, err = compileEntries(raw.Header, components, result.FieldNames)
+	result.Header, err = compileEntries(raw.Header.Entries, components, result.FieldNames)
 	if err != nil {
 		return Spec{}, err
 	}
 
 	// Flatten and validate trailer
-	result.Trailer, err = compileEntries(raw.Trailer, components, result.FieldNames)
+	result.Trailer, err = compileEntries(raw.Trailer.Entries, components, result.FieldNames)
 	if err != nil {
 		return Spec{}, err
 	}
@@ -100,7 +100,7 @@ func compileEntries(message []specEntry, components map[string]*componentContext
 
 	var result = Entry{Lookup: make(map[uint16]int)}
 	for _, rawEntry := range message {
-		switch rawEntry.Type.Local {
+		switch rawEntry.XMLName.Local {
 		case "field":
 			if _, ok := fields[rawEntry.Name]; !ok {
 				return Entry{}, fmt.Errorf("Field name not found: %v", rawEntry.Name)
@@ -165,7 +165,7 @@ func compileEntries(message []specEntry, components map[string]*componentContext
 			result.Entries = append(result.Entries, groupEntry)
 
 		default:
-			return Entry{}, fmt.Errorf("Unknown XML tag entry: %v", rawEntry.Type.Local)
+			return Entry{}, fmt.Errorf("Unknown XML tag entry: %v", rawEntry.XMLName.Local)
 		}
 	}
 
@@ -257,7 +257,7 @@ func (spec *Spec) Validate(message *Message, mode ValidationMode) (bool, []strin
 
 	msgType, pos := message.Find(35)
 	if pos == -1 {
-		observations = append(observations, fmt.Sprint("MsgType Tag (35) missing"))
+		observations = append(observations, "MsgType Tag (35) missing")
 		return false, observations
 	}
 
@@ -265,7 +265,7 @@ func (spec *Spec) Validate(message *Message, mode ValidationMode) (bool, []strin
 	if _, ok := spec.Trailer.Lookup[10]; ok {
 		checksumTag, pos := message.Find(10)
 		if pos == -1 {
-			observations = append(observations, fmt.Sprint("Missing checksum tag [10]"))
+			observations = append(observations, "Missing checksum tag [10]")
 		} else if want := fmt.Sprintf("%03d", Checksum(message)); want != checksumTag.Value {
 			observations = append(observations, fmt.Sprintf("Checksum validation failed: want %v, got %v",
 				want, checksumTag.Value))
@@ -277,9 +277,9 @@ func (spec *Spec) Validate(message *Message, mode ValidationMode) (bool, []strin
 		bodylength := BodyLength(message)
 		bodyLenTag, pos := message.Find(9)
 		if pos == -1 {
-			observations = append(observations, fmt.Sprint("Missing bodylength tag [9]"))
+			observations = append(observations, "Missing bodylength tag [9]")
 		} else if got, err := bodyLenTag.AsUint(); err != nil || bodylength != got {
-			observations = append(observations, fmt.Sprint("Bodylength validation failed: want %v, got %v",
+			observations = append(observations, fmt.Sprintf("Bodylength validation failed: want %v, got %v",
 				bodylength, got))
 		}
 	}
@@ -322,12 +322,12 @@ func (spec *Spec) Validate(message *Message, mode ValidationMode) (bool, []strin
 			// Validate the data type
 			if found {
 				if err := validateDtype(field, spec.Fields[field.Tag].Type); err != nil {
-					observations = append(observations, fmt.Sprintf("Data validation failed for %v", field.Tag))	
+					observations = append(observations, fmt.Sprintf("Data validation failed for %v", field.Tag))
 				}
 			} else {
 				observations = append(observations, fmt.Sprintf("Unknown tag %v", field.Tag))
 			}
-		}	
+		}
 	}
 
 	if pos != len(*message) {
@@ -360,13 +360,13 @@ func walkSpec(msg *Message, context Entry, idx int, obs []string) (int, error) {
 
 			for range repeat {
 				// Ensure first tag in group is our anchor tag from spec
-				if anchorPos, found := entry.Lookup[(*msg)[idx + 1].Tag]; !found || anchorPos != 0 {
-					obs = append(obs, fmt.Sprintf("Tag %v immediately following group missing" + 
-						" or not at first position on Group Spec", (*msg)[idx + 1].Tag))
+				if anchorPos, found := entry.Lookup[(*msg)[idx+1].Tag]; !found || anchorPos != 0 {
+					obs = append(obs, fmt.Sprintf("Tag %v immediately following group missing"+
+						" or not at first position on Group Spec", (*msg)[idx+1].Tag))
 				}
 
 				// Recurse for that repeating group
-				idx, err := walkSpec(msg, entry, idx + 1, obs)
+				idx, err := walkSpec(msg, entry, idx+1, obs)
 				if err != nil {
 					return idx, err
 				}
