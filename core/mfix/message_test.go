@@ -103,14 +103,14 @@ func TestMessage_FindFrom(t *testing.T) {
 
 	// Find first
 	f1, i1 := msg.FindFrom(5000, 0)
-	if i1 != 0 || f1.value != "A" {
-		t.Errorf("First find failed: index %d, value %s", i1, f1.value)
+	if i1 != 0 || f1.Value != "A" {
+		t.Errorf("First find failed: index %d, value %s", i1, f1.Value)
 	}
 
 	// Find second
 	f2, i2 := msg.FindFrom(5000, i1+1)
-	if i2 != 2 || f2.value != "B" {
-		t.Errorf("Second find failed: index %d, value %s", i2, f2.value)
+	if i2 != 2 || f2.Value != "B" {
+		t.Errorf("Second find failed: index %d, value %s", i2, f2.Value)
 	}
 }
 
@@ -119,7 +119,7 @@ func TestMessage_FindAll(t *testing.T) {
 	var values []string
 
 	for f := range msg.FindAll(5000) {
-		values = append(values, f.value)
+		values = append(values, f.Value)
 	}
 
 	if len(values) != 2 || values[0] != "A" || values[1] != "B" {

@@ -201,7 +201,7 @@ func (spec *Spec) Sample(msgType string, requiredOnly bool,
 		if !entry.IsGroup {
 			tag, _ := spec.FieldNames[entry.Name]
 			field, _ := spec.Fields[tag]
-			var value string = field.Type
+			var value string = defaultString(field.Type)
 			if len(field.Enums) > 0 {
 				value = field.Enums[0].Enum
 			}
@@ -266,9 +266,9 @@ func (spec *Spec) Validate(message *Message, mode ValidationMode) (bool, []strin
 		checksumTag, pos := message.Find(10)
 		if pos == -1 {
 			observations = append(observations, fmt.Sprint("Missing checksum tag [10]"))
-		} else if want := fmt.Sprintf("%03d", Checksum(message)); want != checksumTag.value {
+		} else if want := fmt.Sprintf("%03d", Checksum(message)); want != checksumTag.Value {
 			observations = append(observations, fmt.Sprintf("Checksum validation failed: want %v, got %v",
-				want, checksumTag.value))
+				want, checksumTag.Value))
 		}
 	}
 
@@ -284,18 +284,112 @@ func (spec *Spec) Validate(message *Message, mode ValidationMode) (bool, []strin
 		}
 	}
 
-	/*
-		msgSpec, ok := spec.Messages[msgType.value]
-		if !ok {
-			observations = append(observations, fmt.Sprintf("Unknown MsgType '35=%v'", msgType.value))
-			return false, observations
-		}
+	msgSpec, ok := spec.Messages[msgType.Value]
+	if !ok {
+		observations = append(observations, fmt.Sprintf("Unknown MsgType '35=%v'", msgType.Value))
+		return false, observations
+	}
 
-		// Ensure all required fields are present
+	// Walk through and validate for entries against header, msg body and trailer
+	var err error
+	pos, err = walkSpec(message, spec.Header, 0, observations)
+	if err != nil {
+		return false, observations
+	}
+	pos, err = walkSpec(message, msgSpec, pos, observations)
+	if err != nil {
+		return false, observations
+	}
+	pos, err = walkSpec(message, spec.Trailer, pos, observations)
+	if err != nil {
+		return false, observations
+	}
+
+	// Validate for types and unknown fields
+	if mode == Strict {
 		for _, field := range *message {
+			var found bool
+			if _, ok := spec.Header.Lookup[field.Tag]; ok {
+				found = true
+			}
+			if _, ok := msgSpec.Lookup[field.Tag]; ok {
+				found = true
+			}
+			if _, ok := spec.Trailer.Lookup[field.Tag]; ok {
+				found = true
+			}
 
-		}
-	*/
+			// Validate the data type
+			if found {
+				if err := validateDtype(field, spec.Fields[field.Tag].Type); err != nil {
+					observations = append(observations, fmt.Sprintf("Data validation failed for %v", field.Tag))	
+				}
+			} else {
+				observations = append(observations, fmt.Sprintf("Unknown tag %v", field.Tag))
+			}
+		}	
+	}
+
+	if pos != len(*message) {
+		observations = append(observations, fmt.Sprintf("Message entry #%v didn't match the spec", pos))
+	}
 
 	return len(observations) == 0, observations
+}
+
+// Returns index just after processing the message for that context
+func walkSpec(msg *Message, context Entry, idx int, obs []string) (int, error) {
+	for idx < len(*msg) {
+		// Get the field and look it up from spec
+		field := (*msg)[idx]
+		pos, exists := context.Lookup[field.Tag]
+		if !exists {
+			break
+		}
+
+		// Get a copy of the entry from spec and mark as visited
+		entry := context.Entries[pos]
+		delete(context.Lookup, field.Tag)
+
+		// If group, recurse into it specified no of times
+		if entry.IsGroup {
+			repeat, err := field.AsUint()
+			if err != nil {
+				return idx, fmt.Errorf("Expected group tag to have integer value, got %v", field.Value)
+			}
+
+			for range repeat {
+				// Ensure first tag in group is our anchor tag from spec
+				if anchorPos, found := entry.Lookup[(*msg)[idx + 1].Tag]; !found || anchorPos != 0 {
+					obs = append(obs, fmt.Sprintf("Tag %v immediately following group missing" + 
+						" or not at first position on Group Spec", (*msg)[idx + 1].Tag))
+				}
+
+				// Recurse for that repeating group
+				idx, err := walkSpec(msg, entry, idx + 1, obs)
+				if err != nil {
+					return idx, err
+				}
+			}
+
+			// Walk spec already updated idx to point just after current scope
+			continue
+		}
+
+		idx++
+	}
+
+	// Check for required tags still pending processing
+	for tag, pos := range context.Lookup {
+		if context.Entries[pos].Required {
+			obs = append(obs, fmt.Sprintf("Missing required field tag [%v]", tag))
+		}
+	}
+
+	// Fail the check if any observations in current context
+	if len(obs) > 0 {
+		return idx, fmt.Errorf("Observed %v issues processing message", len(obs))
+	}
+
+	return idx, nil
 }

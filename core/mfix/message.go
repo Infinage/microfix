@@ -60,7 +60,7 @@ func (msg Message) Find(tag uint16) (Field, int) {
 // Same as Find, but can provide the starting pos to being search
 func (msg Message) FindFrom(tag uint16, start int) (Field, int) {
 	for i := start; i < len(msg); i++ {
-		if msg[i].tag == tag {
+		if msg[i].Tag == tag {
 			return msg[i], i
 		}
 	}
@@ -72,7 +72,7 @@ func (msg Message) FindFrom(tag uint16, start int) (Field, int) {
 func (msg Message) FindAll(tag uint16) iter.Seq[Field] {
 	return func(yield func(Field) bool) {
 		for _, field := range msg {
-			if field.tag == tag {
+			if field.Tag == tag {
 				if !yield(field) {
 					break
 				}
@@ -87,5 +87,5 @@ func (msg Message) Code() (string, error) {
 	if idx == -1 {
 		return "", errors.New("Tag MsgType (35) not found")
 	}
-	return field.value, nil
+	return field.Value, nil
 }

@@ -6,9 +6,9 @@ import (
 )
 
 func TestField_GENERIC_STRING(t *testing.T) {
-	f := Field{value: "Hello"}
-	if f.value != "Hello" {
-		t.Errorf("value = %v, want Hello", f.value)
+	f := Field{Value: "Hello"}
+	if f.Value != "Hello" {
+		t.Errorf("value = %v, want Hello", f.Value)
 	}
 }
 
@@ -23,7 +23,7 @@ func TestField_AMT(t *testing.T) {
 		{"25", 25.0},
 	}
 	for _, tt := range tests {
-		f := Field{value: tt.input}
+		f := Field{Value: tt.input}
 		val, err := f.AsDouble()
 		if err != nil {
 			t.Errorf("AsDouble(%q) unexpected error: %v", tt.input, err)
@@ -35,7 +35,7 @@ func TestField_AMT(t *testing.T) {
 
 	invalid := []string{" 23", "+23", "10.0a", "", ".", "23..", ".23."}
 	for _, val := range invalid {
-		f := Field{value: val}
+		f := Field{Value: val}
 		if _, err := f.AsDouble(); err == nil {
 			t.Errorf("AsDouble(%q) should have failed", val)
 		}
@@ -51,7 +51,7 @@ func TestField_BOOLEAN(t *testing.T) {
 		{"N", false},
 	}
 	for _, tt := range tests {
-		f := Field{value: tt.input}
+		f := Field{Value: tt.input}
 		val, err := f.AsBool()
 		if err != nil {
 			t.Errorf("AsBool(%q) unexpected error: %v", tt.input, err)
@@ -63,7 +63,7 @@ func TestField_BOOLEAN(t *testing.T) {
 
 	invalid := []string{"y", "n", "true", "t", "", "YN", "NY"}
 	for _, val := range invalid {
-		f := Field{value: val}
+		f := Field{Value: val}
 		if _, err := f.AsBool(); err == nil {
 			t.Errorf("AsBool(%q) should have failed", val)
 		}
@@ -79,7 +79,7 @@ func TestField_CHAR(t *testing.T) {
 		{"!", '!'},
 	}
 	for _, tt := range tests {
-		f := Field{value: tt.input}
+		f := Field{Value: tt.input}
 		val, err := f.AsChar()
 		if err != nil {
 			t.Errorf("AsChar(%q) unexpected error: %v", tt.input, err)
@@ -91,7 +91,7 @@ func TestField_CHAR(t *testing.T) {
 
 	invalid := []string{"ab", ""}
 	for _, val := range invalid {
-		f := Field{value: val}
+		f := Field{Value: val}
 		if _, err := f.AsChar(); err == nil {
 			t.Errorf("AsChar(%q) should have failed", val)
 		}
@@ -100,11 +100,11 @@ func TestField_CHAR(t *testing.T) {
 
 func TestField_DATA(t *testing.T) {
 	raw := "\x01\x00\x01\x00\x01\n\r"
-	f := Field{value: raw}
-	if len(f.value) != 7 {
-		t.Errorf("Length = %v, want 7", len(f.value))
+	f := Field{Value: raw}
+	if len(f.Value) != 7 {
+		t.Errorf("Length = %v, want 7", len(f.Value))
 	}
-	if f.value != raw {
+	if f.Value != raw {
 		t.Errorf("Data mismatch")
 	}
 }
@@ -120,7 +120,7 @@ func TestField_INT(t *testing.T) {
 		{"-00023", -23},
 	}
 	for _, tt := range tests {
-		f := Field{value: tt.input}
+		f := Field{Value: tt.input}
 		val, err := f.AsInt()
 		if err != nil {
 			t.Errorf("AsInt(%q) error: %v", tt.input, err)
@@ -132,7 +132,7 @@ func TestField_INT(t *testing.T) {
 
 	invalid := []string{"+23", "23.0", "10a", "", " 23", "999999999999999999999"}
 	for _, val := range invalid {
-		f := Field{value: val}
+		f := Field{Value: val}
 		if _, err := f.AsInt(); err == nil {
 			t.Errorf("AsInt(%q) should have failed", val)
 		}
@@ -140,13 +140,13 @@ func TestField_INT(t *testing.T) {
 }
 
 func TestField_MULTIPLECHARVALUE(t *testing.T) {
-	f1 := Field{value: "2 A F"}
+	f1 := Field{Value: "2 A F"}
 	res1, err := f1.AsCharVector()
 	if err != nil || len(res1) != 3 || res1[0] != '2' || res1[1] != 'A' || res1[2] != 'F' {
 		t.Errorf("AsCharVector('2 A F') failed: %v, error: %v", res1, err)
 	}
 
-	f2 := Field{value: "2"}
+	f2 := Field{Value: "2"}
 	res2, err := f2.AsCharVector()
 	if err != nil || len(res2) != 1 || res2[0] != '2' {
 		t.Errorf("AsCharVector('2') failed: %v", err)
@@ -154,7 +154,7 @@ func TestField_MULTIPLECHARVALUE(t *testing.T) {
 
 	invalid := []string{"2 2", "2 AF", "", "A ", " A", " A ", "a  a", "  "}
 	for _, val := range invalid {
-		f := Field{value: val}
+		f := Field{Value: val}
 		if _, err := f.AsCharVector(); err == nil {
 			t.Errorf("AsCharVector(%q) should have failed", val)
 		}
@@ -163,7 +163,7 @@ func TestField_MULTIPLECHARVALUE(t *testing.T) {
 
 func TestField_MULTIPLESTRINGVALUE(t *testing.T) {
 	// Valid case 1
-	f1 := Field{value: "2 A F"}
+	f1 := Field{Value: "2 A F"}
 	r1, err := f1.AsStringVector()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -173,7 +173,7 @@ func TestField_MULTIPLESTRINGVALUE(t *testing.T) {
 	}
 
 	// Valid case 2
-	f2 := Field{value: "2A"}
+	f2 := Field{Value: "2A"}
 	r2, err := f2.AsStringVector()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -185,7 +185,7 @@ func TestField_MULTIPLESTRINGVALUE(t *testing.T) {
 	// Invalid cases
 	invalid := []string{"AA AA", "", "A ", " A", "a  a", "  "}
 	for _, val := range invalid {
-		f := Field{value: val}
+		f := Field{Value: val}
 		if _, err := f.AsStringVector(); err == nil {
 			t.Errorf("AsStringVector(%q) should have failed", val)
 		}
@@ -193,7 +193,7 @@ func TestField_MULTIPLESTRINGVALUE(t *testing.T) {
 }
 
 func TestField_LOCALMKTDATE(t *testing.T) {
-	f := Field{value: "20240101"}
+	f := Field{Value: "20240101"}
 	got, err := f.AsDate()
 	if err != nil {
 		t.Fatalf("AsDate error: %v", err)
@@ -204,7 +204,7 @@ func TestField_LOCALMKTDATE(t *testing.T) {
 
 	invalid := []string{"20241301", "20241234", "20241234a", "20241210 ", "", "202401", "2024-01-01"}
 	for _, val := range invalid {
-		f := Field{value: val}
+		f := Field{Value: val}
 		if _, err := f.AsDate(); err == nil {
 			t.Errorf("AsDate(%q) should have failed", val)
 		}
@@ -228,7 +228,7 @@ func TestField_TZTIMEONLY(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		f := Field{value: tt.input}
+		f := Field{Value: tt.input}
 		got, err := f.AsTZTime()
 		if err != nil {
 			t.Errorf("AsTZTime(%q) error: %v", tt.input, err)
@@ -245,7 +245,7 @@ func TestField_TZTIMEONLY(t *testing.T) {
 		"2006090113:09:00Z", "20060901-24:00:00Z", "20060901-23:60:00Z"}
 
 	for _, val := range invalid {
-		f := Field{value: val}
+		f := Field{Value: val}
 		if _, err := f.AsTZTime(); err == nil {
 			t.Errorf("AsTZTime(%q) should have failed", val)
 		}
@@ -267,7 +267,7 @@ func TestField_TZTIMESTAMP(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		f := Field{value: tt.input}
+		f := Field{Value: tt.input}
 		got, err := f.AsTZTimestamp()
 		if err != nil {
 			t.Errorf("AsTZTimestamp(%q) error: %v", tt.input, err)
@@ -282,7 +282,7 @@ func TestField_TZTIMESTAMP(t *testing.T) {
 
 	invalid := []string{"20060901-07:39:00", "", "20060901", "20060901T07:39:00Z"}
 	for _, val := range invalid {
-		f := Field{value: val}
+		f := Field{Value: val}
 		if _, err := f.AsTZTimestamp(); err == nil {
 			t.Errorf("AsTZTimestamp(%q) should have failed", val)
 		}

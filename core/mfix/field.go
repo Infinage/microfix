@@ -11,13 +11,13 @@ import (
 
 // Base struct for entire fix
 type Field struct {
-	tag   uint16
-	value string
+	Tag   uint16
+	Value string
 }
 
-// Helper to write to string (Internal)
+// Helper to write to string (internal)
 func (f *Field) string() string {
-	return strconv.Itoa(int(f.tag)) + "=" + f.value
+	return strconv.Itoa(int(f.Tag)) + "=" + f.Value
 }
 
 // Support FIX's custom monthyear struct
@@ -31,50 +31,50 @@ type MonthYear struct {
 // Convert to int64, explictly disallow numbers starting with '+'
 func (f *Field) AsInt() (int64, error) {
 	switch {
-	case len(f.value) == 0:
+	case len(f.Value) == 0:
 		return 0, errors.New("Empty string")
-	case f.value[0] != '-' && !(f.value[0] >= '0' && f.value[0] <= '9'):
+	case f.Value[0] != '-' && !(f.Value[0] >= '0' && f.Value[0] <= '9'):
 		return 0, errors.New("Must start with a digit or -ve sign")
 	default:
-		return strconv.ParseInt(f.value, 10, 64)
+		return strconv.ParseInt(f.Value, 10, 64)
 	}
 }
 
 // Convert to uint64, explictly disallow numbers starting with '+'
 func (f *Field) AsUint() (uint64, error) {
 	switch {
-	case len(f.value) == 0:
+	case len(f.Value) == 0:
 		return 0, errors.New("Empty string")
-	case !(f.value[0] >= '0' && f.value[0] <= '9'):
+	case !(f.Value[0] >= '0' && f.Value[0] <= '9'):
 		return 0, errors.New("Must start with a digit")
 	default:
-		return strconv.ParseUint(f.value, 10, 64)
+		return strconv.ParseUint(f.Value, 10, 64)
 	}
 }
 
 // Convert to float64
 func (f *Field) AsDouble() (float64, error) {
 	switch {
-	case len(f.value) == 0:
+	case len(f.Value) == 0:
 		return 0, errors.New("Empty string")
-	case f.value[0] != '-' && !(f.value[0] >= '0' && f.value[0] <= '9'):
+	case f.Value[0] != '-' && !(f.Value[0] >= '0' && f.Value[0] <= '9'):
 		return 0, errors.New("Must start with a digit or -ve sign")
 	default:
-		return strconv.ParseFloat(f.value, 64)
+		return strconv.ParseFloat(f.Value, 64)
 	}
 }
 
 // Single character only
 func (f *Field) AsChar() (rune, error) {
-	if utf8.RuneCountInString(f.value) != 1 {
+	if utf8.RuneCountInString(f.Value) != 1 {
 		return 0, errors.New("Field value contains multiple chars")
 	}
-	return rune(f.value[0]), nil
+	return rune(f.Value[0]), nil
 }
 
 // Input can be 'Y' or 'N'
 func (f *Field) AsBool() (bool, error) {
-	switch f.value {
+	switch f.Value {
 	case "Y":
 		return true, nil
 	case "N":
@@ -86,14 +86,14 @@ func (f *Field) AsBool() (bool, error) {
 
 // Space seperated unique list of characters
 func (f *Field) AsCharVector() ([]rune, error) {
-	length := utf8.RuneCountInString(f.value)
+	length := utf8.RuneCountInString(f.Value)
 	if length == 0 || length%2 == 0 {
 		return nil, errors.New("Empty string or contains even no of chars")
 	}
 
 	var uniq = make(map[rune]any)
 	var res = make([]rune, 0, length)
-	for i, ch := range f.value {
+	for i, ch := range f.Value {
 		switch {
 		case i%2 == 1 && ch != ' ':
 			return res, fmt.Errorf("Expected whitespace (%v) @ %v, got '%v' (%v)", ' ', i, string(ch), ch)
@@ -111,12 +111,12 @@ func (f *Field) AsCharVector() ([]rune, error) {
 
 // Space seperated list of unique strings
 func (f *Field) AsStringVector() ([]string, error) {
-	if len(f.value) == 0 {
+	if len(f.Value) == 0 {
 		return nil, errors.New("Empty string or contains even no of chars")
 	}
 
 	var uniq = make(map[string]any)
-	res := strings.Split(f.value, " ")
+	res := strings.Split(f.Value, " ")
 	for _, tok := range res {
 		if tok == "" {
 			return nil, errors.New("invalid spacing")
@@ -132,17 +132,17 @@ func (f *Field) AsStringVector() ([]string, error) {
 
 // Format: yyyyMMdd
 func (f *Field) AsDate() (time.Time, error) {
-	return time.Parse("20060102", f.value)
+	return time.Parse("20060102", f.Value)
 }
 
 // Format: HH:MM:SS or HH:MM:SS.mmm
 func (f *Field) AsTime() (time.Time, error) {
-	return time.Parse("15:04:05", f.value)
+	return time.Parse("15:04:05", f.Value)
 }
 
 // Format: HH:MM[:ss][Z|[+|–hh[:mm]]]
 func (f *Field) AsTZTime() (time.Time, error) {
-	val := f.value
+	val := f.Value
 	if val == "" {
 		return time.Time{}, errors.New("empty time string")
 	}
@@ -198,7 +198,7 @@ func (f *Field) AsTZTime() (time.Time, error) {
 
 // Format: yyyyMMdd-HH:mm:ss[.SSS][Z|[+|–hh[:oo]]]
 func (f *Field) AsTZTimestamp() (time.Time, error) {
-	val := f.value
+	val := f.Value
 	layout := "20060102-15:04:05"
 
 	// Handle sub-seconds
@@ -225,7 +225,7 @@ func (f *Field) AsTZTimestamp() (time.Time, error) {
 
 // Format: YYYYMMDD or YYYYMMWW (W = 1-5)
 func (f *Field) AsMonthYear() (MonthYear, error) {
-	val, res := f.value, MonthYear{}
+	val, res := f.Value, MonthYear{}
 
 	if len(val) < 6 {
 		return res, errors.New("invalid MonthYear length")
