@@ -431,3 +431,54 @@ func TestValidate_FromString(t *testing.T) {
 		}
 	})
 }
+
+func TestValidate_GroupOrdering(t *testing.T) {
+	spec, _ := LoadSpec("FIXT11.xml")
+
+	// Generate a message with a group (e.g., HopGrp in Header)
+	// NoHops(627) -> HopCompID(628), HopSendingTime(629), HopRefID(630)
+	logon, _ := spec.Sample("0", false, map[uint16]int{627: 2})
+
+	// Find the member tags and swap them manually to break the order
+	var _, pos628 = logon.Find(628)
+	var _, pos629 = logon.Find(629)
+	if pos628 == -1 || pos629 == -1 {
+		t.Fatal("Tag 628, 629 not found in the sampled message")
+	}
+
+	// Swap first 628 and 629, finalize not required
+	t.Run("InvalidAnchorTag", func(t *testing.T) {
+		msg := slices.Clone(logon)
+		msg[pos628], msg[pos629] = msg[pos629], msg[pos628]
+		ok, obs := spec.Validate(&msg, Strict)
+		if ok {
+			t.Error("Validation should fail when group members are out of order")
+		} else {
+			found := slices.ContainsFunc(obs, func(ob string) bool {
+				return strings.Contains(ob, "Tag 629 immediately following groupno missing or not at first position")
+			})
+			if !found {
+				t.Errorf("Expected error not found in observations, got: %v", strings.Join(obs, "; "))
+			}
+		}
+	})
+
+	// Swap second 628 and 629, finalize not required
+	t.Run("RepeatingGroupOrderMismatch", func(t *testing.T) {
+		msg := slices.Clone(logon)
+		_, pos628 = msg.FindFrom(628, pos628+1)
+		_, pos629 = msg.FindFrom(629, pos629+1)
+		msg[pos628], msg[pos629] = msg[pos629], msg[pos628]
+		ok, obs := spec.Validate(&msg, Strict)
+		if ok {
+			t.Error("Validation should fail when group members are out of order")
+		} else {
+			found := slices.ContainsFunc(obs, func(ob string) bool {
+				return strings.Contains(ob, "Expected group #2 entry #1 to be 628")
+			})
+			if !found {
+				t.Errorf("Expected error not found in observations, got: %v", strings.Join(obs, "; "))
+			}
+		}
+	})
+}

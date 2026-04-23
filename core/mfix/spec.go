@@ -396,21 +396,39 @@ func walkSpec(msg *Message, context Entry, idx int, obs *[]string,
 				return idx, err
 			}
 
-			for range repeat {
-				// Ensure first tag in group is our anchor tag from spec
-				if idx+1 < len(*msg) {
-					nextTag := (*msg)[idx+1].Tag
-					if anchorPos, found := entry.Lookup[nextTag]; !found || anchorPos != 0 {
-						*obs = append(*obs, fmt.Sprintf("Tag %v immediately following group missing"+
-							" or not at first position on Group Spec", (*msg)[idx+1].Tag))
-					}
-				}
+			// Preserve the group order across repeating groups
+			var group1Start, groupSize = idx + 1, -1
 
+			for gi := range repeat {
 				// Recurse for that repeating group
 				idx, err = walkSpec(msg, entry, idx+1, obs, fields, mode)
 				if err != nil {
 					return idx, err
 				}
+
+				// For the first repeating group
+				if groupSize == -1 {
+					// Store the begin and end indices of a group
+					groupSize = idx - group1Start
+
+					// Ensure first tag in group is our anchor tag from spec
+					anchorTag := (*msg)[group1Start].Tag
+					if anchorPos, found := entry.Lookup[anchorTag]; !found || anchorPos != 0 {
+						*obs = append(*obs, fmt.Sprintf("Tag %v immediately following groupno missing"+
+							" or not at first position on Group Spec", (*msg)[idx+1].Tag))
+					}
+				} else if mode == Strict {
+					// Validate the ordering for second repeating group onwards
+					groupStart := group1Start + (int(gi) * groupSize)
+					for i := range groupSize {
+						g0, g := (*msg)[group1Start+i], (*msg)[groupStart+i]
+						if g0 != g {
+							*obs = append(*obs, fmt.Sprintf("Expected group #%v entry #%v to be %v, had %v",
+								gi+1, i+1, g0.Tag, g.Tag))
+						}
+					}
+				}
+
 			}
 
 			// Walk spec already updated idx to point just after current scope
