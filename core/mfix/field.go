@@ -143,8 +143,12 @@ func (f *Field) AsTime() (time.Time, error) {
 // Format: HH:MM[:ss][Z|[+|–hh[:mm]]]
 func (f *Field) AsTZTime() (time.Time, error) {
 	val := f.Value
-	if val == "" {
-		return time.Time{}, errors.New("empty time string")
+	layout := "15:04"
+
+	// Fail eary if size mismatch
+	size := utf8.RuneCountInString(val)
+	if size < 5 {
+		return time.Time{}, fmt.Errorf("TZTime must be atleast 5 chars, got %d", size)
 	}
 
 	// Explicitly check for milliseconds
@@ -152,28 +156,23 @@ func (f *Field) AsTZTime() (time.Time, error) {
 		return time.Time{}, errors.New("milliseconds not supported in TZTime")
 	}
 
-	var layout string
-	hasZ := strings.HasSuffix(val, "Z")
-	hasOffset := strings.ContainsAny(val, "+-")
-	if !hasZ && !hasOffset {
-		return time.Time{}, errors.New("TZTime requires Z or offset")
+	// Handle optional seconds
+	if size > 5 && val[5] == ':' {
+		layout += ":05"
 	}
 
-	// Determine base layout (HH:MM:SS vs HH:MM)
-	// count colons to see if we have seconds
-	colons := strings.Count(val, ":")
-	base := "15:04"
-	if colons >= 2 {
-		base = "15:04:05"
+	// Handle Zulu
+	if strings.HasSuffix(val, "Z") {
+		return time.Parse(layout+"Z", val)
 	}
 
-	// Append the correct Zone directive
-	if hasZ {
-		layout = base + "Z"
-	} else if offset := val[strings.LastIndexAny(val, "+-"):]; strings.Count(offset, ":") > 0 {
-		layout = base + "Z07:00"
-	} else {
-		layout = base + "Z07"
+	// Handle Offset - Detect if there's a colon in the offset portion
+	// We look at the part after the time (which ends at index 17 or more)
+	idx := strings.LastIndexAny(val, "+-")
+	if idx != -1 && strings.Contains(val[idx:], ":") {
+		layout += "Z07:00"
+	} else if idx != -1 {
+		layout += "Z07"
 	}
 
 	t, err := time.Parse(layout, val)
@@ -201,6 +200,11 @@ func (f *Field) AsTZTimestamp() (time.Time, error) {
 	val := f.Value
 	layout := "20060102-15:04:05"
 
+	// Fail early if size mismatch
+	if size := utf8.RuneCountInString(val); size < 17 {
+		return time.Time{}, fmt.Errorf("Timestamp must atleast have 17 chars, got %d", size)
+	}
+
 	// Handle sub-seconds
 	if strings.Contains(val, ".") {
 		layout += ".000"
@@ -213,10 +217,10 @@ func (f *Field) AsTZTimestamp() (time.Time, error) {
 
 	// Handle Offset - Detect if there's a colon in the offset portion
 	// We look at the part after the time (which ends at index 17 or more)
-	idx := strings.LastIndexAny(val, "+-")
-	if idx != -1 && strings.Contains(val[idx:], ":") {
+	idx := strings.LastIndexAny(val[17:], "+-")
+	if idx != -1 && strings.Contains(val[17 + idx:], ":") {
 		layout += "Z07:00"
-	} else {
+	} else if idx != -1 {
 		layout += "Z07"
 	}
 
