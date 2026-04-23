@@ -102,7 +102,7 @@ func TestFIXT11DeepValidation(t *testing.T) {
 		t.Error("Missing BeginString or HopGrp in Header")
 	}
 
-	// 3. Message Validation: Logon (MsgType=A)
+	// Message Validation: Logon (MsgType=A)
 	var logon *messageDef
 	for _, m := range raw.Messages {
 		if m.MsgType == "A" {
@@ -126,7 +126,7 @@ func TestFIXT11DeepValidation(t *testing.T) {
 		t.Error("Logon message missing required field: EncryptMethod")
 	}
 
-	// 4. Nested Component & Group Validation (HopGrp -> NoHops -> HopCompID)
+	// Nested Component & Group Validation (HopGrp -> NoHops -> HopCompID)
 	var hopGrp *componentDef
 	for _, c := range raw.Components {
 		if c.Name == "HopGrp" {
@@ -149,7 +149,7 @@ func TestFIXT11DeepValidation(t *testing.T) {
 		t.Errorf("NoHops group missing nested field 'HopCompID' or tag type is wrong")
 	}
 
-	// 5. Field Definitions and Enums: MsgType (Tag 35)
+	// Field Definitions and Enums: MsgType (Tag 35)
 	var msgTypeField *FieldDef
 	for _, f := range raw.Fields {
 		if f.Number == 35 {
@@ -159,6 +159,9 @@ func TestFIXT11DeepValidation(t *testing.T) {
 	}
 	if msgTypeField == nil {
 		t.Fatal("Field 35 (MsgType) definition missing")
+	}
+	if msgTypeField.Name != "MsgType" || msgTypeField.Type != "STRING" {
+		t.Errorf("Field 35 must have Name, Type set to 'MsgType' and 'STRING'")
 	}
 
 	foundHeartbeat := false

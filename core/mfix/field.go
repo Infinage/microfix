@@ -218,7 +218,7 @@ func (f *Field) AsTZTimestamp() (time.Time, error) {
 	// Handle Offset - Detect if there's a colon in the offset portion
 	// We look at the part after the time (which ends at index 17 or more)
 	idx := strings.LastIndexAny(val[17:], "+-")
-	if idx != -1 && strings.Contains(val[17 + idx:], ":") {
+	if idx != -1 && strings.Contains(val[17+idx:], ":") {
 		layout += "Z07:00"
 	} else if idx != -1 {
 		layout += "Z07"

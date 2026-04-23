@@ -2,6 +2,7 @@ package mfix
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"strconv"
 )
@@ -178,6 +179,36 @@ func compileEntries(message []specEntry, components map[string]*componentContext
 	return result, nil
 }
 
+// Add MessageType, Checksum and Bodylength if missing or update it
+func (spec *Spec) Finalize(msg *Message, msgTypeVal string) {
+	if _, required := spec.Header.Lookup[9]; required {
+		field := Field{9, fmt.Sprint(BodyLength(msg))}
+		if _, pos := msg.Find(9); pos != -1 {
+			(*msg)[pos] = field
+		} else {
+			*msg = slices.Insert(*msg, 1, field)
+		}
+	}
+
+	if _, required := spec.Header.Lookup[35]; required {
+		field := Field{35, msgTypeVal}
+		if _, pos := msg.Find(35); pos != -1 {
+			(*msg)[pos] = field
+		} else {
+			*msg = slices.Insert(*msg, min(2, len(*msg)), field)
+		}
+	}
+
+	if _, required := spec.Trailer.Lookup[10]; required {
+		field := Field{10, fmt.Sprintf("%03d", Checksum(msg))}
+		if _, pos := msg.Find(10); pos != -1 {
+			(*msg)[pos] = field
+		} else {
+			*msg = slices.Insert(*msg, len(*msg)-1, field)
+		}
+	}
+}
+
 func (spec *Spec) Field(tag uint16) (FieldDef, error) {
 	res, ok := spec.Fields[tag]
 	if !ok {
@@ -208,7 +239,7 @@ func (spec *Spec) Sample(msgType string, requiredOnly bool,
 			*msg = append(*msg, Field{tag, value})
 		} else {
 			tag, _ := spec.FieldNames[entry.Name]
-			var repeat int
+			var repeat int = 1
 			if count, ok := (*groupCountOverides)[tag]; ok {
 				repeat = count
 			}
@@ -229,12 +260,16 @@ func (spec *Spec) Sample(msgType string, requiredOnly bool,
 		return result, fmt.Errorf("MsgType [%v] not found in spec", msgType)
 	}
 
+	// Add the message body and trailer
 	for _, entry := range slices.Concat(spec.Header.Entries, msgSpec.Entries, spec.Trailer.Entries) {
 		err := addEntry(&result, entry, requiredOnly, &groupCountOverides)
 		if err != nil {
 			return result, err
 		}
 	}
+
+	// Add msgtype, bodylen and checksum if required
+	spec.Finalize(&result, msgType)
 
 	return result, nil
 }
@@ -292,42 +327,17 @@ func (spec *Spec) Validate(message *Message, mode ValidationMode) (bool, []strin
 
 	// Walk through and validate for entries against header, msg body and trailer
 	var err error
-	pos, err = walkSpec(message, spec.Header, 0, observations)
+	pos, err = walkSpec(message, spec.Header, 0, &observations, spec.Fields, mode)
 	if err != nil {
 		return false, observations
 	}
-	pos, err = walkSpec(message, msgSpec, pos, observations)
+	pos, err = walkSpec(message, msgSpec, pos, &observations, spec.Fields, mode)
 	if err != nil {
 		return false, observations
 	}
-	pos, err = walkSpec(message, spec.Trailer, pos, observations)
+	pos, err = walkSpec(message, spec.Trailer, pos, &observations, spec.Fields, mode)
 	if err != nil {
 		return false, observations
-	}
-
-	// Validate for types and unknown fields
-	if mode == Strict {
-		for _, field := range *message {
-			var found bool
-			if _, ok := spec.Header.Lookup[field.Tag]; ok {
-				found = true
-			}
-			if _, ok := msgSpec.Lookup[field.Tag]; ok {
-				found = true
-			}
-			if _, ok := spec.Trailer.Lookup[field.Tag]; ok {
-				found = true
-			}
-
-			// Validate the data type
-			if found {
-				if err := validateDtype(field, spec.Fields[field.Tag].Type); err != nil {
-					observations = append(observations, fmt.Sprintf("Data validation failed for %v", field.Tag))
-				}
-			} else {
-				observations = append(observations, fmt.Sprintf("Unknown tag %v", field.Tag))
-			}
-		}
 	}
 
 	if pos != len(*message) {
@@ -338,35 +348,66 @@ func (spec *Spec) Validate(message *Message, mode ValidationMode) (bool, []strin
 }
 
 // Returns index just after processing the message for that context
-func walkSpec(msg *Message, context Entry, idx int, obs []string) (int, error) {
+func walkSpec(msg *Message, context Entry, idx int, obs *[]string,
+	fields map[uint16]FieldDef, mode ValidationMode) (int, error) {
+
+	// Clone the original so we don't end up modifying it
+	localLookup := maps.Clone(context.Lookup)
+
 	for idx < len(*msg) {
 		// Get the field and look it up from spec
 		field := (*msg)[idx]
-		pos, exists := context.Lookup[field.Tag]
+		pos, exists := localLookup[field.Tag]
+
 		if !exists {
+			// If unknown field we can skip processing it
+			if _, knownField := fields[field.Tag]; !knownField {
+				if mode == Strict {
+					*obs = append(*obs, fmt.Sprintf("Unknown tag [%v]", field.Tag))
+				}
+				idx++
+				continue
+			}
+
+			// If known field, either we are in the wrong context (group has ended)
+			// or message is malformed and we have to stop short
+			// We would assert that we have processed all entries and would fail
+			// validation in this scenario in 'Validate()'
 			break
 		}
 
 		// Get a copy of the entry from spec and mark as visited
 		entry := context.Entries[pos]
-		delete(context.Lookup, field.Tag)
+		delete(localLookup, field.Tag)
+
+		// Validate data type
+		if mode == Strict {
+			if err := validateDtype(field, fields[field.Tag].Type); err != nil {
+				*obs = append(*obs, fmt.Sprintf("Datatype validation failed for tag [%v]", field.Tag))
+			}
+		}
 
 		// If group, recurse into it specified no of times
 		if entry.IsGroup {
 			repeat, err := field.AsUint()
 			if err != nil {
-				return idx, fmt.Errorf("Expected group tag to have integer value, got %v", field.Value)
+				err = fmt.Errorf("Expected group tag to have integer value, got %v", field.Value)
+				*obs = append(*obs, err.Error())
+				return idx, err
 			}
 
 			for range repeat {
 				// Ensure first tag in group is our anchor tag from spec
-				if anchorPos, found := entry.Lookup[(*msg)[idx+1].Tag]; !found || anchorPos != 0 {
-					obs = append(obs, fmt.Sprintf("Tag %v immediately following group missing"+
-						" or not at first position on Group Spec", (*msg)[idx+1].Tag))
+				if idx+1 < len(*msg) {
+					nextTag := (*msg)[idx+1].Tag
+					if anchorPos, found := entry.Lookup[nextTag]; !found || anchorPos != 0 {
+						*obs = append(*obs, fmt.Sprintf("Tag %v immediately following group missing"+
+							" or not at first position on Group Spec", (*msg)[idx+1].Tag))
+					}
 				}
 
 				// Recurse for that repeating group
-				idx, err := walkSpec(msg, entry, idx+1, obs)
+				idx, err = walkSpec(msg, entry, idx+1, obs, fields, mode)
 				if err != nil {
 					return idx, err
 				}
@@ -380,15 +421,15 @@ func walkSpec(msg *Message, context Entry, idx int, obs []string) (int, error) {
 	}
 
 	// Check for required tags still pending processing
-	for tag, pos := range context.Lookup {
+	for tag, pos := range localLookup {
 		if context.Entries[pos].Required {
-			obs = append(obs, fmt.Sprintf("Missing required field tag [%v]", tag))
+			*obs = append(*obs, fmt.Sprintf("Missing required field tag [%v]", tag))
 		}
 	}
 
 	// Fail the check if any observations in current context
-	if len(obs) > 0 {
-		return idx, fmt.Errorf("Observed %v issues processing message", len(obs))
+	if len(*obs) > 0 {
+		return idx, fmt.Errorf("Observed %v issues processing message", len(*obs))
 	}
 
 	return idx, nil

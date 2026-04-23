@@ -55,15 +55,18 @@ type rawSpec struct {
 	Fields     []FieldDef     `xml:"fields>field"`
 }
 
+// Struct for `<field><value/></field>`
+type EnumDef struct {
+	Enum        string `xml:"enum,attr"`
+	Description string `xml:"description,attr"`
+}
+
 // Struct for `<fields><field/><field>`
 type FieldDef struct {
-	Number int    `xml:"number,attr"`
-	Name   string `xml:"name,attr"`
-	Type   string `xml:"type,attr"`
-	Enums  []struct {
-		Enum        string `xml:"enum,attr"`
-		Description string `xml:"description,attr"`
-	} `xml:"value"`
+	Number int       `xml:"number,attr"`
+	Name   string    `xml:"name,attr"`
+	Type   string    `xml:"type,attr"`
+	Enums  []EnumDef `xml:"value"`
 }
 
 //go:embed spec/*.xml
