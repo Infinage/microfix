@@ -59,7 +59,10 @@ func TestValidateDtypeEdges(t *testing.T) {
 }
 
 func TestValidate_HappyPath(t *testing.T) {
-	spec, _ := LoadSpec("FIXT11.xml")
+	spec, err := LoadSpec("FIXT11.xml")
+	if err != nil {
+		t.Fatal("Failed to load spec")
+	}
 
 	t.Run("SampleAndStrictValidate", func(t *testing.T) {
 		// Generate a valid message with all optional fields
@@ -83,8 +86,8 @@ func TestValidate_CorruptedMessages(t *testing.T) {
 		msg, _ := spec.Sample("0", true, nil)
 
 		// Corrupt the checksum (Tag 10)
-		if _, pos := msg.Find(10); pos != -1 {
-			msg[pos].Value = "999"
+		if !msg.Set(10, "999") {
+			t.Error("Checksum tag [10] missing in sampled Heartbeat")
 		}
 
 		ok, obs := spec.Validate(&msg, Basic)
@@ -105,8 +108,8 @@ func TestValidate_CorruptedMessages(t *testing.T) {
 		msg, _ := spec.Sample("0", true, nil)
 
 		// Corrupt BodyLength (Tag 9)
-		if _, pos := msg.Find(9); pos != -1 {
-			msg[pos].Value = "0"
+		if !msg.Set(9, "0") {
+			t.Error("BodyLength tag [9] missing in sampled Heartbeat")
 		}
 
 		ok, obs := spec.Validate(&msg, Basic)
@@ -161,9 +164,7 @@ func TestValidate_DataTypeAndUnknownTags(t *testing.T) {
 		msg, _ := spec.Sample("A", true, nil)
 
 		// HeartBtInt (Tag 108) is an INT. Let's put a string.
-		if _, pos := msg.Find(108); pos != -1 {
-			msg[pos].Value = "ABC"
-		} else {
+		if !msg.Set(108, "ABC") {
 			t.Fatal("Missing tag from Logon [108]")
 		}
 
@@ -252,8 +253,8 @@ func TestValidate_GroupOrdering(t *testing.T) {
 	logon, _ := spec.Sample("0", false, map[uint16]int{627: 2})
 
 	// Find the member tags and swap them manually to break the order
-	var _, pos628 = logon.Find(628)
-	var _, pos629 = logon.Find(629)
+	var _, pos628 = logon.FindFrom(628, 0)
+	var _, pos629 = logon.FindFrom(629, 0)
 	if pos628 == -1 || pos629 == -1 {
 		t.Fatal("Tag 628, 629 not found in the sampled message")
 	}

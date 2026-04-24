@@ -22,12 +22,12 @@ func TestSample(t *testing.T) {
 		}
 
 		// Check for a required field
-		if _, pos := msg.Find(98); pos == -1 {
+		if _, ok := msg.Get(98); !ok {
 			t.Error("Required field 98 (EncryptMethod) missing from sample")
 		}
 
 		// Check that optional field is missing
-		if _, pos := msg.Find(553); pos != -1 {
+		if _, ok := msg.Get(553); ok {
 			t.Error("Optional field 553 (Username) should not be present in requiredOnly sample")
 		}
 	})
@@ -46,9 +46,9 @@ func TestSample(t *testing.T) {
 		}
 
 		// Counter tag check
-		countField, pos := msg.Find(384)
-		if pos == -1 || countField.Value != "2" {
-			t.Errorf("Expected NoMsgTypes(384) to be 2, got %v", countField.Value)
+		countField, ok := msg.Get(384)
+		if !ok || countField != "2" {
+			t.Errorf("Expected NoMsgTypes(384) to be 2, got %v", countField)
 		}
 
 		// Children check: RefMsgType(372) should appear twice
@@ -105,12 +105,10 @@ func TestSample(t *testing.T) {
 		}
 
 		// EncryptMethod (98) has enums. 0 = NONE_OTHER.
-		field, pos := msg.Find(98)
-		if pos == -1 {
+		if encMethod, ok := msg.Get(98); !ok {
 			t.Fatal("Tag 98 missing")
-		}
-		if field.Value != "0" {
-			t.Errorf("Expected first enum value '0', got %v", field.Value)
+		} else if encMethod != "0" {
+			t.Errorf("Expected first enum value '0', got %v", encMethod)
 		}
 	})
 }

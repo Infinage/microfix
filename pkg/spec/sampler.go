@@ -118,29 +118,23 @@ func (spec *Spec) Sample(msgType string, requiredOnly bool,
 // Add MessageType, Checksum and Bodylength if missing or update it
 func (spec *Spec) Finalize(msg *message.Message, msgTypeVal string) {
 	if _, required := spec.Header.Lookup[9]; required {
-		field := message.Field{Tag: 9, Value: fmt.Sprint(msg.BodyLength())}
-		if _, pos := msg.Find(9); pos != -1 {
-			(*msg)[pos] = field
-		} else {
-			*msg = slices.Insert(*msg, 1, field)
+		if bodyLen := fmt.Sprint(msg.BodyLength()); !msg.Set(9, bodyLen) {
+			field := message.Field{Tag: 9, Value: bodyLen}
+			msg.Insert(1, field)
 		}
 	}
 
 	if _, required := spec.Header.Lookup[35]; required {
-		field := message.Field{Tag: 35, Value: msgTypeVal}
-		if _, pos := msg.Find(35); pos != -1 {
-			(*msg)[pos] = field
-		} else {
-			*msg = slices.Insert(*msg, min(2, len(*msg)), field)
+		if !msg.Set(35, msgTypeVal) {
+			field := message.Field{Tag: 35, Value: msgTypeVal}
+			msg.Insert(min(2, len(*msg)), field)
 		}
 	}
 
 	if _, required := spec.Trailer.Lookup[10]; required {
-		field := message.Field{Tag: 10, Value: fmt.Sprintf("%03d", msg.Checksum())}
-		if _, pos := msg.Find(10); pos != -1 {
-			(*msg)[pos] = field
-		} else {
-			*msg = slices.Insert(*msg, len(*msg)-1, field)
+		if checksum := fmt.Sprintf("%03d", msg.Checksum()); !msg.Set(10, checksum) {
+			field := message.Field{Tag: 10, Value: checksum}
+			msg.Insert(len(*msg)-1, field)
 		}
 	}
 }

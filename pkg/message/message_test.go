@@ -17,13 +17,11 @@ func TestMessage_BasicOps(t *testing.T) {
 		t.Errorf("Expected length 4, got %d", len(msg))
 	}
 
-	_, idx := msg.Find(35)
-	if idx == -1 {
+	if _, ok := msg.Get(35); !ok {
 		t.Error("Expected to find tag 35")
 	}
 
-	_, idx = msg.Find(999)
-	if idx != -1 {
+	if _, ok := msg.Get(999); ok {
 		t.Error("Did not expect to find tag 999")
 	}
 
@@ -125,6 +123,109 @@ func TestMessage_FindAll(t *testing.T) {
 	if len(values) != 2 || values[0] != "A" || values[1] != "B" {
 		t.Errorf("FindAll got %v, want %v", values, [2]string{"A", "B"})
 	}
+}
+
+func TestMessage_ModifyViaFind(t *testing.T) {
+	t.Run("Modify via FindFrom", func(t *testing.T) {
+		msg := Message{{1, "Original"}, {2, "Stay"}}
+
+		f, i := msg.FindFrom(1, 0)
+		if i == -1 {
+			t.Fatal("Tag 1 not found")
+		}
+
+		// Direct modification of the pointed-to field
+		f.Value = "Modified"
+
+		// Verify via Get
+		val, _ := msg.Get(1)
+		if val != "Modified" {
+			t.Errorf("Expected Modified, got %s", val)
+		}
+	})
+
+	t.Run("Bulk Modify via FindAll", func(t *testing.T) {
+		// Scenario: Update all 'PartyRole' tags in one pass
+		msg := Message{
+			{452, "1"},
+			{55, "MSFT"},
+			{452, "2"},
+		}
+
+		// Use the iterator to modify every instance of tag 452
+		for f := range msg.FindAll(452) {
+			f.Value = "99"
+		}
+
+		// Verify modification
+		if msg[0].Value != "99" || msg[2].Value != "99" {
+			t.Errorf("Tag 452 not modified, got %s,%s", msg[0].Value, msg[1].Value)
+		}
+	})
+}
+
+func TestMessage_Set(t *testing.T) {
+	msg := Message{
+		{8, "FIX.4.4"},
+		{35, "A"},
+		{34, "1"},
+		{49, "OLD_SENDER"},
+		{34, "2"}, // Duplicate tag to test "first match" logic
+	}
+
+	t.Run("Successful Update", func(t *testing.T) {
+		if ok := msg.Set(49, "NEW_SENDER"); !ok {
+			t.Error("Set returned false for existing tag 49")
+		}
+		if val, _ := msg.Get(49); val != "NEW_SENDER" {
+			t.Errorf("Expected NEW_SENDER, got %s", val)
+		}
+	})
+
+	t.Run("Missing Tag", func(t *testing.T) {
+		if ok := msg.Set(999, "VOID"); ok {
+			t.Error("Set returned true for non-existent tag 999")
+		}
+	})
+
+	t.Run("Modify First Match Only", func(t *testing.T) {
+		// Tag 34 exists twice. Set should only touch the first one.
+		msg.Set(34, "100")
+
+		if msg[2].Value != "100" {
+			t.Errorf("First instance of 34 not updated. Got %s", msg[2].Value)
+		}
+		if msg[4].Value != "2" {
+			t.Errorf("Second instance of 34 was incorrectly updated. Got %s", msg[4].Value)
+		}
+	})
+}
+
+func TestMessage_Insert(t *testing.T) {
+	t.Run("Insert at Start", func(t *testing.T) {
+		msg := Message{{Tag: 35, Value: "A"}}
+		msg.Insert(0, Field{Tag: 8, Value: "FIX.4.4"})
+
+		if msg[0].Tag != 8 || msg[1].Tag != 35 {
+			t.Errorf("Expected [8, 35], got [%d, %d]", msg[0].Tag, msg[1].Tag)
+		}
+	})
+
+	t.Run("Insert in Middle", func(t *testing.T) {
+		msg := Message{{Tag: 8, Value: "FIX.4.4"}, {Tag: 35, Value: "A"}}
+		msg.Insert(1, Field{Tag: 9, Value: "100"})
+		if msg[1].Tag != 9 {
+			t.Errorf("Expected tag 9 at index 1, got %d", msg[1].Tag)
+		}
+	})
+
+	t.Run("Insert Out of Bounds (Append)", func(t *testing.T) {
+		msg := Message{{Tag: 8, Value: "FIX.4.4"}}
+		msg.Insert(99, Field{Tag: 10, Value: "123"})
+		if msg[1].Tag != 10 {
+			t.Errorf("Expected tag 10 to be appended at end, got %d", msg[1].Tag)
+		}
+	})
 }
 
 func TestMessageFromString_Valid(t *testing.T) {

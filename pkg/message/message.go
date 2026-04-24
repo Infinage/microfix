@@ -43,37 +43,74 @@ func MessageFromString(raw string, sep string) (Message, error) {
 }
 
 // Serialize to string in the Wire Format
-func (msg Message) String(sep string) string {
+func (msg *Message) String(sep string) string {
 	var res []string
-	for _, field := range msg {
+	for _, field := range *msg {
 		res = append(res, field.ToWire())
 	}
 	return strings.Join(res, sep) + sep
 }
 
-// Returns Field if tag is found along with its index
-// index of -1 is returned if not found
-func (msg Message) Find(tag uint16) (Field, int) {
-	return msg.FindFrom(tag, 0)
+// Returns the FIRST matching field value, returns false if not found
+func (msg *Message) Get(tag uint16) (string, bool) {
+	field, pos := msg.FindFrom(tag, 0)
+	if pos == -1 {
+		return "", false
+	}
+
+	return field.Value, true
 }
 
-// Same as Find, but can provide the starting pos to being search
-func (msg Message) FindFrom(tag uint16, start int) (Field, int) {
-	for i := start; i < len(msg); i++ {
-		if msg[i].Tag == tag {
-			return msg[i], i
+// Modify the FIRST matching field on message, returns true if found and modified
+func (msg *Message) Set(tag uint16, value string) bool {
+	field, pos := msg.FindFrom(tag, 0)
+	if pos == -1 {
+		return false
+	}
+
+	field.Value = value
+	return true
+}
+
+// Out of bound inserts are appended to the end
+func (msg *Message) Insert(idx int, field Field) {
+	length := len(*msg)
+
+	// Handle out of bounds by appending to the end
+	if idx < 0 || idx >= length {
+		*msg = append(*msg, field)
+		return
+	}
+
+	// Grow the slice by one element (append the last element again)
+	*msg = append(*msg, (*msg)[length-1])
+
+	// Shift elements to the right to make room at idx
+	// This is essentially a memmove in the background
+	copy((*msg)[idx+1:], (*msg)[idx:length-1])
+
+	// Insert the new field
+	(*msg)[idx] = field
+}
+
+// Searches for a tag in message from a starting index, returning
+// a pointer and its index, returns -1 if not found
+func (msg *Message) FindFrom(tag uint16, start int) (*Field, int) {
+	for i := start; i < len(*msg); i++ {
+		if (*msg)[i].Tag == tag {
+			return &(*msg)[i], i
 		}
 	}
 
-	return Field{}, -1
+	return nil, -1
 }
 
 // Iterate and return all fields matching tag
-func (msg Message) FindAll(tag uint16) iter.Seq[Field] {
-	return func(yield func(Field) bool) {
-		for _, field := range msg {
-			if field.Tag == tag {
-				if !yield(field) {
+func (msg *Message) FindAll(tag uint16) iter.Seq[*Field] {
+	return func(yield func(*Field) bool) {
+		for i := 0; i < len(*msg); i++ {
+			if (*msg)[i].Tag == tag {
+				if !yield(&(*msg)[i]) {
 					break
 				}
 			}
@@ -82,12 +119,12 @@ func (msg Message) FindAll(tag uint16) iter.Seq[Field] {
 }
 
 // Convenience func to return msgtype tag
-func (msg Message) Code() (string, error) {
-	field, idx := msg.Find(35)
-	if idx == -1 {
+func (msg *Message) Code() (string, error) {
+	msgType, ok := msg.Get(35)
+	if !ok {
 		return "", errors.New("Tag MsgType (35) not found")
 	}
-	return field.Value, nil
+	return msgType, nil
 }
 
 // Checksum of the message ignoring tag 10 if present

@@ -64,27 +64,26 @@ func (spec *Spec) Validate(message *message.Message, mode ValidationMode) (bool,
 		return true, observations
 	}
 
-	msgType, pos := message.Find(35)
-	if pos == -1 {
+	msgType, ok := message.Get(35)
+	if !ok {
 		observations = append(observations, "MsgType Tag (35) missing")
 		return false, observations
 	}
 
 	// Checksum validation if required
 	if _, ok := spec.Trailer.Lookup[10]; ok {
-		checksumTag, pos := message.Find(10)
-		if pos == -1 {
+		if checksum, ok := message.Get(10); !ok {
 			observations = append(observations, "Missing checksum tag [10]")
-		} else if want := fmt.Sprintf("%03d", message.Checksum()); want != checksumTag.Value {
+		} else if want := fmt.Sprintf("%03d", message.Checksum()); want != checksum {
 			observations = append(observations, fmt.Sprintf("Checksum validation failed: want %v, got %v",
-				want, checksumTag.Value))
+				want, checksum))
 		}
 	}
 
 	// Bodylength validation if required
 	if _, ok := spec.Header.Lookup[9]; ok {
 		bodylength := message.BodyLength()
-		bodyLenTag, pos := message.Find(9)
+		bodyLenTag, pos := message.FindFrom(9, 0)
 		if pos == -1 {
 			observations = append(observations, "Missing bodylength tag [9]")
 		} else if got, err := bodyLenTag.AsUint(); err != nil || bodylength != got {
@@ -93,14 +92,15 @@ func (spec *Spec) Validate(message *message.Message, mode ValidationMode) (bool,
 		}
 	}
 
-	msgSpec, ok := spec.Messages[msgType.Value]
+	msgSpec, ok := spec.Messages[msgType]
 	if !ok {
-		observations = append(observations, fmt.Sprintf("Unknown MsgType '35=%v'", msgType.Value))
+		observations = append(observations, fmt.Sprintf("Unknown MsgType '35=%v'", msgType))
 		return false, observations
 	}
 
 	// Walk through and validate for entries against header, msg body and trailer
 	var err error
+	var pos int
 	pos, err = walkSpec(message, spec.Header, 0, &observations, spec.Fields, mode)
 	if err != nil {
 		return false, observations
