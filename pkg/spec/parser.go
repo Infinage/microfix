@@ -1,4 +1,4 @@
-package mfix
+package spec
 
 import (
 	"embed"
@@ -69,14 +69,14 @@ type FieldDef struct {
 	Enums  []EnumDef `xml:"value"`
 }
 
-//go:embed spec/*.xml
+//go:embed xml/*.xml
 var defaultSpecs embed.FS
 
 // Parse the XML spec and return a faithful object representation
 func loadRawSpec(path string) (rawSpec, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
-		raw, err = defaultSpecs.ReadFile(filepath.Join("spec", path))
+		raw, err = defaultSpecs.ReadFile(filepath.Join("xml", path))
 		if err != nil {
 			return rawSpec{}, fmt.Errorf("Could not find spec %s in local or embedded path", path)
 		}

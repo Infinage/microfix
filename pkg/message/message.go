@@ -1,4 +1,4 @@
-package mfix
+package message
 
 import (
 	"errors"
@@ -46,7 +46,7 @@ func MessageFromString(raw string, sep string) (Message, error) {
 func (msg Message) String(sep string) string {
 	var res []string
 	for _, field := range msg {
-		res = append(res, field.string())
+		res = append(res, field.ToWire())
 	}
 	return strings.Join(res, sep) + sep
 }
@@ -88,4 +88,38 @@ func (msg Message) Code() (string, error) {
 		return "", errors.New("Tag MsgType (35) not found")
 	}
 	return field.Value, nil
+}
+
+// Checksum of the message ignoring tag 10 if present
+func (msg *Message) Checksum() uint8 {
+	return msg.ChecksumIgnoringFields(map[uint16]any{10: nil})
+}
+
+// Body length of the mesage, ignoring tags 8, 9 and 10
+func (msg *Message) BodyLength() uint64 {
+	return msg.BodyLengthIgnoringFields(map[uint16]any{8: nil, 9: nil, 10: nil})
+}
+
+// Checksum of message, can provide custom tags that needs to be ignored
+func (msg *Message) ChecksumIgnoringFields(ignoreTags map[uint16]any) uint8 {
+	var result int
+	for _, field := range *msg {
+		if _, ok := ignoreTags[field.Tag]; !ok {
+			for _, ch := range field.ToWire() + "\x01" {
+				result = result + int(ch)
+			}
+		}
+	}
+	return uint8(result % 256)
+}
+
+// Body length of the mesage, can provide custom tags that needs to be ignored
+func (msg *Message) BodyLengthIgnoringFields(ignoreTags map[uint16]any) uint64 {
+	var result uint64
+	for _, field := range *msg {
+		if _, ok := ignoreTags[field.Tag]; !ok {
+			result += uint64(len(field.ToWire())) + 1
+		}
+	}
+	return result
 }

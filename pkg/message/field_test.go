@@ -1,4 +1,4 @@
-package mfix
+package message
 
 import (
 	"testing"

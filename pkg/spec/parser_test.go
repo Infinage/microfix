@@ -1,4 +1,4 @@
-package mfix
+package spec
 
 import (
 	"testing"

@@ -1,4 +1,4 @@
-package mfix
+package message
 
 import (
 	"errors"
@@ -15,8 +15,8 @@ type Field struct {
 	Value string
 }
 
-// Helper to write to string (internal)
-func (f *Field) string() string {
+// Returns the field formatted for the network (Tag=Value).
+func (f *Field) ToWire() string {
 	return strconv.Itoa(int(f.Tag)) + "=" + f.Value
 }
 
