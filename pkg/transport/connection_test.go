@@ -22,18 +22,18 @@ func TestTransport_Integration(t *testing.T) {
 
 	// Send from client side
 	go func() {
-		client.Outgoing <- testMsg
+		client.Outgoing() <- testMsg
 	}()
 
 	// Validate from server side
 	select {
-	case recieved := <-server.Incoming:
+	case recieved := <-server.Incoming():
 		if val, err := recieved.Code(); err != nil || val != "A" {
 			t.Error("Expected to have MsgType [35] = A")
 		} else if got := recieved.String("|"); got != msgRaw {
 			t.Errorf("Expected serialized message to be %v, got %v", msgRaw, got)
 		}
-	case err := <-server.Errors:
+	case err := <-server.Errors():
 		t.Errorf("Server error: %v", err)
 	case <-time.After(time.Second):
 		t.Errorf("Timed out waiting for a message")
