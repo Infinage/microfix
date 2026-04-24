@@ -42,7 +42,7 @@ func MessageFromString(raw string, sep string) (Message, error) {
 	return result, nil
 }
 
-// Serialize to string
+// Serialize to string in the Wire Format
 func (msg Message) String(sep string) string {
 	var res []string
 	for _, field := range msg {

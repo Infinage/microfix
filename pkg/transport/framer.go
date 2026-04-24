@@ -14,7 +14,7 @@ func frame(reader *bufio.Reader, sep byte) (string, error) {
 	raw, err := reader.ReadSlice(sep)
 	if err != nil {
 		return "", err
-	} 
+	}
 	beginStr := string(raw)
 	if len(beginStr) <= 5 || !strings.HasPrefix(beginStr, "8=FIX") {
 		return "", fmt.Errorf("Invalid fix begin string, got %v", beginStr)
@@ -31,19 +31,19 @@ func frame(reader *bufio.Reader, sep byte) (string, error) {
 	}
 
 	// Extract body length
-	bodyLen, err := strconv.Atoi(bodyLenStr[2: len(bodyLenStr) - 1])
+	bodyLen, err := strconv.Atoi(bodyLenStr[2 : len(bodyLenStr)-1])
 	if err != nil {
 		return "", err
 	}
 
 	// Read specified no of bytes + "10=XYZ|"
-	var bodyRaw = make([]byte, bodyLen + 7)
+	var bodyRaw = make([]byte, bodyLen+7)
 	_, err = io.ReadFull(reader, bodyRaw)
 	if err != nil {
 		return "", err
 	} else if checksum := string(bodyRaw[bodyLen:]); !strings.HasPrefix(checksum, "10=") {
 		return "", fmt.Errorf("Expected the fix message to end with checksum [10], got %v", checksum)
-	} else if checksum[len(checksum) - 1] != sep {
+	} else if checksum[len(checksum)-1] != sep {
 		return "", fmt.Errorf("Fix string must end with %v", sep)
 	}
 
