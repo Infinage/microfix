@@ -17,17 +17,12 @@ func TestMessage_BasicOps(t *testing.T) {
 		t.Errorf("Expected length 4, got %d", len(msg))
 	}
 
-	if _, ok := msg.Get(35); !ok {
-		t.Error("Expected to find tag 35")
+	if code, ok := msg.Get(35); !ok || code != "5" {
+		t.Errorf("MsgType tag [35] missing or incorrectly set. Want '5', got '%s'", code)
 	}
 
 	if _, ok := msg.Get(999); ok {
 		t.Error("Did not expect to find tag 999")
-	}
-
-	code, err := msg.Code()
-	if err != nil || code != "5" {
-		t.Errorf("Expected code 5, got %s (err: %v)", code, err)
 	}
 }
 
@@ -228,6 +223,45 @@ func TestMessage_Insert(t *testing.T) {
 	})
 }
 
+func TestMessage_Contains(t *testing.T) {
+	msg := &Message{
+		{8, "FIX.4.4"},
+		{35, "D"},
+		{55, "AAPL"},
+		{54, "1"},
+	}
+
+	t.Run("All Tags Present", func(t *testing.T) {
+		if !msg.Contains(55, 54) {
+			t.Error("Expected true for tags 55 and 54")
+		}
+	})
+
+	t.Run("Single Tag Present", func(t *testing.T) {
+		if !msg.Contains(8) {
+			t.Error("Expected true for tag 8")
+		}
+	})
+
+	t.Run("One Tag Missing", func(t *testing.T) {
+		if msg.Contains(55, 99) {
+			t.Error("Expected false because tag 99 is missing")
+		}
+	})
+
+	t.Run("All Tags Missing", func(t *testing.T) {
+		if msg.Contains(100, 101, 102) {
+			t.Error("Expected false for completely missing tags")
+		}
+	})
+
+	t.Run("Empty Input", func(t *testing.T) {
+		if !msg.Contains() {
+			t.Error("Expected true for an empty variadic input")
+		}
+	})
+}
+
 func TestMessageFromString_Valid(t *testing.T) {
 	raw := "8=FIX.4.4|9=63|35=A|10=123|"
 	msg, err := MessageFromString(raw, "|")
@@ -239,7 +273,7 @@ func TestMessageFromString_Valid(t *testing.T) {
 		t.Errorf("Expected 4 fields, got %d: %v", len(msg), msg)
 	}
 
-	if val, _ := msg.Code(); val != "A" {
+	if val, _ := msg.Get(35); val != "A" {
 		t.Errorf("Expected MsgType A, got %s", val)
 	}
 }

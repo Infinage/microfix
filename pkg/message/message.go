@@ -1,7 +1,6 @@
 package message
 
 import (
-	"errors"
 	"fmt"
 	"iter"
 	"strconv"
@@ -118,13 +117,22 @@ func (msg *Message) FindAll(tag uint16) iter.Seq[*Field] {
 	}
 }
 
-// Convenience func to return msgtype tag
-func (msg *Message) Code() (string, error) {
-	msgType, ok := msg.Get(35)
-	if !ok {
-		return "", errors.New("Tag MsgType (35) not found")
+// Checks and returns true only if all of tags are present
+func (msg *Message) Contains(tags ...uint16) bool {
+	if len(tags) == 0 {
+		return true
 	}
-	return msgType, nil
+
+	var required = make(map[uint16]any)
+	for _, tag := range tags {
+		required[tag] = nil
+	}
+
+	for _, field := range *msg {
+		delete(required, field.Tag)
+	}
+
+	return len(required) == 0
 }
 
 // Checksum of the message ignoring tag 10 if present

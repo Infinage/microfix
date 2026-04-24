@@ -28,7 +28,7 @@ func TestTransport_Integration(t *testing.T) {
 	// Validate from server side
 	select {
 	case recieved := <-server.Incoming():
-		if val, err := recieved.Code(); err != nil || val != "A" {
+		if val, ok := recieved.Get(35); !ok || val != "A" {
 			t.Error("Expected to have MsgType [35] = A")
 		} else if got := recieved.String("|"); got != msgRaw {
 			t.Errorf("Expected serialized message to be %v, got %v", msgRaw, got)
