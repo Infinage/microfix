@@ -2,6 +2,7 @@ package transport
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"net"
 	"sync"
@@ -16,9 +17,10 @@ type transport struct {
 	outgoing chan message.Message
 	errors   chan error
 
-	// Stop signal to close all channels and sockets
-	stopFlag chan any
-	stopOnce sync.Once
+	// Context to close the goroutines
+	ctx    context.Context
+	cancel context.CancelFunc
+	once   sync.Once
 }
 
 func (t *transport) Incoming() <-chan message.Message {
@@ -33,26 +35,29 @@ func (t *transport) Errors() <-chan error {
 	return t.errors
 }
 
-func (t *transport) Done() <-chan any {
-	return t.stopFlag
+func (t *transport) Done() <-chan struct{} {
+	return t.ctx.Done()
 }
 
-// Helper to close socket
+// Signal to stop goroutines, close outgoing channels and socket
 func (t *transport) Close() {
-	t.stopOnce.Do(func() {
-		close(t.stopFlag)
+	t.once.Do(func() {
+		t.cancel()
 		t.conn.Close()
 	})
 }
 
 // Helper to init connection and start event loops
 func newTransport(conn net.Conn) *transport {
+	ctx, cancel := context.WithCancel(context.Background())
+
 	t := &transport{
 		conn:     conn,
 		incoming: make(chan message.Message, 1024),
 		outgoing: make(chan message.Message, 1024),
 		errors:   make(chan error, 10),
-		stopFlag: make(chan any),
+		ctx:      ctx,
+		cancel:   cancel,
 	}
 
 	go t.readLoop()
@@ -63,25 +68,32 @@ func newTransport(conn net.Conn) *transport {
 
 // Read from socket and push messages to Incoming
 func (t *transport) readLoop() {
+	defer close(t.incoming)
 	defer t.Close()
+
 	reader := bufio.NewReader(t.conn)
 	for {
+		// Read into the socket until we have a single valid FIX message
 		fixString, err := frame(reader, '\x01')
 		if err != nil {
-			select {
-			case <-t.stopFlag:
-				return
-			default:
-				t.errors <- fmt.Errorf("Failed to read: %w", err)
-			}
+			t.reportError(fmt.Errorf("Failed to read: %w", err))
+			return
 		}
 
+		// Parse the framed message
 		message, err := message.MessageFromString(fixString, "\x01")
 		if err != nil {
-			t.errors <- fmt.Errorf("Failed to parse: %w", err)
+			t.reportError(fmt.Errorf("Failed to parse: %w", err))
+			continue
 		}
 
-		t.incoming <- message
+		// Attempt to write if we didn't recieve the cancel signal yet
+		// Will block if incoming channel is full since we dont have a default
+		select {
+		case t.incoming <- message:
+		case <-t.ctx.Done():
+			return
+		}
 	}
 }
 
@@ -90,17 +102,28 @@ func (t *transport) writeLoop() {
 	defer t.Close()
 	for {
 		select {
-		case <-t.stopFlag:
+		case <-t.ctx.Done():
 			return
 		case message, ok := <-t.outgoing:
-			if !ok {
+			if !ok { // User closed the outgoing channel
 				return
 			}
 			wire := message.String("\x01")
-			_, err := t.conn.Write([]byte(wire))
-			if err != nil {
-				t.errors <- fmt.Errorf("Failed to write: %w", err)
+			if _, err := t.conn.Write([]byte(wire)); err != nil {
+				t.reportError(fmt.Errorf("Failed to write: %w", err))
 			}
 		}
+	}
+}
+
+// Non blocking send to errors channel
+func (t *transport) reportError(err error) {
+	select {
+	case <-t.ctx.Done():
+		return
+	case t.errors <- err:
+		// error delivered
+	default:
+		// Channel is full, drop the error
 	}
 }

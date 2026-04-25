@@ -10,7 +10,7 @@ type Connection interface {
 	Incoming() <-chan message.Message
 	Outgoing() chan<- message.Message
 	Errors() <-chan error
-	Done() <-chan any
+	Done() <-chan struct{}
 	Close()
 }
 
