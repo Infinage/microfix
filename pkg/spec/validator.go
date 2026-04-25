@@ -52,15 +52,15 @@ func validateDtype(field message.Field, dtype string) error {
 type ValidationMode int
 
 const (
-	None   ValidationMode = iota // no validation
-	Basic                        // checksum, bodylen, required fields, groups
-	Strict                       // type check, unknown fields check
+	ValidationNone   ValidationMode = iota // no validation
+	ValidationBasic                        // checksum, bodylen, required fields, groups
+	ValidationStrict                       // type check, unknown fields check
 )
 
 // Validate an input message and return list of observations
 func (spec *Spec) Validate(message *message.Message, mode ValidationMode) (bool, []string) {
 	var observations []string
-	if mode == None {
+	if mode == ValidationNone {
 		return true, observations
 	}
 
@@ -136,7 +136,7 @@ func walkSpec(msg *message.Message, context Entry, idx int, obs *[]string,
 		if !exists {
 			// If unknown field we can skip processing it
 			if _, knownField := fields[field.Tag]; !knownField {
-				if mode == Strict {
+				if mode == ValidationStrict {
 					*obs = append(*obs, fmt.Sprintf("Unknown tag [%v]", field.Tag))
 				}
 				idx++
@@ -155,7 +155,7 @@ func walkSpec(msg *message.Message, context Entry, idx int, obs *[]string,
 		delete(localLookup, field.Tag)
 
 		// Validate data type
-		if mode == Strict {
+		if mode == ValidationStrict {
 			if err := validateDtype(field, fields[field.Tag].Type); err != nil {
 				*obs = append(*obs, fmt.Sprintf("Datatype validation failed for tag [%v]", field.Tag))
 			}
@@ -191,7 +191,7 @@ func walkSpec(msg *message.Message, context Entry, idx int, obs *[]string,
 						*obs = append(*obs, fmt.Sprintf("Tag %v immediately following groupno missing"+
 							" or not at first position on Group Spec", (*msg)[idx+1].Tag))
 					}
-				} else if mode == Strict {
+				} else if mode == ValidationStrict {
 					// Validate the ordering for second repeating group onwards
 					groupStart := group1Start + (int(gi) * groupSize)
 					for i := range groupSize {

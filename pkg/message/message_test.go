@@ -442,3 +442,31 @@ func TestChecksumVerification(t *testing.T) {
 		})
 	}
 }
+
+func TestMessage_Finalize(t *testing.T) {
+	// 8=FIX.4.2 | 35=A | 49=SENDER | 56=TARGET
+	msg := &Message{
+		{Tag: 8, Value: "FIX.4.2"},
+		{Tag: 35, Value: "A"},
+		{Tag: 49, Value: "SENDER"},
+		{Tag: 56, Value: "TARGET"},
+	}
+
+	msg.Finalize()
+
+	// Assert BodyLength (Tag 9) is at index 1
+	if val, _ := msg.Get(9); val == "" {
+		t.Error("Tag 9 (BodyLength) missing")
+	}
+
+	// Assert Checksum (Tag 10) is at the end
+	lastField := (*msg)[len(*msg)-1]
+	if lastField.Tag != 10 {
+		t.Errorf("Tag 10 (Checksum) should be last, got tag %d", lastField.Tag)
+	}
+
+	// Verify Checksum format (must be 3 digits, e.g., "042")
+	if len(lastField.Value) != 3 {
+		t.Errorf("Checksum should be 3 digits, got %s", lastField.Value)
+	}
+}

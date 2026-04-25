@@ -101,7 +101,7 @@ func (spec *Spec) Sample(msgType string, requiredOnly bool,
 		return result, fmt.Errorf("MsgType [%v] not found in spec", msgType)
 	}
 
-	// Add the message body and trailer
+	// Add the header, message body and trailer
 	for _, entry := range slices.Concat(spec.Header.Entries, msgSpec.Entries, spec.Trailer.Entries) {
 		err := addEntry(&result, entry, requiredOnly, &groupCountOverides)
 		if err != nil {
@@ -109,32 +109,13 @@ func (spec *Spec) Sample(msgType string, requiredOnly bool,
 		}
 	}
 
-	// Add msgtype, bodylen and checksum if required
-	spec.Finalize(&result, msgType)
+	// Update MsgType or insert if missing (ideally should never be missing)
+	if !result.Set(35, msgType) {
+		result.Insert(min(2, len(result)), message.Field{Tag: 35, Value: msgType})
+	}
+
+	// Upsert bodylength and checksum
+	result.Finalize()
 
 	return result, nil
-}
-
-// Add MessageType, Checksum and Bodylength if missing or update it
-func (spec *Spec) Finalize(msg *message.Message, msgTypeVal string) {
-	if _, required := spec.Header.Lookup[9]; required {
-		if bodyLen := fmt.Sprint(msg.BodyLength()); !msg.Set(9, bodyLen) {
-			field := message.Field{Tag: 9, Value: bodyLen}
-			msg.Insert(1, field)
-		}
-	}
-
-	if _, required := spec.Header.Lookup[35]; required {
-		if !msg.Set(35, msgTypeVal) {
-			field := message.Field{Tag: 35, Value: msgTypeVal}
-			msg.Insert(min(2, len(*msg)), field)
-		}
-	}
-
-	if _, required := spec.Trailer.Lookup[10]; required {
-		if checksum := fmt.Sprintf("%03d", msg.Checksum()); !msg.Set(10, checksum) {
-			field := message.Field{Tag: 10, Value: checksum}
-			msg.Insert(len(*msg)-1, field)
-		}
-	}
 }

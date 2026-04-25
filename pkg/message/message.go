@@ -168,3 +168,16 @@ func (msg *Message) BodyLengthIgnoringFields(ignoreTags map[uint16]any) uint64 {
 	}
 	return result
 }
+
+// Add Checksum and Bodylength if missing or update it
+func (msg *Message) Finalize() {
+	if bodyLen := fmt.Sprint(msg.BodyLength()); !msg.Set(9, bodyLen) {
+		field := Field{Tag: 9, Value: bodyLen}
+		msg.Insert(1, field)
+	}
+
+	if checksum := fmt.Sprintf("%03d", msg.Checksum()); !msg.Set(10, checksum) {
+		field := Field{Tag: 10, Value: checksum}
+		msg.Insert(len(*msg), field)
+	}
+}
