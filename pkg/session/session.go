@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/infinage/microfix/pkg/message"
+	"github.com/infinage/microfix/pkg/spec"
 	"github.com/infinage/microfix/pkg/transport"
 )
 
@@ -101,6 +102,11 @@ func (sess *Session) Send(msg message.Message, passthrough bool) {
 	case <-sess.Done():
 		sess.reportError(fmt.Errorf("Session closed: %v", msg.String("|")))
 	}
+}
+
+// Returns a copy of the underlying spec object
+func (sess *Session) Spec() spec.Spec {
+	return sess.engine.Spec
 }
 
 // -------------- INTERNAL FUNCTIONS -------------- //

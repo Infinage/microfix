@@ -84,7 +84,7 @@ func (engine *Engine) Off() []Action {
 	if engine.state != SessionDisconnected {
 		engine.state = SessionDisconnected
 		lo, _ := engine.Spec.Sample("5", true, nil)
-		return []Action{Action{Type: ActionSend, Msg: lo}, Action{Type: ActionClose}}
+		return []Action{{Type: ActionSend, Msg: lo}, {Type: ActionClose}}
 	}
 	return nil
 }
