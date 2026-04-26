@@ -3,6 +3,7 @@ package session
 import (
 	"fmt"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/infinage/microfix/pkg/message"
@@ -31,6 +32,7 @@ type Session struct {
 	// Communication channels
 	incoming chan message.Message
 	errors   chan error
+	once     sync.Once
 
 	// Mutable state
 	state         sessionState
@@ -52,9 +54,7 @@ func (sess *Session) Done() <-chan struct{} {
 	return sess.base.Done()
 }
 
-func NewSession(base transport.Connection, specPath string, senderCompID string,
-	targetCompID string, heartbeatInt int64) (*Session, error) {
-
+func NewSession(specPath string, senderCompID string, targetCompID string, heartbeatInt int64) (*Session, error) {
 	if heartbeatInt <= 0 {
 		return nil, fmt.Errorf("Heartbeat Interval must be greater than 0")
 	}
@@ -74,7 +74,7 @@ func NewSession(base transport.Connection, specPath string, senderCompID string,
 
 	sess := &Session{
 		Spec:         sp,
-		base:         base,
+		base:         nil,
 		senderCompID: senderCompID,
 		targetCompID: targetCompID,
 		heartbeatInt: heartbeatInt,
@@ -88,27 +88,41 @@ func NewSession(base transport.Connection, specPath string, senderCompID string,
 		state:     SessionDisconnected,
 	}
 
-	// Spawn a goroutine to login and handle messages
-	go sess.run()
-
 	return sess, nil
 }
 
-// Close the session (base.close already behind OnceFlag)
+// Close the session (base.close already behind OnceFlag but may need it for mocks)
 func (sess *Session) Close() {
-	sess.base.Close()
+	sess.state = SessionDisconnected
+	if sess.base != nil {
+		sess.once.Do(func() {
+			sess.base.Close()
+		})
+	}
 }
 
-// Non blocking send to errors channel
-func (s *Session) reportError(err error) {
-	select {
-	case <-s.Done():
-		return
-	case s.errors <- err:
-		// error delivered
-	default:
-		// Channel is full, drop the error
+// Listen for a client connection, call blocks until accepted
+func (sess *Session) Listen(addr string) error {
+	conn, err := transport.Listen1(addr)
+	if err != nil {
+		return err
 	}
+
+	// Start session as a server
+	sess.start(conn, false)
+	return nil
+}
+
+// Connect to a server, call blocks until connected
+func (sess *Session) Connect(addr string) error {
+	conn, err := transport.Dial(addr)
+	if err != nil {
+		return err
+	}
+
+	// Start session as a client
+	sess.start(conn, true)
+	return nil
 }
 
 // Send to the connected client, if passthrough is true fields are sent as is
@@ -128,6 +142,26 @@ func (sess *Session) Send(msg message.Message, passthrough bool) {
 		sess.outSeqNum++
 	case <-sess.Done():
 		sess.reportError(fmt.Errorf("Session closed: %v", msg.String("|")))
+	}
+}
+
+// -------------- INTERNAL FUNCTIONS -------------- //
+
+// Start the session loop as a goroutine, entry point for UT
+func (sess *Session) start(conn transport.Connection, isClient bool) {
+	sess.base = conn
+	go sess.run(isClient)
+}
+
+// Non blocking send to errors channel
+func (s *Session) reportError(err error) {
+	select {
+	case <-s.Done():
+		return
+	case s.errors <- err:
+		// error delivered
+	default:
+		// Channel is full, drop the error
 	}
 }
 
@@ -168,8 +202,15 @@ func (sess *Session) validate(msg *message.Message) (string, error) {
 		}
 	}
 
+	// Skip sequence number check if:
+	// 1. It's a logon with resetSeqNumFlag set
+	// 2. It's a retransmitted message (PossDup)
+	possDup, _ := msg.Get(43)
+	resetSeqNum, _ := msg.Get(141)
+	skipSeqCheck := (msgType == "A" && resetSeqNum == "Y") || possDup == "Y"
+
 	// For values greater than we will trigger resend on `handleAppMessage`
-	if received < sess.inSeqNum {
+	if !skipSeqCheck && received < sess.inSeqNum {
 		return msgType, fmt.Errorf("Input sequence number mismatch. Expected %v, got %v", sess.inSeqNum, received)
 	}
 
@@ -191,7 +232,7 @@ func (sess *Session) validate(msg *message.Message) (string, error) {
 
 // Handle Admin type messages: Login, Logout, Heartbeat, TestMessage
 // Other input message types are pass into the Incoming channel
-func (sess *Session) run() {
+func (sess *Session) run(isClient bool) {
 	defer close(sess.errors)
 	defer close(sess.incoming)
 	defer sess.Close()
@@ -200,11 +241,13 @@ func (sess *Session) run() {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 
-	// Start off by sending logon
-	logon, _ := sess.Spec.Sample("A", false, nil)
-	logon.Set(108, fmt.Sprintf("%d", sess.heartbeatInt))
-	sess.Send(logon, false)
-	sess.state = SessionLoggingIn
+	// If we are connecting to a client, send logon
+	if isClient {
+		logon, _ := sess.Spec.Sample("A", false, nil)
+		logon.Set(108, fmt.Sprintf("%d", sess.heartbeatInt))
+		sess.Send(logon, false)
+		sess.state = SessionLoggingIn
+	}
 
 	// Run loop - handle session
 	for {
@@ -279,7 +322,9 @@ func (sess *Session) onMessage(msg *message.Message) {
 
 	switch sess.state {
 	case SessionDisconnected:
-		return
+		if msgType == "A" {
+			msgAccepted = sess.handleLogon(msg)
+		}
 
 	case SessionLoggingIn:
 		if msgType == "A" {
@@ -306,25 +351,39 @@ func (sess *Session) onMessage(msg *message.Message) {
 	}
 }
 
+// If we get logon when we are in Disconnected state we accept it and send a logon back
+// If we get a logon when we are in Logging State we were validated and accepted
 func (sess *Session) handleLogon(msg *message.Message) bool {
-	// Validate heartbeatInt matches
-	if hbIntTag, pos := msg.FindFrom(108, 0); pos == -1 {
-		sess.reportError(fmt.Errorf("Logon message missing HeartBtInt [108]"))
-		return false
-	} else if hbInt, err := hbIntTag.AsInt(); err != nil || hbInt != sess.heartbeatInt {
-		sess.reportError(fmt.Errorf("Heartbeat Interval in Logon incorrect, expected %v, got %v", sess.heartbeatInt, hbIntTag.Value))
-		return false
-	}
-
-	// Ensure tag 98 (EncryptMethod) is set
-	if _, ok := msg.Get(98); !ok {
-		sess.reportError(fmt.Errorf("Missing required tag EncryptMethod [98]"))
+	// Extract heartbeat interval
+	hbIntTag, _ := msg.FindFrom(108, 0)
+	hbInt, err := hbIntTag.AsInt()
+	if err != nil || hbInt < 1 {
+		sess.reportError(fmt.Errorf("Got a Logon with invalid HeartbeatInt [108]: %v", hbIntTag.Value))
 		return false
 	}
 
-	// Reset the sequence number
+	// If we were ones to send the logon, we expect heartbeatInt to strictly match
+	if sess.state == SessionLoggingIn && hbInt != sess.heartbeatInt {
+		sess.reportError(fmt.Errorf("Heartbeat Interval in Logon incorrect, expected %v, got %v",
+			sess.heartbeatInt, hbInt))
+		return false
+	}
+
+	// If flag set, reset sequence numbers
 	if resetSeqNumFlag, _ := msg.Get(141); resetSeqNumFlag == "Y" {
 		sess.inSeqNum, sess.outSeqNum = 1, 1
+	}
+
+	// We are disconnected and Counterparty sends a logon, accept and send back a logon
+	if sess.state == SessionDisconnected {
+		lo, _ := sess.Spec.Sample("A", true, nil)
+
+		// Add required fields
+		sess.heartbeatInt = hbInt
+		lo.Set(108, fmt.Sprint(hbInt))
+
+		// Send logon request back and set state to active
+		sess.Send(lo, false)
 	}
 
 	// If all good, we proceed to next stage
@@ -378,6 +437,7 @@ func (sess *Session) handleAppMessage(msg *message.Message) bool {
 	case "5": // Logout
 		lo, _ := sess.Spec.Sample("5", true, nil)
 		sess.Send(lo, false)
+		sess.state = SessionDisconnected
 		sess.Close()
 
 	default: // Passthrough (blocking until session is closed)

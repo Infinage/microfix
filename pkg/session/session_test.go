@@ -30,10 +30,25 @@ func TestSession_Lifecycle(t *testing.T) {
 	}
 
 	// Initialization
-	sess, err := NewSession(mockConn, "FIX44.xml", "SENDER", "TARGET", 30)
+	sess, err := NewSession("FIX44.xml", "SENDER", "TARGET", 30)
 	if err != nil {
 		t.Fatalf("Failed to create session: %v", err)
 	}
+
+	t.Run("StartSession", func(t *testing.T) {
+		if sess.state != SessionDisconnected {
+			t.Errorf("Expected state before start() to be %v got %v", SessionDisconnected, sess.state)
+		}
+
+		// Start off the session as a client
+		sess.start(mockConn, true)
+
+		// Check that the state is now set to SessionLoggingIn
+		time.Sleep(20 * time.Millisecond)
+		if sess.state != SessionLoggingIn {
+			t.Errorf("Expected state after start() to be %v got %v", SessionLoggingIn, sess.state)
+		}
+	})
 
 	t.Run("TransitionToActive", func(t *testing.T) {
 		// Verify initial Logon was sent

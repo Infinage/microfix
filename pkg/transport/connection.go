@@ -1,8 +1,9 @@
 package transport
 
 import (
-	"github.com/infinage/microfix/pkg/message"
 	"net"
+
+	"github.com/infinage/microfix/pkg/message"
 )
 
 // Listen for messages on Incoming, send messages to Outgoing, monitor on Errors
@@ -14,7 +15,7 @@ type Connection interface {
 	Close()
 }
 
-// Connect to addr (ip:port)
+// Connect to addr (ip:port) [BLOCKING]
 func Dial(addr string) (Connection, error) {
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
@@ -24,7 +25,7 @@ func Dial(addr string) (Connection, error) {
 	return newTransport(conn), nil
 }
 
-// Listens for a single incoming connection
+// Listens for a single incoming connection [BLOCKING]
 func Listen1(addr string) (Connection, error) {
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
