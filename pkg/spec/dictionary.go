@@ -16,6 +16,7 @@ type Entry struct {
 
 // Cleaned struct for quicker lookups
 type Spec struct {
+	Type       string
 	Major      int
 	Minor      int
 	SP         int
@@ -45,6 +46,7 @@ func LoadSpec(path string) (Spec, error) {
 
 	// Convert rawSpec to spec for faster lookups
 	var result = Spec{
+		Type:       raw.Type,
 		Major:      raw.Major,
 		Minor:      raw.Minor,
 		SP:         raw.Sp,

@@ -66,7 +66,7 @@ func TestValidate_HappyPath(t *testing.T) {
 
 	t.Run("SampleAndStrictValidate", func(t *testing.T) {
 		// Generate a valid message with all optional fields
-		msg, err := spec.Sample("A", false, nil)
+		msg, err := spec.Sample("A", SampleOptions{IncludeOptional: true})
 		if err != nil {
 			t.Fatalf("Failed to sample: %v", err)
 		}
@@ -84,7 +84,7 @@ func TestValidate_CorruptedMessages(t *testing.T) {
 	spec, _ := LoadSpec("FIXT11.xml")
 
 	t.Run("InvalidChecksum", func(t *testing.T) {
-		msg, _ := spec.Sample("0", true, nil)
+		msg, _ := spec.Sample("0", SampleOptions{})
 
 		// Corrupt the checksum (Tag 10)
 		if !msg.Set(10, "999") {
@@ -106,7 +106,7 @@ func TestValidate_CorruptedMessages(t *testing.T) {
 	})
 
 	t.Run("InvalidBodyLength", func(t *testing.T) {
-		msg, _ := spec.Sample("0", true, nil)
+		msg, _ := spec.Sample("0", SampleOptions{})
 
 		// Corrupt BodyLength (Tag 9)
 		if !msg.Set(9, "0") {
@@ -128,7 +128,7 @@ func TestValidate_CorruptedMessages(t *testing.T) {
 	})
 
 	t.Run("MissingRequiredField", func(t *testing.T) {
-		msg, _ := spec.Sample("A", true, nil)
+		msg, _ := spec.Sample("A", SampleOptions{})
 		ok, _ := spec.Validate(&msg, ValidationBasic)
 		if !ok {
 			t.Error("Validation expected to pass, but failed")
@@ -162,7 +162,7 @@ func TestValidate_DataTypeAndUnknownTags(t *testing.T) {
 	spec, _ := LoadSpec("FIXT11.xml")
 
 	t.Run("InvalidDataType_Strict", func(t *testing.T) {
-		msg, _ := spec.Sample("A", true, nil)
+		msg, _ := spec.Sample("A", SampleOptions{})
 
 		// HeartBtInt (Tag 108) is an INT. Let's put a string.
 		if !msg.Set(108, "ABC") {
@@ -188,7 +188,7 @@ func TestValidate_DataTypeAndUnknownTags(t *testing.T) {
 
 	t.Run("UnknownTag_Strict", func(t *testing.T) {
 		// Inject a random tag not in the spec
-		msg, _ := spec.Sample("0", true, nil)
+		msg, _ := spec.Sample("0", SampleOptions{})
 		msg = append(msg, message.Field{Tag: 9999, Value: "Unknown"})
 		msg.Finalize()
 
@@ -251,7 +251,10 @@ func TestValidate_GroupOrdering(t *testing.T) {
 
 	// Generate a message with a group (e.g., HopGrp in Header)
 	// NoHops(627) -> HopCompID(628), HopSendingTime(629), HopRefID(630)
-	logon, _ := spec.Sample("0", false, map[uint16]int{627: 2})
+	logon, _ := spec.Sample("0", SampleOptions{
+		OptionalFields: map[uint16]any{627: nil, 628: nil, 629: nil},
+		GroupOverrides: map[uint16]int{627: 2}},
+	)
 
 	// Find the member tags and swap them manually to break the order
 	var _, pos628 = logon.FindFrom(628, 0)

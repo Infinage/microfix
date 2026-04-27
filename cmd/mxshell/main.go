@@ -133,7 +133,7 @@ func handleSpecHelp(s *spec.Spec, cfg Config, args []string) {
 			fmt.Printf("Message %s not found\n", id)
 		}
 	case "sample":
-		if smp, err := s.Sample(id, true, nil); err == nil {
+		if smp, err := s.Sample(id, spec.SampleOptions{IncludeOptional: true}); err == nil {
 			fmt.Println(smp.String("|"))
 		} else {
 			fmt.Println("Sample failed:", err)

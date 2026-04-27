@@ -10,7 +10,7 @@ func TestSample(t *testing.T) {
 	}
 
 	t.Run("SampleRequiredOnly", func(t *testing.T) {
-		msg, err := spec.Sample("A", true, nil)
+		msg, err := spec.Sample("A", SampleOptions{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -34,7 +34,7 @@ func TestSample(t *testing.T) {
 
 	t.Run("FlatGroupExpansion", func(t *testing.T) {
 		// MsgTypeGrp has NoMsgTypes(384) which contains RefMsgType(372)
-		msg, err := spec.Sample("A", false, map[uint16]int{384: 2})
+		msg, err := spec.Sample("A", SampleOptions{IncludeOptional: true, GroupOverrides: map[uint16]int{384: 2}})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -64,8 +64,8 @@ func TestSample(t *testing.T) {
 	t.Run("NestedGroupExpansion", func(t *testing.T) {
 		// HopGrp component in Header has NoHops(627)
 		// NoHops is a flat group in FIXT11, but testing the logic here:
-		overrides := map[uint16]int{627: 3}
-		msg, err := spec.Sample("0", false, overrides) // Heartbeat (includes header)
+		overrides := map[uint16]int{627: 3} // Heartbeat (includes header)
+		msg, err := spec.Sample("0", SampleOptions{IncludeOptional: true, GroupOverrides: overrides})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -82,7 +82,7 @@ func TestSample(t *testing.T) {
 	})
 
 	t.Run("SampleOrdering", func(t *testing.T) {
-		msg, err := spec.Sample("0", true, nil)
+		msg, err := spec.Sample("0", SampleOptions{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -99,7 +99,7 @@ func TestSample(t *testing.T) {
 	})
 
 	t.Run("SampleValues", func(t *testing.T) {
-		msg, err := spec.Sample("A", true, nil)
+		msg, err := spec.Sample("A", SampleOptions{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -109,6 +109,35 @@ func TestSample(t *testing.T) {
 			t.Fatal("Tag 98 missing")
 		} else if encMethod != "0" {
 			t.Errorf("Expected first enum value '0', got %v", encMethod)
+		}
+	})
+
+	t.Run("WhitelistOptionalFields", func(t *testing.T) {
+		// We want a Logon (A) with only ONE specific optional field: Username (553)
+		// Even if IncludeOptional is true, providing the map should restrict it.
+		opts := SampleOptions{OptionalFields: map[uint16]any{553: nil}}
+
+		msg, err := spec.Sample("A", opts)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Check that our whitelisted optional field is present
+		if user, ok := msg.Get(553); !ok {
+			t.Error("Whitelisted optional field 553 (Username) is missing")
+		} else if user == "" {
+			t.Error("Whitelisted optional field 553 has empty value")
+		}
+
+		// Check that a non-whitelisted optional field is missing
+		// Tag 554 is Password (optional in Logon)
+		if _, ok := msg.Get(554); ok {
+			t.Error("Non-whitelisted optional field 554 (Password) should not be present")
+		}
+
+		// Ensure required fields are still there (they should ignore the whitelist)
+		if _, ok := msg.Get(98); !ok {
+			t.Error("Required field 98 (EncryptMethod) was incorrectly excluded by whitelist logic")
 		}
 	})
 }

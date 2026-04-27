@@ -61,7 +61,7 @@ func NewEngine(specPath string, senderCompID string, targetCompID string, heartb
 
 	// Ensure spec contains the message def for what we will be sending
 	for _, msgType := range []string{"0", "1", "2", "3", "4", "5", "A"} {
-		if _, err := sp.Sample(msgType, true, nil); err != nil {
+		if _, err := sp.Sample(msgType, spec.SampleOptions{}); err != nil {
 			return nil, fmt.Errorf("Failed to sample message: %v", msgType)
 		}
 	}
@@ -83,7 +83,7 @@ func NewEngine(specPath string, senderCompID string, targetCompID string, heartb
 func (engine *Engine) Off() []Action {
 	if engine.state != SessionDisconnected {
 		engine.state = SessionDisconnected
-		lo, _ := engine.Spec.Sample("5", true, nil)
+		lo, _ := engine.Spec.Sample("5", spec.SampleOptions{})
 		return []Action{{Type: ActionSend, Msg: lo}, {Type: ActionClose}}
 	}
 	return nil
@@ -92,7 +92,7 @@ func (engine *Engine) Off() []Action {
 func (engine *Engine) OnStart(isClient bool) []Action {
 	if isClient {
 		engine.state = SessionLoggingIn
-		logon, _ := engine.Spec.Sample("A", false, nil)
+		logon, _ := engine.Spec.Sample("A", spec.SampleOptions{})
 		logon.Set(108, fmt.Sprint(engine.heartbeatInt))
 		return []Action{{Type: ActionSend, Msg: logon}}
 	}
@@ -178,10 +178,10 @@ func (engine *Engine) OnTick(now time.Time) []Action {
 
 	// Timeout logon requests if we did not receive a logon back
 	if engine.state == SessionLoggingIn && now.Sub(engine.lastWriteTime) > 3*time.Second {
-		engine.state = SessionDisconnected
+		engine.Off()
 		return []Action{
 			{Type: ActionError, Err: fmt.Errorf("Logon timeout")},
-			{Type: ActionClose},
+			{Type: ActionClose}, // No logout sent
 		}
 	}
 
@@ -191,22 +191,22 @@ func (engine *Engine) OnTick(now time.Time) []Action {
 
 	// Outgoing idle (send heartbeat)
 	if now.Sub(engine.lastWriteTime) >= hbDuration {
-		hb, _ := engine.Spec.Sample("0", true, nil)
+		hb, _ := engine.Spec.Sample("0", spec.SampleOptions{})
 		actions = append(actions, Action{Type: ActionSend, Msg: hb})
 	}
 
 	// Incoming idle (send test request)
 	if since := now.Sub(engine.lastReadTime); since >= hbDuration {
 		if engine.state != SessionStale {
-			tr, _ := engine.Spec.Sample("1", true, nil)
+			tr, _ := engine.Spec.Sample("1", spec.SampleOptions{})
 			tr.Set(112, engine.testReqID)
 			engine.state = SessionStale
 			actions = append(actions, Action{Type: ActionSend, Msg: tr})
 		} else if since >= hbDuration*3 {
-			engine.state = SessionDisconnected
+			engine.Off()
 			return []Action{
-				{Type: ActionError, Err: fmt.Errorf("Logon timeout")},
-				{Type: ActionClose},
+				{Type: ActionError, Err: fmt.Errorf("Counterparty dead")},
+				{Type: ActionClose}, // No logout sent
 			}
 		}
 	}
@@ -273,16 +273,24 @@ func (engine *Engine) handleLogon(msg *message.Message) (bool, []Action) {
 	hbIntTag, _ := msg.FindFrom(108, 0)
 	hbInt, err := hbIntTag.AsInt()
 	if err != nil || hbInt < 1 {
+		engine.Off()
+		lo, _ := engine.Spec.Sample("5", spec.SampleOptions{OptionalFields: map[uint16]any{58: nil}})
+		lo.Set(58, "Invalid HeartBeatInt [108]")
 		return false, []Action{
 			{Type: ActionError, Err: fmt.Errorf("Got a Logon with invalid HeartbeatInt [108]: %v", hbIntTag.Value)},
+			{Type: ActionSend, Msg: lo},
 			{Type: ActionClose},
 		}
 	}
 
 	// If we were ones to send the logon, we expect heartbeatInt to strictly match
 	if engine.state == SessionLoggingIn && hbInt != engine.heartbeatInt {
+		engine.Off()
+		lo, _ := engine.Spec.Sample("5", spec.SampleOptions{OptionalFields: map[uint16]any{58: nil}})
+		lo.Set(58, "HeartBeatInt [108] mismatch")
 		return false, []Action{
 			{Type: ActionError, Err: fmt.Errorf("Heartbeat Interval in Logon incorrect, expected %v, got %v", engine.heartbeatInt, hbInt)},
+			{Type: ActionSend, Msg: lo},
 			{Type: ActionClose},
 		}
 	}
@@ -300,7 +308,7 @@ func (engine *Engine) handleLogon(msg *message.Message) (bool, []Action) {
 		engine.heartbeatInt = hbInt
 
 		// Build a logon response back and add heartbeat interval
-		lo, _ := engine.Spec.Sample("A", true, nil)
+		lo, _ := engine.Spec.Sample("A", spec.SampleOptions{})
 		lo.Set(108, fmt.Sprint(hbInt))
 
 		// Send logon request back and set state to active
@@ -319,7 +327,7 @@ func (engine *Engine) handleAppMessage(msg *message.Message) (bool, []Action) {
 	// Trigger a resend request (replay), if inSeqNum greater what we are expecting
 	inSeqNumTag, _ := msg.FindFrom(34, 0)
 	if inSeqNum, _ := inSeqNumTag.AsInt(); inSeqNum > engine.inSeqNum {
-		resend, _ := engine.Spec.Sample("2", true, nil)
+		resend, _ := engine.Spec.Sample("2", spec.SampleOptions{})
 		resend.Set(7, fmt.Sprintf("%d", engine.inSeqNum))
 		resend.Set(16, fmt.Sprintf("%d", inSeqNum-1))
 		return false, []Action{
@@ -335,18 +343,16 @@ func (engine *Engine) handleAppMessage(msg *message.Message) (bool, []Action) {
 	case "0": // Already updated InSeqNum, noop
 
 	case "1": // Handle Test Request
-		hb, _ := engine.Spec.Sample("0", true, nil)
-		if reqId, ok := msg.Get(112); ok && !hb.Set(112, reqId) {
-			hb.Insert(1, message.Field{Tag: 112, Value: reqId})
+		hb, _ := engine.Spec.Sample("0", spec.SampleOptions{OptionalFields: map[uint16]any{112: nil}})
+		if reqId, ok := msg.Get(112); ok {
+			hb.Set(112, reqId)
 		}
 		actions = append(actions, Action{Type: ActionSend, Msg: hb})
 
 	case "2": // Resend request, for now we just do a SequenceReset
-		seqReset, _ := engine.Spec.Sample("4", true, nil)
+		seqReset, _ := engine.Spec.Sample("4", spec.SampleOptions{OptionalFields: map[uint16]any{123: nil}})
 		seqReset.Set(36, fmt.Sprintf("%d", engine.outSeqNum))
-		if !seqReset.Set(123, "Y") {
-			seqReset.Insert(len(*msg)-1, message.Field{Tag: 123, Value: "Y"})
-		}
+		seqReset.Set(123, "Y")
 		actions = append(actions, Action{Type: ActionSend, Msg: seqReset})
 
 	case "4": // Sequence Reset
@@ -360,9 +366,7 @@ func (engine *Engine) handleAppMessage(msg *message.Message) (bool, []Action) {
 		return false, actions
 
 	case "5": // Logout
-		lo, _ := engine.Spec.Sample("5", true, nil)
-		engine.state = SessionDisconnected
-		actions = append(actions, Action{Type: ActionSend, Msg: lo}, Action{Type: ActionClose})
+		actions = append(actions, engine.Off()...)
 
 	default: // Passthrough (blocking until session is closed)
 		actions = append(actions, Action{Type: ActionDeliver, Msg: *msg})

@@ -3,6 +3,8 @@ package session
 import (
 	"testing"
 	"time"
+
+	"github.com/infinage/microfix/pkg/spec"
 )
 
 func TestEngine_LogonFlow(t *testing.T) {
@@ -24,7 +26,7 @@ func TestEngine_HandleLogonResponse(t *testing.T) {
 	engine, _ := NewEngine("FIX44.xml", "S", "T", 30)
 	engine.OnStart(true)
 
-	msg, _ := engine.Spec.Sample("A", true, nil)
+	msg, _ := engine.Spec.Sample("A", spec.SampleOptions{})
 	msg.Set(49, "T")
 	msg.Set(56, "S")
 	msg.Set(34, "1")
@@ -46,7 +48,7 @@ func TestEngine_SequenceGap(t *testing.T) {
 	engine.state = SessionActive
 	engine.inSeqNum = 2
 
-	msg, _ := engine.Spec.Sample("D", true, nil)
+	msg, _ := engine.Spec.Sample("D", spec.SampleOptions{})
 	msg.Set(49, "T")
 	msg.Set(56, "S")
 	msg.Set(34, "10")

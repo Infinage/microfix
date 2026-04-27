@@ -3,6 +3,7 @@ package session
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/infinage/microfix/pkg/message"
@@ -21,6 +22,7 @@ type Session struct {
 	incoming chan message.Message
 	errors   chan error
 	once     sync.Once
+	closed   atomic.Bool
 }
 
 func (sess *Session) Incoming() <-chan message.Message {
@@ -35,6 +37,7 @@ func (sess *Session) Done() <-chan struct{} {
 	return sess.base.Done()
 }
 
+// Starts a SINGLE use session
 func NewSession(specPath string, senderCompID string, targetCompID string, heartbeatInt int64) (*Session, error) {
 	engine, err := NewEngine(specPath, senderCompID, targetCompID, heartbeatInt)
 	if err != nil {
@@ -53,9 +56,9 @@ func NewSession(specPath string, senderCompID string, targetCompID string, heart
 
 // Close the session (base.close already behind OnceFlag but may need it for mocks)
 func (sess *Session) Close() {
-	sess.engine.Off()
 	if sess.base != nil {
 		sess.once.Do(func() {
+			sess.closed.Store(true)
 			sess.base.Close()
 		})
 	}
@@ -63,6 +66,10 @@ func (sess *Session) Close() {
 
 // Listen for a client connection, call blocks until accepted
 func (sess *Session) Listen(addr string) error {
+	if sess.closed.Load() {
+		return fmt.Errorf("Session has been closed, please use a new session")
+	}
+
 	conn, err := transport.Listen1(addr)
 	if err != nil {
 		return err
@@ -75,6 +82,10 @@ func (sess *Session) Listen(addr string) error {
 
 // Connect to a server, call blocks until connected
 func (sess *Session) Connect(addr string) error {
+	if sess.closed.Load() {
+		return fmt.Errorf("Session has been closed, please use a new session")
+	}
+
 	conn, err := transport.Dial(addr)
 	if err != nil {
 		return err
@@ -164,7 +175,6 @@ func (sess *Session) execute(actions []Action) {
 func (sess *Session) run(isClient bool) {
 	defer close(sess.errors)
 	defer close(sess.incoming)
-	defer sess.Close()
 
 	// Ticker to monitor for heartbeats, timeouts
 	ticker := time.NewTicker(time.Second)

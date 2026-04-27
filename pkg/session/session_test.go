@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/infinage/microfix/pkg/message"
+	"github.com/infinage/microfix/pkg/spec"
 )
 
 // MockConnection simulates the underlying transport
@@ -48,7 +49,7 @@ func TestSession_Lifecycle(t *testing.T) {
 	})
 
 	t.Run("TransitionsToActiveOnLogonResponse", func(t *testing.T) {
-		resp, _ := sess.engine.Spec.Sample("A", true, nil)
+		resp, _ := sess.engine.Spec.Sample("A", spec.SampleOptions{})
 		resp.Set(49, "TARGET")
 		resp.Set(56, "SENDER")
 		resp.Set(34, "1")
@@ -68,7 +69,7 @@ func TestSession_Lifecycle(t *testing.T) {
 	})
 
 	t.Run("SequenceGapTriggersResend", func(t *testing.T) {
-		msg, _ := sess.engine.Spec.Sample("D", true, nil)
+		msg, _ := sess.engine.Spec.Sample("D", spec.SampleOptions{})
 		msg.Set(49, "TARGET")
 		msg.Set(56, "SENDER")
 		msg.Set(34, "10")
