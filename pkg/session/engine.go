@@ -2,6 +2,7 @@ package session
 
 import (
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/infinage/microfix/pkg/message"
@@ -11,11 +12,21 @@ import (
 type SessionState int
 
 const (
-	SessionDisconnected SessionState = iota
+	SessionNew SessionState = iota
+	SessionListening
 	SessionLoggingIn
 	SessionActive
 	SessionStale
+	SessionClosed
 )
+
+func (s SessionState) String() string {
+	names := []string{"New", "Listening", "Logging In", "Connected", "Stale", "Closed"}
+	if s < 0 || int(s) >= len(names) {
+		return "Unknown"
+	}
+	return names[s]
+}
 
 type ActionType int
 
@@ -28,7 +39,7 @@ const (
 
 type Engine struct {
 	Spec  spec.Spec
-	state SessionState
+	state atomic.Int32
 
 	senderCompID string
 	targetCompID string
@@ -74,15 +85,25 @@ func NewEngine(specPath string, senderCompID string, targetCompID string, heartb
 		testReqID:    "MICROFIX",
 		inSeqNum:     1,
 		outSeqNum:    1,
-		state:        SessionDisconnected,
 	}
+
+	// Starting as New State
+	engine.setState(SessionNew)
 
 	return engine, nil
 }
 
+func (engine *Engine) State() SessionState {
+	return SessionState(engine.state.Load())
+}
+
+func (engine *Engine) setState(state SessionState) {
+	engine.state.Store(int32(state))
+}
+
 func (engine *Engine) Off() []Action {
-	if engine.state != SessionDisconnected {
-		engine.state = SessionDisconnected
+	if engine.State() != SessionClosed {
+		engine.setState(SessionClosed)
 		lo, _ := engine.Spec.Sample("5", spec.SampleOptions{})
 		return []Action{{Type: ActionSend, Msg: lo}, {Type: ActionClose}}
 	}
@@ -90,14 +111,18 @@ func (engine *Engine) Off() []Action {
 }
 
 func (engine *Engine) OnStart(isClient bool) []Action {
+	now := time.Now()
+	engine.lastReadTime = now
+	engine.lastWriteTime = now
+
 	if isClient {
-		engine.state = SessionLoggingIn
+		engine.setState(SessionLoggingIn)
 		logon, _ := engine.Spec.Sample("A", spec.SampleOptions{})
 		logon.Set(108, fmt.Sprint(engine.heartbeatInt))
 		return []Action{{Type: ActionSend, Msg: logon}}
 	}
 
-	engine.state = SessionDisconnected
+	engine.setState(SessionListening)
 	return nil
 }
 
@@ -177,7 +202,7 @@ func (engine *Engine) validate(msg *message.Message) error {
 func (engine *Engine) OnTick(now time.Time) []Action {
 
 	// Timeout logon requests if we did not receive a logon back
-	if engine.state == SessionLoggingIn && now.Sub(engine.lastWriteTime) > 3*time.Second {
+	if engine.State() == SessionLoggingIn && now.Sub(engine.lastWriteTime) > 3*time.Second {
 		engine.Off()
 		return []Action{
 			{Type: ActionError, Err: fmt.Errorf("Logon timeout")},
@@ -197,10 +222,10 @@ func (engine *Engine) OnTick(now time.Time) []Action {
 
 	// Incoming idle (send test request)
 	if since := now.Sub(engine.lastReadTime); since >= hbDuration {
-		if engine.state != SessionStale {
+		if engine.State() != SessionStale {
 			tr, _ := engine.Spec.Sample("1", spec.SampleOptions{})
 			tr.Set(112, engine.testReqID)
-			engine.state = SessionStale
+			engine.setState(SessionStale)
 			actions = append(actions, Action{Type: ActionSend, Msg: tr})
 		} else if since >= hbDuration*3 {
 			engine.Off()
@@ -233,8 +258,8 @@ func (engine *Engine) OnMessage(msg *message.Message, now time.Time) []Action {
 	// Get the MessageType from msg object
 	msgType, _ := msg.Get(35)
 
-	switch engine.state {
-	case SessionDisconnected, SessionLoggingIn:
+	switch engine.State() {
+	case SessionListening, SessionLoggingIn:
 		if msgType == "A" { // Appropriately handle logon as Server and as Client
 			msgAccepted, actions = engine.handleLogon(msg)
 		}
@@ -262,11 +287,11 @@ func (engine *Engine) handleStaleHeartbeat(msg *message.Message) (bool, []Action
 	if reqID != engine.testReqID { // Log warn but continue
 		actions = append(actions, Action{Type: ActionError, Err: fmt.Errorf("Expected Heartbeat TestReqID tag [112] to %v", engine.testReqID)})
 	}
-	engine.state = SessionActive
+	engine.setState(SessionActive)
 	return true, actions
 }
 
-// If we get logon when we are in Disconnected state we accept it and send a logon back
+// If we get logon when we are in SessionNew state we accept it and send a logon back
 // If we get a logon when we are in Logging State we were validated and accepted
 func (engine *Engine) handleLogon(msg *message.Message) (bool, []Action) {
 	// Extract heartbeat interval
@@ -284,7 +309,7 @@ func (engine *Engine) handleLogon(msg *message.Message) (bool, []Action) {
 	}
 
 	// If we were ones to send the logon, we expect heartbeatInt to strictly match
-	if engine.state == SessionLoggingIn && hbInt != engine.heartbeatInt {
+	if engine.State() == SessionLoggingIn && hbInt != engine.heartbeatInt {
 		engine.Off()
 		lo, _ := engine.Spec.Sample("5", spec.SampleOptions{OptionalFields: map[uint16]any{58: nil}})
 		lo.Set(58, "HeartBeatInt [108] mismatch")
@@ -302,8 +327,8 @@ func (engine *Engine) handleLogon(msg *message.Message) (bool, []Action) {
 		engine.inSeqNum, engine.outSeqNum = 1, 1
 	}
 
-	// We are disconnected and Counterparty sends a logon, accept and send back a logon
-	if engine.state == SessionDisconnected {
+	// We are SessionListening and Counterparty sends a logon, accept and send back a logon
+	if engine.State() == SessionListening {
 		// Update negotiated heartbeat from input message
 		engine.heartbeatInt = hbInt
 
@@ -316,7 +341,7 @@ func (engine *Engine) handleLogon(msg *message.Message) (bool, []Action) {
 	}
 
 	// If all good, we proceed to next stage
-	engine.state = SessionActive
+	engine.setState(SessionActive)
 	return true, actions
 }
 

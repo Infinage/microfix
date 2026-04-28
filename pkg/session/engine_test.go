@@ -35,7 +35,7 @@ func TestEngine_HandleLogonResponse(t *testing.T) {
 
 	actions := engine.OnMessage(&msg, time.Now())
 
-	if engine.state != SessionActive {
+	if engine.State() != SessionActive {
 		t.Fatalf("expected state Active")
 	}
 	if len(actions) != 0 {
@@ -45,7 +45,7 @@ func TestEngine_HandleLogonResponse(t *testing.T) {
 
 func TestEngine_SequenceGap(t *testing.T) {
 	engine, _ := NewEngine("FIX44.xml", "S", "T", 30)
-	engine.state = SessionActive
+	engine.setState(SessionActive)
 	engine.inSeqNum = 2
 
 	msg, _ := engine.Spec.Sample("D", spec.SampleOptions{})
@@ -68,7 +68,7 @@ func TestEngine_SequenceGap(t *testing.T) {
 
 func TestEngine_HeartbeatOnIdle(t *testing.T) {
 	engine, _ := NewEngine("FIX44.xml", "S", "T", 1)
-	engine.state = SessionActive
+	engine.setState(SessionActive)
 	engine.lastWriteTime = time.Now().Add(-2 * time.Second)
 
 	actions := engine.OnTick(time.Now())

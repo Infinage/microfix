@@ -64,7 +64,7 @@ func handleLogStream(cb *CircularBuffer) {
 	}
 }
 
-func handleSearch(s *spec.Spec, pattern string) {
+func handleSearch(s *session.Session, pattern string) {
 	re, err := regexp.Compile("(?i)" + pattern)
 	if err != nil {
 		fmt.Printf("Invalid regex: %v\n", err)
@@ -72,7 +72,7 @@ func handleSearch(s *spec.Spec, pattern string) {
 	}
 
 	found := false
-	for tag, field := range s.Fields {
+	for tag, field := range s.Spec().Fields {
 		tagStr := strconv.Itoa(int(tag))
 		if re.MatchString(field.Name) || re.MatchString(tagStr) {
 			fmt.Printf("  [%-5d] %-20s (%s)\n", tag, field.Name, field.Type)
@@ -82,6 +82,24 @@ func handleSearch(s *spec.Spec, pattern string) {
 	if !found {
 		fmt.Println("No matches found.")
 	}
+}
+
+func handleStatus(sess *session.Session, cfg *Config) {
+	var stateColor string
+	switch sess.Status() {
+	case session.SessionActive:
+		stateColor = "\033[32m" // Green
+	case session.SessionLoggingIn, session.SessionStale:
+		stateColor = "\033[33m" // Yellow
+	default:
+		stateColor = "\033[31m" // Red
+	}
+
+	fmt.Println("\n─── Session Status ─────────────────────────────────")
+	fmt.Printf("  Target ID : \033[1m%s\033[0m\n", cfg.TargetCompID)
+	fmt.Printf("  State     : %s%s\033[0m\n", stateColor, sess.Status().String())
+	fmt.Printf("  Heartbeat : %d seconds\n", cfg.HeartbeatInt)
+	fmt.Println("────────────────────────────────────────────────────")
 }
 
 func handleSend(s *session.Session, args []string) {
@@ -109,7 +127,7 @@ func handleSend(s *session.Session, args []string) {
 	s.Send(msg, isRaw)
 }
 
-func handleSpecHelp(s *spec.Spec, cfg Config, args []string) {
+func handleSpecHelp(s *session.Session, cfg Config, args []string) {
 	if len(args) < 2 {
 		fmt.Println("Usage: fix field <tag> | fix message <MsgType> | fix sample <MsgType>")
 		return
@@ -121,23 +139,25 @@ func handleSpecHelp(s *spec.Spec, cfg Config, args []string) {
 	switch sub {
 	case "field":
 		tag, _ := strconv.Atoi(id)
-		if f, ok := s.Fields[uint16(tag)]; ok {
+		if f, ok := s.Spec().Fields[uint16(tag)]; ok {
 			WritePrettyFieldDef(os.Stdout, f)
 		} else {
 			fmt.Printf("Field %s not found\n", id)
 		}
 	case "message":
-		if m, ok := s.Messages[id]; ok {
-			WritePrettySpecEntry(os.Stdout, m, s.FieldNames, cfg.SpecDisplayOptFields, 0)
+		if m, ok := s.Spec().Messages[id]; ok {
+			WritePrettySpecEntry(os.Stdout, m, s.Spec().FieldNames, cfg.SpecDisplayOptFields, 0)
 		} else {
 			fmt.Printf("Message %s not found\n", id)
 		}
 	case "sample":
-		if smp, err := s.Sample(id, spec.SampleOptions{IncludeOptional: true}); err == nil {
+		if smp, err := s.Spec().Sample(id, spec.SampleOptions{IncludeOptional: true}); err == nil {
 			fmt.Println(smp.String("|"))
 		} else {
 			fmt.Println("Sample failed:", err)
 		}
+	default:
+		fmt.Println("2nd argument must be one of field, message, sample")
 	}
 }
 
@@ -165,7 +185,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	s := sess.Spec()
 	reader := bufio.NewReader(os.Stdin)
 
 	for {
@@ -207,11 +226,21 @@ func main() {
 		case "disconnect":
 			sess.Close()
 
+		case "reset":
+			s, err := session.NewSession(cfg.SpecPath, cfg.SenderCompID, cfg.TargetCompID, cfg.HeartbeatInt)
+			if err != nil {
+				fmt.Printf("Critical Error: %v\n", err)
+				os.Exit(1)
+			}
+
+			sess = s
+			fmt.Println("New session created")
+
 		case "send":
 			handleSend(sess, args[1:])
 
 		case "status":
-			fmt.Printf("Target: %s | Heartbeat: %ds\n", cfg.TargetCompID, cfg.HeartbeatInt)
+			handleStatus(sess, &cfg)
 
 		case "logs":
 			if len(args) > 1 && args[1] == "-f" {
@@ -225,11 +254,11 @@ func main() {
 			if len(args) < 2 {
 				fmt.Println("Usage: search <regex>")
 			} else {
-				handleSearch(&s, args[1])
+				handleSearch(sess, args[1])
 			}
 
 		case "fix":
-			handleSpecHelp(&s, cfg, args[1:])
+			handleSpecHelp(sess, cfg, args[1:])
 
 		default:
 			fmt.Printf("Unknown command: %s\n", cmd)

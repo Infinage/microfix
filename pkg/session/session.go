@@ -3,7 +3,6 @@ package session
 import (
 	"fmt"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/infinage/microfix/pkg/message"
@@ -16,13 +15,12 @@ type Session struct {
 	base transport.Connection
 
 	// Engine contains and handles the logic
-	engine Engine
+	engine *Engine
 
 	// Communication channels
 	incoming chan message.Message
 	errors   chan error
 	once     sync.Once
-	closed   atomic.Bool
 }
 
 func (sess *Session) Incoming() <-chan message.Message {
@@ -46,7 +44,7 @@ func NewSession(specPath string, senderCompID string, targetCompID string, heart
 
 	sess := &Session{
 		base:     nil,
-		engine:   *engine,
+		engine:   engine,
 		incoming: make(chan message.Message, 1024),
 		errors:   make(chan error, 10),
 	}
@@ -58,7 +56,6 @@ func NewSession(specPath string, senderCompID string, targetCompID string, heart
 func (sess *Session) Close() {
 	if sess.base != nil {
 		sess.once.Do(func() {
-			sess.closed.Store(true)
 			sess.base.Close()
 		})
 	}
@@ -66,8 +63,8 @@ func (sess *Session) Close() {
 
 // Listen for a client connection, call blocks until accepted
 func (sess *Session) Listen(addr string) error {
-	if sess.closed.Load() {
-		return fmt.Errorf("Session has been closed, please use a new session")
+	if sess.Status() != SessionNew {
+		return fmt.Errorf("Session has already started and cannot be reused")
 	}
 
 	conn, err := transport.Listen1(addr)
@@ -82,8 +79,8 @@ func (sess *Session) Listen(addr string) error {
 
 // Connect to a server, call blocks until connected
 func (sess *Session) Connect(addr string) error {
-	if sess.closed.Load() {
-		return fmt.Errorf("Session has been closed, please use a new session")
+	if sess.Status() != SessionNew {
+		return fmt.Errorf("Session has already started and cannot be reused")
 	}
 
 	conn, err := transport.Dial(addr)
@@ -116,8 +113,13 @@ func (sess *Session) Send(msg message.Message, passthrough bool) {
 }
 
 // Returns a copy of the underlying spec object
-func (sess *Session) Spec() spec.Spec {
-	return sess.engine.Spec
+func (sess *Session) Spec() *spec.Spec {
+	return &sess.engine.Spec
+}
+
+// Query the session status
+func (sess *Session) Status() SessionState {
+	return sess.engine.State()
 }
 
 // -------------- INTERNAL FUNCTIONS -------------- //
