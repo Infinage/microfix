@@ -19,8 +19,8 @@ type Config struct {
 }
 
 // Attempt to load and unmarshal into config, returns err on failure
-func loadConfig(path string) (*Config, error) {
-	file, err := os.Open(path)
+func loadConfig(filepath string) (*Config, error) {
+	file, err := os.Open(filepath)
 	if err != nil {
 		return nil, err
 	}
@@ -31,6 +31,14 @@ func loadConfig(path string) (*Config, error) {
 	err = json.NewDecoder(file).Decode(config)
 
 	return config, err
+}
+
+func dumpConfig(filepath string, cfg *Config) error {
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath, data, 0644)
 }
 
 // Tries to load .mxrc file from CWD & Home directory
@@ -47,7 +55,7 @@ func InitConfig() Config {
 		return *cfg
 	}
 
-	return Config{
+	cfg = &Config{
 		SenderCompID:         "SENDER",
 		TargetCompID:         "TARGET",
 		HeartbeatInt:         30,
@@ -56,4 +64,9 @@ func InitConfig() Config {
 		IpAddr:               "0.0.0.0",
 		Port:                 1234,
 	}
+
+	// Write default template to currency working directory
+	dumpConfig(".mxrc", cfg)
+
+	return *cfg
 }

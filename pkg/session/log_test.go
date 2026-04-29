@@ -14,9 +14,7 @@ func TestLogFormatting(t *testing.T) {
 	now, _ := time.Parse("15:04:05.000", "08:30:00.000")
 
 	t.Run("Message Log Formatting", func(t *testing.T) {
-		msg := message.Message{}
-		msg.Set(35, "A") // Logon
-
+		msg := message.Message{message.Field{Tag: 35, Value: "A"}}
 		l := newMessageLog(now, msg, true) // RECV
 
 		got := l.String()

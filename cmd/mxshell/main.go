@@ -16,8 +16,17 @@ import (
 )
 
 func startLogger(sess *session.Session, cb *CircularBuffer) {
-	for log := range sess.Log() {
-		cb.Write(log.String())
+	for {
+		select {
+		case log, ok := <-sess.Log():
+			if !ok {
+				return
+			}
+			cb.Write(log.String())
+
+		case <-sess.Done():
+			return
+		}
 	}
 }
 
@@ -50,23 +59,61 @@ func handleLogStream(cb *CircularBuffer) {
 	}
 }
 
-func handleSearch(s *session.Session, pattern string) {
+func handleFixSearch(s *session.Session, pattern string) {
 	re, err := regexp.Compile("(?i)" + pattern)
 	if err != nil {
 		fmt.Printf("Invalid regex: %v\n", err)
 		return
 	}
 
-	found := false
+	fmt.Printf("\n--- Spec Search: '%s' ---\n", pattern)
+
+	// Search in Fields
+	fmt.Println("\033[1m[ FIELDS ]\033[0m")
+	fCount := 0
 	for tag, field := range s.Spec().Fields {
-		tagStr := strconv.Itoa(int(tag))
-		if re.MatchString(field.Name) || re.MatchString(tagStr) {
-			fmt.Printf("  [%-5d] %-20s (%s)\n", tag, field.Name, field.Type)
-			found = true
+		if re.MatchString(field.Name) || re.MatchString(strconv.Itoa(int(tag))) {
+			fmt.Printf("  %-5d | %s\n", tag, field.Name)
+			fCount++
 		}
 	}
-	if !found {
-		fmt.Println("No matches found.")
+
+	// Search in Messages
+	fmt.Println("\n\033[1m[ MESSAGES ]\033[0m")
+	mCount := 0
+	for msgType, msgDef := range s.Spec().Messages {
+		if re.MatchString(msgDef.Name) || re.MatchString(msgType) {
+			fmt.Printf("  %-5s | %s\n", msgType, msgDef.Name)
+			mCount++
+		}
+	}
+	fmt.Printf("\nFound %d fields, %d messages.\n", fCount, mCount)
+}
+
+func handleLogSearch(cb *CircularBuffer, pattern string) {
+	re, err := regexp.Compile("(?i)" + pattern)
+	if err != nil {
+		fmt.Printf("Invalid regex: %v\n", err)
+		return
+	}
+
+	cb.mu.Lock()
+	defer cb.mu.Unlock()
+
+	fmt.Printf("\n--- Log Search: '%s' ---\n", pattern)
+	found := 0
+	for i := 0; i < cb.size; i++ {
+		idx := (cb.ptr + i) % cb.size
+		line := cb.lines[idx]
+		if line != "" && re.MatchString(line) {
+			fmt.Println(line)
+			found++
+		}
+	}
+	if found == 0 {
+		fmt.Println("No matches in buffer.")
+	} else {
+		fmt.Printf("\nTotal matches: %d\n", found)
 	}
 }
 
@@ -213,6 +260,9 @@ func main() {
 			sess.Close()
 
 		case "reset":
+			sess.Close() // close old session
+
+			// Create new session
 			s, err := session.NewSession(cfg.SpecPath, cfg.SenderCompID, cfg.TargetCompID, cfg.HeartbeatInt)
 			if err != nil {
 				fmt.Printf("Critical Error: %v\n", err)
@@ -229,22 +279,49 @@ func main() {
 			handleStatus(sess, &cfg)
 
 		case "logs":
-			if len(args) > 1 && args[1] == "-f" {
-				handleLogStream(cb)
-			} else {
+			if len(args) < 2 {
 				fmt.Println("\n--- Session Logs ---")
 				cb.Dump(os.Stdout)
+				continue
 			}
 
-		case "search":
-			if len(args) < 2 {
-				fmt.Println("Usage: search <regex>")
-			} else {
-				handleSearch(sess, args[1])
+			sub := strings.ToLower(args[1])
+			switch sub {
+			case "-f":
+				handleLogStream(cb)
+			case "search":
+				if len(args) < 3 {
+					fmt.Println("Usage: logs search <regex>")
+				} else {
+					handleLogSearch(cb, args[2])
+				}
+			default:
+				fmt.Printf("Unknown logs subcommand: %s\n", sub)
 			}
 
 		case "fix":
-			handleSpecHelp(sess, cfg, args[1:])
+			if len(args) < 2 {
+				fmt.Println("Usage: fix [field|message|sample|search] <id/pattern>")
+				continue
+			}
+
+			sub := strings.ToLower(args[1])
+			// New 'search' case added here
+			if sub == "search" {
+				if len(args) < 3 {
+					fmt.Println("Usage: fix search <regex>")
+				} else {
+					handleFixSearch(sess, args[2])
+				}
+				continue
+			}
+
+			// Existing help logic (field, message, sample)
+			if len(args) < 3 {
+				fmt.Println("Usage: fix [field|message|sample] <id>")
+			} else {
+				handleSpecHelp(sess, cfg, args[1:])
+			}
 
 		default:
 			fmt.Printf("Unknown command: %s\n", cmd)

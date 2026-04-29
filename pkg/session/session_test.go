@@ -38,6 +38,12 @@ func TestSession_Lifecycle(t *testing.T) {
 	// Start the session loop
 	sess.start(mockConn, true)
 
+	// Drain out the "Starting session as sys log"
+	sysLog := <-sess.Log()
+	if sysLog.Type != LogSys {
+		t.Errorf("Expected a %s log type, got %v: %v", LogSys, sysLog.Type, sysLog)
+	}
+
 	t.Run("SendsLogonOnStart", func(t *testing.T) {
 		// Check Outgoing Wire
 		select {
@@ -84,8 +90,17 @@ func TestSession_Lifecycle(t *testing.T) {
 			t.Fatal("timeout waiting for logon response log")
 		}
 
-		if sess.Status() != SessionActive {
-			t.Errorf("expected Active state, got %s", sess.Status().String())
+		// Poll for state change
+		success := false
+		deadline := time.Now().Add(250 * time.Millisecond)
+		for time.Now().Before(deadline) {
+			if sess.Status() == SessionActive {
+				success = true
+				break
+			}
+		}
+		if !success {
+			t.Errorf("Expected Active state, got %s", sess.Status())
 		}
 	})
 

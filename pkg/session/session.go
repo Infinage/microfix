@@ -99,6 +99,11 @@ func (sess *Session) Connect(addr string) error {
 // Send to the connected client, if passthrough is true fields are sent as is
 // Otherwise fields such as MsgType, Checksum are calculated fresh and set
 func (sess *Session) Send(msg message.Message, passthrough bool) {
+	if sess.Status() == SessionNew {
+		sess.writeLog(newErrorLog(time.Now(), fmt.Errorf("Send failed, session not started: %v", msg.String("|"))))
+		return
+	}
+
 	if !passthrough {
 		now := time.Now()
 		if err := sess.engine.FinalizeMessage(&msg, now); err != nil {
@@ -180,6 +185,7 @@ func (sess *Session) execute(actions []Action) {
 func (sess *Session) run(isClient bool) {
 	defer close(sess.incoming)
 	defer sess.writeLog(newSysEventLog(time.Now(), "Session loop Ended"))
+	defer sess.Close()
 
 	// Ticker to monitor for heartbeats, timeouts
 	ticker := time.NewTicker(time.Second)
