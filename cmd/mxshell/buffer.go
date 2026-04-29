@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"sync"
-	"time"
 )
 
 // --- Circular Buffer for Silent Logging ---
@@ -26,7 +25,7 @@ func NewCircularBuffer(size int) *CircularBuffer {
 func (cb *CircularBuffer) Write(msg string) {
 	cb.mu.Lock()
 	defer cb.mu.Unlock()
-	cb.lines[cb.ptr] = fmt.Sprintf("[%s] %s", time.Now().Format("15:04:05.000"), msg)
+	cb.lines[cb.ptr] = msg
 	cb.ptr = (cb.ptr + 1) % cb.size
 }
 

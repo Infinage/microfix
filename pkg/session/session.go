@@ -19,16 +19,18 @@ type Session struct {
 
 	// Communication channels
 	incoming chan message.Message
-	errors   chan error
 	once     sync.Once
+
+	// Channel to monitor all incoming + outgoing
+	logs chan Log
 }
 
 func (sess *Session) Incoming() <-chan message.Message {
 	return sess.incoming
 }
 
-func (sess *Session) Errors() <-chan error {
-	return sess.errors
+func (sess *Session) Log() <-chan Log {
+	return sess.logs
 }
 
 func (sess *Session) Done() <-chan struct{} {
@@ -46,7 +48,7 @@ func NewSession(specPath string, senderCompID string, targetCompID string, heart
 		base:     nil,
 		engine:   engine,
 		incoming: make(chan message.Message, 1024),
-		errors:   make(chan error, 10),
+		logs:     make(chan Log, 1024),
 	}
 
 	return sess, nil
@@ -56,6 +58,7 @@ func NewSession(specPath string, senderCompID string, targetCompID string, heart
 func (sess *Session) Close() {
 	if sess.base != nil {
 		sess.once.Do(func() {
+			sess.writeLog(newSysEventLog(time.Now(), "Close initiated by user/engine"))
 			sess.base.Close()
 		})
 	}
@@ -97,8 +100,9 @@ func (sess *Session) Connect(addr string) error {
 // Otherwise fields such as MsgType, Checksum are calculated fresh and set
 func (sess *Session) Send(msg message.Message, passthrough bool) {
 	if !passthrough {
-		if err := sess.engine.FinalizeMessage(&msg, time.Now()); err != nil {
-			sess.reportError(err)
+		now := time.Now()
+		if err := sess.engine.FinalizeMessage(&msg, now); err != nil {
+			sess.writeLog(newErrorLog(now, err))
 			return
 		}
 	}
@@ -106,9 +110,11 @@ func (sess *Session) Send(msg message.Message, passthrough bool) {
 	// Blocking send (or until session / underlying transport is closed)
 	select {
 	case sess.base.Outgoing() <- msg:
-		sess.engine.RecordWrite(time.Now())
+		now := time.Now()
+		sess.engine.RecordWrite(now)
+		sess.writeLog(newMessageLog(now, msg, false))
 	case <-sess.Done():
-		sess.reportError(fmt.Errorf("Session closed: %v", msg.String("|")))
+		sess.writeLog(newErrorLog(time.Now(), fmt.Errorf("Send failed, session closed: %v", msg.String("|"))))
 	}
 }
 
@@ -130,26 +136,23 @@ func (sess *Session) start(conn transport.Connection, isClient bool) {
 	go sess.run(isClient)
 }
 
-// Non blocking send to errors channel
-func (s *Session) reportError(err error) {
+// Non blocking write to logs channel
+func (sess *Session) writeLog(log Log) {
 	select {
-	case <-s.Done():
-		return
-	case s.errors <- err:
-		// error delivered
-	default:
-		// Channel is full, drop the error
+	case sess.logs <- log:
+	default: // Drop if channel if full
 	}
 }
 
 // Blocking delivery of message to user's incoming channel
 func (sess *Session) deliverMessage(msg *message.Message) {
 	select {
-	// Can't send since underlying transport is closed
-	case <-sess.Done():
-
 	// Send the message to users incoming channel
 	case sess.incoming <- *msg:
+
+	// Timeout and write to non blocking logs channel
+	default:
+		sess.writeLog(newErrorLog(time.Now(), fmt.Errorf("Message queue full, dropping %v", msg.String("|"))))
 	}
 }
 
@@ -164,7 +167,7 @@ func (sess *Session) execute(actions []Action) {
 			sess.deliverMessage(&action.Msg)
 
 		case ActionError:
-			sess.reportError(action.Err)
+			sess.writeLog(newErrorLog(time.Now(), action.Err))
 
 		case ActionClose:
 			sess.Close()
@@ -175,12 +178,18 @@ func (sess *Session) execute(actions []Action) {
 // Handle Admin type messages: Login, Logout, Heartbeat, TestMessage
 // Other input message types are pass into the Incoming channel
 func (sess *Session) run(isClient bool) {
-	defer close(sess.errors)
 	defer close(sess.incoming)
+	defer sess.writeLog(newSysEventLog(time.Now(), "Session loop Ended"))
 
 	// Ticker to monitor for heartbeats, timeouts
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
+
+	role := "Acceptor"
+	if isClient {
+		role = "Initiator"
+	}
+	sess.writeLog(newSysEventLog(time.Now(), fmt.Sprintf("Starting session as %s", role)))
 
 	// Turn on Fix engine as a Server / Client
 	actions := sess.engine.OnStart(isClient)
@@ -192,19 +201,21 @@ func (sess *Session) run(isClient bool) {
 		case <-sess.Done():
 			return
 
-		// Forward to user's error channel
+		// Forward to user's logs
 		case err, ok := <-sess.base.Errors():
 			if !ok {
 				return
 			}
-			sess.reportError(err)
+			sess.writeLog(newErrorLog(time.Now(), err))
 
 		// Process logic and execute actions as decided by the engine
 		case msg, ok := <-sess.base.Incoming():
 			if !ok {
 				return
 			}
-			actions := sess.engine.OnMessage(&msg, time.Now())
+			now := time.Now()
+			sess.writeLog(newMessageLog(now, msg, true))
+			actions := sess.engine.OnMessage(&msg, now)
 			sess.execute(actions)
 
 		// Notify engine of a single tick to run its timed logic

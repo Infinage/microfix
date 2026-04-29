@@ -35,21 +35,33 @@ func TestSession_Lifecycle(t *testing.T) {
 		t.Fatalf("Failed to create session: %v", err)
 	}
 
+	// Start the session loop
 	sess.start(mockConn, true)
 
 	t.Run("SendsLogonOnStart", func(t *testing.T) {
+		// Check Outgoing Wire
 		select {
 		case msg := <-mockConn.outgoing:
 			if mt, _ := msg.Get(35); mt != "A" {
 				t.Fatalf("expected Logon (A), got %s", mt)
 			}
+		case <-time.After(500 * time.Millisecond):
+			t.Fatal("no logon sent to wire")
+		}
+
+		// Check Internal Logs
+		select {
+		case l := <-sess.Log():
+			if l.Type != LogSend {
+				t.Errorf("expected LogType %v for Logon, got %v: %v", LogSend, l.Type, l)
+			}
 		case <-time.After(100 * time.Millisecond):
-			t.Fatal("no logon sent")
+			t.Fatal("no logon recorded in logs")
 		}
 	})
 
 	t.Run("TransitionsToActiveOnLogonResponse", func(t *testing.T) {
-		resp, _ := sess.engine.Spec.Sample("A", spec.SampleOptions{})
+		resp, _ := sess.Spec().Sample("A", spec.SampleOptions{})
 		resp.Set(49, "TARGET")
 		resp.Set(56, "SENDER")
 		resp.Set(34, "1")
@@ -59,17 +71,27 @@ func TestSession_Lifecycle(t *testing.T) {
 
 		mockConn.incoming <- resp
 
-		// Expect no error and normal progression
+		// We expect a LogRecv and NO LogErr
 		select {
-		case err := <-sess.errors:
-			t.Fatalf("unexpected error: %v", err)
-		case <-time.After(50 * time.Millisecond):
-			// ok
+		case l := <-sess.Log():
+			if l.Type == LogErr {
+				t.Fatalf("unexpected error during logon: %v", l.Err)
+			}
+			if l.Type != LogRecv {
+				t.Errorf("expected LogRecv, got %v", l.Type)
+			}
+		case <-time.After(100 * time.Millisecond):
+			t.Fatal("timeout waiting for logon response log")
+		}
+
+		if sess.Status() != SessionActive {
+			t.Errorf("expected Active state, got %s", sess.Status().String())
 		}
 	})
 
 	t.Run("SequenceGapTriggersResend", func(t *testing.T) {
-		msg, _ := sess.engine.Spec.Sample("D", spec.SampleOptions{})
+		// Send a message with SeqNum 10 (expecting 2)
+		msg, _ := sess.Spec().Sample("D", spec.SampleOptions{})
 		msg.Set(49, "TARGET")
 		msg.Set(56, "SENDER")
 		msg.Set(34, "10")
@@ -77,6 +99,17 @@ func TestSession_Lifecycle(t *testing.T) {
 
 		mockConn.incoming <- msg
 
+		// Should see the RECV log for the gap message
+		select {
+		case l := <-sess.Log():
+			if l.Type != LogRecv {
+				t.Errorf("expected Recv log, got %v", l.Type)
+			}
+		case <-time.After(100 * time.Millisecond):
+			t.Fatal("no log for incoming gap message")
+		}
+
+		// Should see a ResendRequest (35=2) on the wire
 		select {
 		case out := <-mockConn.outgoing:
 			mt, _ := out.Get(35)
@@ -84,7 +117,17 @@ func TestSession_Lifecycle(t *testing.T) {
 				t.Fatalf("expected ResendRequest (2), got %s", mt)
 			}
 		case <-time.After(100 * time.Millisecond):
-			t.Fatal("expected resend request")
+			t.Fatal("expected resend request on wire")
+		}
+
+		// Should see a SEND log for that ResendRequest
+		select {
+		case l := <-sess.Log():
+			if l.Type != LogSend {
+				t.Errorf("expected LogSend for ResendRequest, got %v", l.Type)
+			}
+		case <-time.After(100 * time.Millisecond):
+			t.Fatal("no log for outgoing ResendRequest")
 		}
 	})
 }

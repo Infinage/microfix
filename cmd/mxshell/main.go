@@ -16,22 +16,8 @@ import (
 )
 
 func startLogger(sess *session.Session, cb *CircularBuffer) {
-	for {
-		select {
-		case msg, ok := <-sess.Incoming():
-			if !ok {
-				return
-			}
-			cb.Write("RECV << " + msg.String("|"))
-		case err, ok := <-sess.Errors():
-			if !ok {
-				return
-			}
-			cb.Write("ERR  !! " + err.Error())
-		case <-sess.Done():
-			cb.Write("SYS  .. Session Closed")
-			return
-		}
+	for log := range sess.Log() {
+		cb.Write(log.String())
 	}
 }
 
