@@ -25,7 +25,19 @@ func startLogger(sess *session.Session, cb *CircularBuffer) {
 			cb.Write(log.String())
 
 		case <-sess.Done():
-			return
+			// The session is done, but there might be logs left in the channel.
+			// We need to "drain" them so we don't miss the "Ended" event.
+			for {
+				select {
+				case log, ok := <-sess.Log():
+					if !ok {
+						return
+					}
+					cb.Write(log.String())
+				default:
+					return // No more logs currently in the buffer
+				}
+			}
 		}
 	}
 }

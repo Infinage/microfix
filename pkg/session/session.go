@@ -59,6 +59,7 @@ func (sess *Session) Close() {
 	if sess.base != nil {
 		sess.once.Do(func() {
 			sess.writeLog(newSysEventLog(time.Now(), "Close initiated by user/engine"))
+			sess.engine.Off()
 			sess.base.Close()
 		})
 	}
@@ -183,9 +184,9 @@ func (sess *Session) execute(actions []Action) {
 // Handle Admin type messages: Login, Logout, Heartbeat, TestMessage
 // Other input message types are pass into the Incoming channel
 func (sess *Session) run(isClient bool) {
-	defer close(sess.incoming)
-	defer sess.writeLog(newSysEventLog(time.Now(), "Session loop Ended"))
 	defer sess.Close()
+	defer sess.writeLog(newSysEventLog(time.Now(), "Session loop Ended"))
+	defer close(sess.incoming)
 
 	// Ticker to monitor for heartbeats, timeouts
 	ticker := time.NewTicker(time.Second)

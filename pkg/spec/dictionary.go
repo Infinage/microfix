@@ -86,6 +86,7 @@ func LoadSpec(path string) (Spec, error) {
 		if err != nil {
 			return Spec{}, err
 		}
+		flattenedMsg.Name = message.Name
 		result.Messages[message.MsgType] = flattenedMsg
 	}
 
