@@ -59,6 +59,55 @@ func handleLogStream(cb *CircularBuffer) {
 	}
 }
 
+func handleLogSearch(cb *CircularBuffer, pattern string) {
+	re, err := regexp.Compile("(?i)" + pattern)
+	if err != nil {
+		fmt.Printf("Invalid regex: %v\n", err)
+		return
+	}
+
+	cb.mu.Lock()
+	defer cb.mu.Unlock()
+
+	fmt.Printf("\n--- Log Search: '%s' ---\n", pattern)
+	found := 0
+	for i := 0; i < cb.size; i++ {
+		idx := (cb.ptr + i) % cb.size
+		line := cb.lines[idx]
+		if line != "" && re.MatchString(line) {
+			fmt.Println(line)
+			found++
+		}
+	}
+	if found == 0 {
+		fmt.Println("No matches in buffer.")
+	} else {
+		fmt.Printf("\nTotal matches: %d\n", found)
+	}
+}
+
+func handleLogs(cb *CircularBuffer, args []string) {
+	if len(args) < 2 {
+		fmt.Println("\n--- Session Logs ---")
+		cb.Dump(os.Stdout)
+		return
+	}
+
+	sub := strings.ToLower(args[1])
+	switch sub {
+	case "-f":
+		handleLogStream(cb)
+	case "search":
+		if len(args) < 3 {
+			fmt.Println("Usage: logs search <regex>")
+		} else {
+			handleLogSearch(cb, args[2])
+		}
+	default:
+		fmt.Printf("Unknown logs subcommand: %s\n", sub)
+	}
+}
+
 func handleFixSearch(s *session.Session, pattern string) {
 	re, err := regexp.Compile("(?i)" + pattern)
 	if err != nil {
@@ -88,33 +137,6 @@ func handleFixSearch(s *session.Session, pattern string) {
 		}
 	}
 	fmt.Printf("\nFound %d fields, %d messages.\n", fCount, mCount)
-}
-
-func handleLogSearch(cb *CircularBuffer, pattern string) {
-	re, err := regexp.Compile("(?i)" + pattern)
-	if err != nil {
-		fmt.Printf("Invalid regex: %v\n", err)
-		return
-	}
-
-	cb.mu.Lock()
-	defer cb.mu.Unlock()
-
-	fmt.Printf("\n--- Log Search: '%s' ---\n", pattern)
-	found := 0
-	for i := 0; i < cb.size; i++ {
-		idx := (cb.ptr + i) % cb.size
-		line := cb.lines[idx]
-		if line != "" && re.MatchString(line) {
-			fmt.Println(line)
-			found++
-		}
-	}
-	if found == 0 {
-		fmt.Println("No matches in buffer.")
-	} else {
-		fmt.Printf("\nTotal matches: %d\n", found)
-	}
 }
 
 func handleStatus(sess *session.Session) {
@@ -174,7 +196,7 @@ func handleSend(s *session.Session, args []string) {
 	s.Send(msg, isRaw)
 }
 
-func handleSpecHelp(s *session.Session, cfg Config, args []string) {
+func handleFixSpecQuery(s *session.Session, cfg *Config, args []string) {
 	if len(args) < 2 {
 		fmt.Println("Usage: fix field <tag> | fix message <MsgType> | fix sample <MsgType>")
 		return
@@ -206,6 +228,67 @@ func handleSpecHelp(s *session.Session, cfg Config, args []string) {
 	default:
 		fmt.Println("2nd argument must be one of field, message, sample")
 	}
+}
+
+func handleFix(sess *session.Session, cfg *Config, args []string) {
+	if len(args) < 2 {
+		fmt.Println("Usage: fix [field|message|sample|search] <id/pattern>")
+		return
+	}
+
+	sub := strings.ToLower(args[1])
+	// New 'search' case added here
+	if sub == "search" {
+		if len(args) < 3 {
+			fmt.Println("Usage: fix search <regex>")
+		} else {
+			handleFixSearch(sess, args[2])
+		}
+		return
+	}
+
+	// Existing help logic (field, message, sample)
+	if len(args) < 3 {
+		fmt.Println("Usage: fix [field|message|sample] <id>")
+	} else {
+		handleFixSpecQuery(sess, cfg, args[1:])
+	}
+}
+
+func handleConnect(sess *session.Session, cfg *Config, cb *CircularBuffer) {
+	addr := fmt.Sprintf("%s:%d", cfg.IpAddr, cfg.Port)
+	fmt.Printf("Connecting to %s...\n", addr)
+	if err := sess.Connect(addr); err != nil {
+		fmt.Printf("Connection failed: %v\n", err)
+	} else {
+		fmt.Println("TCP Connection established.")
+		go startLogger(sess, cb)
+	}
+}
+
+func handleListen(sess *session.Session, cfg *Config, cb *CircularBuffer) {
+	addr := fmt.Sprintf("%s:%d", cfg.IpAddr, cfg.Port)
+	fmt.Printf("Listening on %s...\n", addr)
+	if err := sess.Listen(addr); err != nil {
+		fmt.Printf("Listen failed: %v\n", err)
+	} else {
+		fmt.Println("Client connected.")
+		go startLogger(sess, cb)
+	}
+}
+
+func handleReset(sess *session.Session, cfg *Config) {
+	sess.Close() // close old session
+
+	// Create new session
+	s, err := session.NewSession(cfg.SpecPath, cfg.SenderCompID, cfg.TargetCompID, cfg.HeartbeatInt)
+	if err != nil {
+		fmt.Printf("Critical Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	sess = s
+	fmt.Println("New session created")
 }
 
 // --- Main Application ---
@@ -246,45 +329,21 @@ func main() {
 		cmd := strings.ToLower(args[0])
 
 		switch cmd {
-		case "exit", "quit":
+		case "exit", "quit": // REPL closed
 			sess.Close()
 			return
 
-		case "connect":
-			addr := fmt.Sprintf("%s:%d", cfg.IpAddr, cfg.Port)
-			fmt.Printf("Connecting to %s...\n", addr)
-			if err := sess.Connect(addr); err != nil {
-				fmt.Printf("Connection failed: %v\n", err)
-			} else {
-				fmt.Println("TCP Connection established.")
-				go startLogger(sess, cb)
-			}
-
-		case "listen":
-			addr := fmt.Sprintf("%s:%d", cfg.IpAddr, cfg.Port)
-			fmt.Printf("Listening on %s...\n", addr)
-			if err := sess.Listen(addr); err != nil {
-				fmt.Printf("Listen failed: %v\n", err)
-			} else {
-				fmt.Println("Client connected.")
-				go startLogger(sess, cb)
-			}
-
-		case "disconnect":
+		case "disconnect": // REPL stays alive
 			sess.Close()
 
+		case "connect":
+			handleConnect(sess, &cfg, cb)
+
+		case "listen":
+			handleListen(sess, &cfg, cb)
+
 		case "reset":
-			sess.Close() // close old session
-
-			// Create new session
-			s, err := session.NewSession(cfg.SpecPath, cfg.SenderCompID, cfg.TargetCompID, cfg.HeartbeatInt)
-			if err != nil {
-				fmt.Printf("Critical Error: %v\n", err)
-				os.Exit(1)
-			}
-
-			sess = s
-			fmt.Println("New session created")
+			handleReset(sess, &cfg)
 
 		case "send":
 			handleSend(sess, args[1:])
@@ -293,50 +352,11 @@ func main() {
 			handleStatus(sess)
 
 		case "logs":
-			if len(args) < 2 {
-				fmt.Println("\n--- Session Logs ---")
-				cb.Dump(os.Stdout)
-				continue
-			}
-
-			sub := strings.ToLower(args[1])
-			switch sub {
-			case "-f":
-				handleLogStream(cb)
-			case "search":
-				if len(args) < 3 {
-					fmt.Println("Usage: logs search <regex>")
-				} else {
-					handleLogSearch(cb, args[2])
-				}
-			default:
-				fmt.Printf("Unknown logs subcommand: %s\n", sub)
-			}
+			handleLogs(cb, args)
 
 		case "fix":
-			if len(args) < 2 {
-				fmt.Println("Usage: fix [field|message|sample|search] <id/pattern>")
-				continue
-			}
-
-			sub := strings.ToLower(args[1])
-			// New 'search' case added here
-			if sub == "search" {
-				if len(args) < 3 {
-					fmt.Println("Usage: fix search <regex>")
-				} else {
-					handleFixSearch(sess, args[2])
-				}
-				continue
-			}
-
-			// Existing help logic (field, message, sample)
-			if len(args) < 3 {
-				fmt.Println("Usage: fix [field|message|sample] <id>")
-			} else {
-				handleSpecHelp(sess, cfg, args[1:])
-			}
-
+			handleFix(sess, &cfg, args)
+			
 		default:
 			fmt.Printf("Unknown command: %s\n", cmd)
 		}
