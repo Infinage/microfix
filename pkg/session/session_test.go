@@ -94,13 +94,13 @@ func TestSession_Lifecycle(t *testing.T) {
 		success := false
 		deadline := time.Now().Add(250 * time.Millisecond)
 		for time.Now().Before(deadline) {
-			if sess.Status() == SessionActive {
+			if sess.Status().State == SessionActive {
 				success = true
 				break
 			}
 		}
 		if !success {
-			t.Errorf("Expected Active state, got %s", sess.Status())
+			t.Errorf("Expected Active state, got %s", sess.Status().State)
 		}
 	})
 

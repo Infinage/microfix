@@ -17,7 +17,7 @@ func TestLogFormatting(t *testing.T) {
 		msg := message.Message{message.Field{Tag: 35, Value: "A"}}
 		l := newMessageLog(now, msg, true) // RECV
 
-		got := l.String()
+		got := l.String("Logon")
 		wantPrefix := "[08:30:00.000] RECV <<"
 		if !strings.HasPrefix(got, wantPrefix) {
 			t.Errorf("Expected prefix %q, got %q", wantPrefix, got)
@@ -31,7 +31,7 @@ func TestLogFormatting(t *testing.T) {
 		err := errors.New("socket timeout")
 		l := newErrorLog(now, err)
 
-		got := l.String()
+		got := l.String("")
 		want := "[08:30:00.000] ERR  !! socket timeout"
 		if got != want {
 			t.Errorf("\nWant: %s\nGot : %s", want, got)
@@ -41,7 +41,7 @@ func TestLogFormatting(t *testing.T) {
 	t.Run("Sys Event Log Formatting", func(t *testing.T) {
 		l := newSysEventLog(now, "Handshake complete")
 
-		got := l.String()
+		got := l.String("")
 		want := "[08:30:00.000] SYS  .. Handshake complete"
 		if got != want {
 			t.Errorf("\nWant: %s\nGot : %s", want, got)

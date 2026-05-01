@@ -17,7 +17,7 @@ const (
 )
 
 func (typ LogType) String() string {
-	var types = []string{"SEND", "RECV", "ERR", "SYS"}
+	var types = []string{"SEND", "RECV", "ERR ", "SYS "}
 	if typn := int(typ); typn < 0 || typn >= len(types) {
 		return "UNKN"
 	}
@@ -27,9 +27,9 @@ func (typ LogType) String() string {
 type Log struct {
 	Type      LogType
 	Timestamp time.Time
-	Msg       message.Message
-	Err       error
-	Text      string
+	Msg       message.Message // LogSend, LogRecv
+	Err       error           // LogErr
+	Text      string          // LogSys
 }
 
 func (log Log) Content() string {
@@ -48,25 +48,28 @@ func (log Log) Content() string {
 	}
 }
 
-func (log Log) String() string {
+// MsgName: Logon, Heartbeat, etc. Can be "", then ignored
+// Only technically valid for Recv and Send
+func (log Log) String(msgName string) string {
 	ts := log.Timestamp.Format("15:04:05.000")
 
+	// Choose a symbol based on type
+	symbol := ".."
 	switch log.Type {
-	case LogRecv:
-		return fmt.Sprintf("[%s] RECV << %s", ts, log.Content())
-
 	case LogSend:
-		return fmt.Sprintf("[%s] SEND >> %s", ts, log.Content())
-
+		symbol = ">>"
+	case LogRecv:
+		symbol = "<<"
 	case LogErr:
-		return fmt.Sprintf("[%s] ERR  !! %v", ts, log.Content())
-
-	case LogSys:
-		return fmt.Sprintf("[%s] SYS  .. %v", ts, log.Content())
-
-	default:
-		return fmt.Sprintf("[%s] UNKN ?? Unexpected log type", ts)
+		symbol = "!!"
 	}
+
+	// Get the MsgName (Logon, Heartbeat, etc.)
+	if msgName != "" {
+		msgName = fmt.Sprintf("[%s] ", msgName)
+	}
+
+	return fmt.Sprintf("[%s] %s %s %s%s", ts, log.Type, symbol, msgName, log.Content())
 }
 
 func newErrorLog(now time.Time, err error) Log {

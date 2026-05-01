@@ -2,7 +2,7 @@ package session
 
 import (
 	"fmt"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/infinage/microfix/pkg/message"
@@ -12,6 +12,8 @@ import (
 
 type Session struct {
 	// Underlying fix aware socket connection
+	// We use base == nil to detect if session is fresh
+	// Donot reset this value at anywhere except on NewSession
 	base transport.Connection
 
 	// Engine contains and handles the logic
@@ -19,10 +21,16 @@ type Session struct {
 
 	// Communication channels
 	incoming chan message.Message
-	once     sync.Once
 
 	// Channel to monitor all incoming + outgoing
 	logs chan Log
+
+	// To queue requests from public APIs - Send, ResetSeq, Snapshot, etc
+	requests chan userRequest
+
+	// Track if the session has been closed, also store the last snapshot "tomstone"
+	tombstone atomic.Value
+	closed    atomic.Bool
 }
 
 func (sess *Session) Incoming() <-chan message.Message {
@@ -33,7 +41,14 @@ func (sess *Session) Log() <-chan Log {
 	return sess.logs
 }
 
+// Is session's underlying transport channel closed
 func (sess *Session) Done() <-chan struct{} {
+	if sess.base == nil {
+		ch := make(chan struct{})
+		close(ch)
+		return ch
+	}
+
 	return sess.base.Done()
 }
 
@@ -49,25 +64,27 @@ func NewSession(specPath string, senderCompID string, targetCompID string, heart
 		engine:   engine,
 		incoming: make(chan message.Message, 1024),
 		logs:     make(chan Log, 1024),
+		requests: make(chan userRequest, 128),
 	}
 
 	return sess, nil
 }
 
-// Close the session (base.close already behind OnceFlag but may need it for mocks)
+// Close the session (gaurd to ensure we dont try to close a non active session)
 func (sess *Session) Close() {
-	if sess.base != nil {
-		sess.once.Do(func() {
-			sess.writeLog(newSysEventLog(time.Now(), "Close initiated by user/engine"))
-			sess.engine.Off()
-			sess.base.Close()
-		})
+	if sess.base != nil && !sess.closed.Load() {
+		select {
+		case sess.requests <- closeRequest{}:
+		case <-sess.Done():
+			sess.closed.Store(true)
+		}
 	}
 }
 
 // Listen for a client connection, call blocks until accepted
+// On session being closed, base will still be not nil and we err out
 func (sess *Session) Listen(addr string) error {
-	if sess.Status() != SessionNew {
+	if sess.base != nil {
 		return fmt.Errorf("Session has already started and cannot be reused")
 	}
 
@@ -82,8 +99,9 @@ func (sess *Session) Listen(addr string) error {
 }
 
 // Connect to a server, call blocks until connected
+// On session being closed, base will still be not nil and we err out
 func (sess *Session) Connect(addr string) error {
-	if sess.Status() != SessionNew {
+	if sess.base != nil {
 		return fmt.Errorf("Session has already started and cannot be reused")
 	}
 
@@ -97,41 +115,61 @@ func (sess *Session) Connect(addr string) error {
 	return nil
 }
 
-// Send to the connected client, if passthrough is true fields are sent as is
-// Otherwise fields such as MsgType, Checksum are calculated fresh and set
-func (sess *Session) Send(msg message.Message, passthrough bool) {
-	if sess.Status() == SessionNew {
-		sess.writeLog(newErrorLog(time.Now(), fmt.Errorf("Send failed, session not started: %v", msg.String("|"))))
-		return
-	}
-
-	if !passthrough {
-		now := time.Now()
-		if err := sess.engine.FinalizeMessage(&msg, now); err != nil {
-			sess.writeLog(newErrorLog(now, err))
-			return
-		}
-	}
-
-	// Blocking send (or until session / underlying transport is closed)
-	select {
-	case sess.base.Outgoing() <- msg:
-		now := time.Now()
-		sess.engine.RecordWrite(now)
-		sess.writeLog(newMessageLog(now, msg, false))
-	case <-sess.Done():
-		sess.writeLog(newErrorLog(time.Now(), fmt.Errorf("Send failed, session closed: %v", msg.String("|"))))
-	}
-}
-
-// Returns a copy of the underlying spec object
+// Returns the underlying spec object
 func (sess *Session) Spec() *spec.Spec {
 	return &sess.engine.Spec
 }
 
+// Send to the connected client, if passthrough is true fields are sent as is
+// Otherwise fields such as MsgType, Checksum are calculated fresh and set
+func (sess *Session) Send(msg message.Message, passthrough bool) {
+	if sess.base == nil {
+		sess.writeLog(newErrorLog(time.Now(), fmt.Errorf("Send failed, session not started: %v", msg.String("|"))))
+		return
+	}
+
+	if !sess.closed.Load() {
+		sess.requests <- messageSendRequest{message: msg, passthrough: passthrough}
+	}
+}
+
 // Query the session status
-func (sess *Session) Status() SessionState {
-	return sess.engine.State()
+func (sess *Session) Status() Snapshot {
+	// Fresh session
+	if sess.base == nil {
+		return Snapshot{State: SessionNew}
+	}
+
+	// Closed session, return latest snapshot, set on run loop exit
+	if sess.closed.Load() {
+		return sess.tombstone.Load().(Snapshot)
+	}
+
+	// Session active, request to run loop
+	reply := make(chan Snapshot, 1)
+	sess.requests <- snapshotRequest{reply: reply}
+
+	// Wait for a response from run loop
+	// If sess is closed while waiting, try to retrieve tombstone
+	// On failure, return a dummy with state set
+	select {
+	case snap := <-reply:
+		return snap
+	case <-sess.Done():
+		snap, ok := sess.tombstone.Load().(Snapshot)
+		if !ok {
+			snap = Snapshot{State: SessionClosed}
+		}
+		return snap
+	}
+}
+
+// Reset the session number (queue to run loop)
+func (sess *Session) ResetSequence(inSeqNum int64, outSeqNum int64) {
+	if sess.base == nil || sess.closed.Load() {
+		return
+	}
+	sess.requests <- resetSequence{inSeqNum: inSeqNum, outSeqNum: outSeqNum}
 }
 
 // -------------- INTERNAL FUNCTIONS -------------- //
@@ -156,9 +194,30 @@ func (sess *Session) deliverMessage(msg *message.Message) {
 	// Send the message to users incoming channel
 	case sess.incoming <- *msg:
 
-	// Timeout and write to non blocking logs channel
+	// On client queue being full, write to non blocking logs channel
 	default:
 		sess.writeLog(newErrorLog(time.Now(), fmt.Errorf("Message queue full, dropping %v", msg.String("|"))))
+	}
+}
+
+// From World / Run loop to the external client we are connected to
+func (sess *Session) handleSend(msg message.Message, passthrough bool) {
+	if !passthrough {
+		now := time.Now()
+		if err := sess.engine.FinalizeMessage(&msg, now); err != nil {
+			sess.writeLog(newErrorLog(now, err))
+			return
+		}
+	}
+
+	// Blocking send (or until session / underlying transport is closed)
+	select {
+	case sess.base.Outgoing() <- msg:
+		now := time.Now()
+		sess.engine.RecordWrite(now)
+		sess.writeLog(newMessageLog(now, msg, false))
+	case <-sess.Done():
+		sess.writeLog(newErrorLog(time.Now(), fmt.Errorf("Send failed, session closed: %v", msg.String("|"))))
 	}
 }
 
@@ -167,7 +226,7 @@ func (sess *Session) execute(actions []Action) {
 	for _, action := range actions {
 		switch action.Type {
 		case ActionSend:
-			sess.Send(action.Msg, false)
+			sess.handleSend(action.Msg, false)
 
 		case ActionDeliver:
 			sess.deliverMessage(&action.Msg)
@@ -184,9 +243,14 @@ func (sess *Session) execute(actions []Action) {
 // Handle Admin type messages: Login, Logout, Heartbeat, TestMessage
 // Other input message types are pass into the Incoming channel
 func (sess *Session) run(isClient bool) {
-	defer sess.Close()
-	defer sess.writeLog(newSysEventLog(time.Now(), "Session loop Ended"))
-	defer close(sess.incoming)
+	// Cleanup after loop exit
+	defer func() {
+		sess.writeLog(newSysEventLog(time.Now(), "Session loop Ended"))
+		sess.tombstone.Store(sess.engine.Snapshot())
+		sess.closed.Store(true)
+		close(sess.incoming)
+		close(sess.logs)
+	}()
 
 	// Ticker to monitor for heartbeats, timeouts
 	ticker := time.NewTicker(time.Second)
@@ -206,11 +270,13 @@ func (sess *Session) run(isClient bool) {
 	for {
 		select {
 		case <-sess.Done():
+			sess.engine.OnDisconnect()
 			return
 
 		// Forward to user's logs
 		case err, ok := <-sess.base.Errors():
 			if !ok {
+				sess.engine.OnDisconnect()
 				return
 			}
 			sess.writeLog(newErrorLog(time.Now(), err))
@@ -218,6 +284,7 @@ func (sess *Session) run(isClient bool) {
 		// Process logic and execute actions as decided by the engine
 		case msg, ok := <-sess.base.Incoming():
 			if !ok {
+				sess.engine.OnDisconnect()
 				return
 			}
 			now := time.Now()
@@ -229,6 +296,15 @@ func (sess *Session) run(isClient bool) {
 		case <-ticker.C:
 			actions := sess.engine.OnTick(time.Now())
 			sess.execute(actions)
+
+		// Handle requests from World
+		case req, ok := <-sess.requests:
+			if !ok {
+				sess.engine.OnDisconnect()
+				return
+			}
+			req.apply(sess)
 		}
+
 	}
 }

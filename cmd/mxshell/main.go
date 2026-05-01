@@ -15,30 +15,18 @@ import (
 	"github.com/infinage/microfix/pkg/spec"
 )
 
+// Session closes logs on run loop exit
 func startLogger(sess *session.Session, cb *CircularBuffer) {
-	for {
-		select {
-		case log, ok := <-sess.Log():
-			if !ok {
-				return
-			}
-			cb.Write(log.String())
-
-		case <-sess.Done():
-			// The session is done, but there might be logs left in the channel.
-			// We need to "drain" them so we don't miss the "Ended" event.
-			for {
-				select {
-				case log, ok := <-sess.Log():
-					if !ok {
-						return
-					}
-					cb.Write(log.String())
-				default:
-					return // No more logs currently in the buffer
-				}
+	for log := range sess.Log() {
+		hint := ""
+		if msg := log.Msg; msg != nil {
+			msgType, _ := msg.Get(35)
+			entry, ok := sess.Spec().Messages[msgType]
+			if ok {
+				hint = entry.Name
 			}
 		}
+		cb.Write(log.String(hint))
 	}
 }
 
@@ -129,9 +117,11 @@ func handleLogSearch(cb *CircularBuffer, pattern string) {
 	}
 }
 
-func handleStatus(sess *session.Session, cfg *Config) {
+func handleStatus(sess *session.Session) {
+	snapshot := sess.Status()
+
 	var stateColor string
-	switch sess.Status() {
+	switch snapshot.State {
 	case session.SessionActive:
 		stateColor = "\033[32m" // Green
 	case session.SessionLoggingIn, session.SessionStale:
@@ -140,10 +130,22 @@ func handleStatus(sess *session.Session, cfg *Config) {
 		stateColor = "\033[31m" // Red
 	}
 
+	// Calculate elapsed time for better UX
+	now := time.Now()
+	lastIn := "N/A"
+	lastOut := "N/A"
+
+	if !snapshot.LastReadTime.IsZero() {
+		lastIn = fmt.Sprintf("%s ago", now.Sub(snapshot.LastReadTime).Round(time.Second))
+	}
+	if !snapshot.LastWriteTime.IsZero() {
+		lastOut = fmt.Sprintf("%s ago", now.Sub(snapshot.LastWriteTime).Round(time.Second))
+	}
+
 	fmt.Println("\n─── Session Status ─────────────────────────────────")
-	fmt.Printf("  Target ID : \033[1m%s\033[0m\n", cfg.TargetCompID)
-	fmt.Printf("  State     : %s%s\033[0m\n", stateColor, sess.Status().String())
-	fmt.Printf("  Heartbeat : %d seconds\n", cfg.HeartbeatInt)
+	fmt.Printf("  State      : %s%s\033[0m\n", stateColor, snapshot.State)
+	fmt.Printf("  Sequence   : In(%d) | Out(%d)\n", snapshot.InSeqNum, snapshot.OutSeqNum)
+	fmt.Printf("  Activity   : Last In: %s | Last Out: %s\n", lastIn, lastOut)
 	fmt.Println("────────────────────────────────────────────────────")
 }
 
@@ -288,7 +290,7 @@ func main() {
 			handleSend(sess, args[1:])
 
 		case "status":
-			handleStatus(sess, &cfg)
+			handleStatus(sess)
 
 		case "logs":
 			if len(args) < 2 {
