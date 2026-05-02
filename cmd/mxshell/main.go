@@ -60,24 +60,27 @@ func main() {
 		}
 
 		cmdName := strings.ToLower(args[0])
-
-		// Global exit check
-		if cmdName == "exit" || cmdName == "quit" {
+		switch cmdName {
+		// Exit on command
+		case "exit", "quit":
 			ctx.Session.Close()
 			return
-		}
 
 		// REPL stays alive
-		if cmdName == "disconnect" {
+		case "disconnect":
 			ctx.Session.Close()
-			continue
-		}
 
-		// Dispatch
-		if handler, ok := handlers.CommandRegistry[cmdName]; ok {
-			handler(ctx, args)
-		} else {
-			fmt.Printf("Unknown command: %s\n", cmdName)
+		// Claer screen
+		case "clear":
+			fmt.Print("\033[H\033[2J")
+
+		// Dispatch to handler
+		default:
+			if handler, ok := handlers.CommandRegistry[cmdName]; ok {
+				handler(ctx, args)
+			} else {
+				fmt.Printf("Unknown command: %s\n", cmdName)
+			}
 		}
 
 		fmt.Println()

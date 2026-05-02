@@ -14,8 +14,18 @@ type Config struct {
 	SpecPath             string `json:"SpecPath"`
 	SpecDisplayOptFields bool   `json:"SpecDisplayOptFields"`
 
+	FixValidateStrict bool `json:"FixValidateStrict"`
+
 	IpAddr string `json:"IpAddr"`
 	Port   uint16 `json:"Port"`
+}
+
+func (cfg *Config) Dump(filepath string) error {
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath, data, 0644)
 }
 
 // Attempt to load and unmarshal into config, returns err on failure
@@ -31,14 +41,6 @@ func LoadConfig(filepath string) (*Config, error) {
 	err = json.NewDecoder(file).Decode(config)
 
 	return config, err
-}
-
-func DumpConfig(filepath string, cfg *Config) error {
-	data, err := json.MarshalIndent(cfg, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(filepath, data, 0644)
 }
 
 // Tries to load .mxrc file from CWD & Home directory
@@ -61,12 +63,13 @@ func InitConfig() Config {
 		HeartbeatInt:         30,
 		SpecPath:             "FIX44.xml",
 		SpecDisplayOptFields: false,
+		FixValidateStrict:    true,
 		IpAddr:               "0.0.0.0",
 		Port:                 1234,
 	}
 
 	// Write default template to currency working directory
-	DumpConfig(".mxrc", cfg)
+	cfg.Dump(".mxrc")
 
 	return *cfg
 }

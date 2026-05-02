@@ -19,7 +19,7 @@ func TestConfig_LoadAndDump(t *testing.T) {
 		Port:         9999,
 	}
 
-	err := DumpConfig(tempFile, original)
+	err := original.Dump(tempFile)
 	if err != nil {
 		t.Fatalf("Failed to dump config: %v", err)
 	}

@@ -62,11 +62,11 @@ func handleStatus(ctx *AppContext, _ []string) {
 		lastOut = fmt.Sprintf("%s ago", now.Sub(snapshot.LastWriteTime).Round(time.Second))
 	}
 
-	fmt.Println("\n─── Session Status ─────────────────────────────────")
+	fmt.Println("\n─── Session Status ──────────────────────────────")
 	fmt.Printf("  State      : %s%s\033[0m\n", stateColor, snapshot.State)
 	fmt.Printf("  Sequence   : In(%d) | Out(%d)\n", snapshot.InSeqNum, snapshot.OutSeqNum)
 	fmt.Printf("  Activity   : Last In: %s | Last Out: %s\n", lastIn, lastOut)
-	fmt.Println("────────────────────────────────────────────────────")
+	fmt.Println("──────────────────────────────────────────────────")
 }
 
 func handleSend(ctx *AppContext, args []string) {
@@ -75,7 +75,6 @@ func handleSend(ctx *AppContext, args []string) {
 		return
 	}
 
-	// Send raw fix string as is if '-r' is set
 	rawMsg := args[len(args)-1]
 	isRaw := false
 	for _, a := range args {
@@ -84,51 +83,88 @@ func handleSend(ctx *AppContext, args []string) {
 		}
 	}
 
-	// Delimiter is typically the last character (e.g., |, ^, or \x01)
+	fmt.Println("\n─── Send Message ────────────────────────────────")
+
 	delim := rawMsg[len(rawMsg)-1:]
 	msg, err := message.MessageFromString(rawMsg, delim)
 	if err != nil {
-		fmt.Printf("Invalid FIX string: %v\n", err)
+		fmt.Printf("  Status : FAILED\n")
+		fmt.Printf("  Error  : %v\n", err)
+		fmt.Println("──────────────────────────────────────────────────")
 		return
 	}
 
 	ctx.Session.Send(msg, isRaw)
+
+	fmt.Printf("  Status : OK\n")
+
+	if msgType, ok := msg.Get(35); ok {
+		fmt.Printf("  MsgType: %s\n", msgType)
+	}
+
+	if isRaw {
+		fmt.Println("  Mode   : RAW")
+	} else {
+		fmt.Println("  Mode   : NORMAL")
+	}
+
+	fmt.Println("──────────────────────────────────────────────────")
 }
 
 func handleConnect(ctx *AppContext, _ []string) {
 	addr := fmt.Sprintf("%s:%d", ctx.Config.IpAddr, ctx.Config.Port)
-	fmt.Printf("Connecting to %s...\n", addr)
+
+	fmt.Println("\n─── Connect ─────────────────────────────────────")
+
 	if err := ctx.Session.Connect(addr); err != nil {
-		fmt.Printf("Connection failed: %v\n", err)
+		fmt.Printf("  Status : FAILED\n")
+		fmt.Printf("  Error  : %v\n", err)
 	} else {
-		fmt.Println("TCP Connection established.")
+		fmt.Printf("  Status : OK\n")
+		fmt.Printf("  Remote : %s\n", addr)
 		go startLogger(ctx.Session, ctx.Logs)
 	}
+
+	fmt.Println("──────────────────────────────────────────────────")
 }
 
 func handleListen(ctx *AppContext, _ []string) {
 	addr := fmt.Sprintf("%s:%d", ctx.Config.IpAddr, ctx.Config.Port)
-	fmt.Printf("Listening on %s...\n", addr)
+
+	fmt.Println("\n─── Listen ──────────────────────────────────────")
+
 	if err := ctx.Session.Listen(addr); err != nil {
-		fmt.Printf("Listen failed: %v\n", err)
+		fmt.Printf("  Status : FAILED\n")
+		fmt.Printf("  Error  : %v\n", err)
 	} else {
-		fmt.Println("Client connected.")
+		fmt.Printf("  Status : OK\n")
+		fmt.Printf("  Bound  : %s\n", addr)
+		fmt.Println("  Info   : Waiting for client connection...")
 		go startLogger(ctx.Session, ctx.Logs)
 	}
+
+	fmt.Println("──────────────────────────────────────────────────")
 }
 
 func handleReset(ctx *AppContext, _ []string) {
-	ctx.Session.Close() // close old session
+	fmt.Println("\n─── Session Reset ───────────────────────────────")
 
-	// Create new session
+	ctx.Session.Close()
+
 	s, err := NewSession(ctx.Config)
 	if err != nil {
-		fmt.Printf("Critical Error: %v\n", err)
+		fmt.Printf("  Status : FAILED\n")
+		fmt.Printf("  Error  : %v\n", err)
+		fmt.Println("──────────────────────────────────────────────────")
 		os.Exit(1)
 	}
 
 	ctx.Session = s
-	fmt.Println("New session created")
+
+	fmt.Printf("  Status : OK\n")
+	fmt.Println("  Info   : New session initialized")
+
+	fmt.Println("──────────────────────────────────────────────────")
 }
 
 func init() {

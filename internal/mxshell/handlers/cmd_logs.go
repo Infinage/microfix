@@ -10,11 +10,11 @@ import (
 )
 
 // Show logs to screen until user interupts
-func handleLogStream(cb *ringbuf.CircularBuffer) {
+func streamLogs(cb *ringbuf.CircularBuffer) {
 	ch, cancel := cb.Subscribe()
 	defer cancel()
 
-	fmt.Println("\n--- Log Stream (Ctrl+C to exit) ---")
+	fmt.Println("\n─── Log Stream (Ctrl+C to exit) ────────────────")
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt)
 	defer signal.Stop(sigChan)
@@ -22,7 +22,7 @@ func handleLogStream(cb *ringbuf.CircularBuffer) {
 	for {
 		select {
 		case <-sigChan:
-			fmt.Println("\n--- Exiting Stream ---")
+			fmt.Println("\n─── Exiting Stream ─────────────────────────────")
 			return
 
 		case logLine, ok := <-ch:
@@ -35,41 +35,42 @@ func handleLogStream(cb *ringbuf.CircularBuffer) {
 }
 
 // Filter out the logs based on regex and print to screen
-func handleLogSearch(cb *ringbuf.CircularBuffer, pattern string) {
+func searchLogs(cb *ringbuf.CircularBuffer, pattern string) {
 	filtered, err := cb.Filter(pattern)
 	if err != nil {
 		fmt.Println(err.Error())
 	}
 
+	fmt.Println("\n─── Log Search ─────────────────────────────────")
+	fmt.Printf("  Pattern : %s\n\n", pattern)
+
 	for _, line := range filtered {
 		fmt.Println(line)
 	}
 
-	fmt.Printf("\n--- Log Search: '%s' ---\n", pattern)
-	if len(filtered) == 0 {
-		fmt.Println("No matches in buffer.")
-	} else {
-		fmt.Printf("\nTotal matches: %d\n", len(filtered))
-	}
+	fmt.Println("\n──────────────────────────────────────────────────")
+	fmt.Printf("  Matches : %d\n", len(filtered))
+	fmt.Println("──────────────────────────────────────────────────")
 }
 
 // Main log handler
 func handleLogs(ctx *AppContext, args []string) {
 	if len(args) < 2 {
-		fmt.Println("\n--- Session Logs ---")
+		fmt.Println("\n─── Session Logs ─────────────────────────────────")
 		ctx.Logs.Dump(os.Stdout)
+		fmt.Println("──────────────────────────────────────────────────")
 		return
 	}
 
 	sub := strings.ToLower(args[1])
 	switch sub {
 	case "-f":
-		handleLogStream(ctx.Logs)
+		streamLogs(ctx.Logs)
 	case "search":
 		if len(args) < 3 {
 			fmt.Println("Usage: logs search <regex>")
 		} else {
-			handleLogSearch(ctx.Logs, args[2])
+			searchLogs(ctx.Logs, args[2])
 		}
 	default:
 		fmt.Printf("Unknown logs subcommand: %s\n", sub)
