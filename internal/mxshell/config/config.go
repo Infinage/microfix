@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"encoding/json"
@@ -19,7 +19,7 @@ type Config struct {
 }
 
 // Attempt to load and unmarshal into config, returns err on failure
-func loadConfig(filepath string) (*Config, error) {
+func LoadConfig(filepath string) (*Config, error) {
 	file, err := os.Open(filepath)
 	if err != nil {
 		return nil, err
@@ -33,7 +33,7 @@ func loadConfig(filepath string) (*Config, error) {
 	return config, err
 }
 
-func dumpConfig(filepath string, cfg *Config) error {
+func DumpConfig(filepath string, cfg *Config) error {
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return err
@@ -44,13 +44,13 @@ func dumpConfig(filepath string, cfg *Config) error {
 // Tries to load .mxrc file from CWD & Home directory
 // If not found returns struct with default configs
 func InitConfig() Config {
-	cfg, err := loadConfig(".mxrc")
+	cfg, err := LoadConfig(".mxrc")
 	if err == nil {
 		return *cfg
 	}
 
 	homeDir, _ := os.UserHomeDir()
-	cfg, err = loadConfig(path.Join(homeDir, ".mxrc"))
+	cfg, err = LoadConfig(path.Join(homeDir, ".mxrc"))
 	if err == nil {
 		return *cfg
 	}
@@ -66,7 +66,7 @@ func InitConfig() Config {
 	}
 
 	// Write default template to currency working directory
-	dumpConfig(".mxrc", cfg)
+	DumpConfig(".mxrc", cfg)
 
 	return *cfg
 }
