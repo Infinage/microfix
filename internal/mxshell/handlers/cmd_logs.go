@@ -53,6 +53,25 @@ func searchLogs(cb *ringbuf.CircularBuffer, pattern string) {
 	fmt.Println("──────────────────────────────────────────────────")
 }
 
+func saveLogs(cb *ringbuf.CircularBuffer, filepath string) {
+	fmt.Println("\n─── Save Logs ─────────────────────────────────────")
+
+	f, err := os.Create(filepath)
+	if err != nil {
+		fmt.Printf("  Status : FAILED\n")
+		fmt.Printf("  Error  : %v\n", err)
+		fmt.Println("──────────────────────────────────────────────────")
+		return
+	}
+	defer f.Close()
+
+	cb.Dump(f)
+
+	fmt.Printf("  Status : OK\n")
+	fmt.Printf("  Path   : %s\n", filepath)
+	fmt.Println("──────────────────────────────────────────────────")
+}
+
 // Main log handler
 func handleLogs(ctx *AppContext, args []string) {
 	if len(args) < 2 {
@@ -72,11 +91,22 @@ func handleLogs(ctx *AppContext, args []string) {
 		} else {
 			searchLogs(ctx.Logs, args[2])
 		}
+	case "save":
+		if len(args) < 3 {
+			fmt.Println("Usage: logs save <filepath>")
+		} else {
+			saveLogs(ctx.Logs, args[2])
+		}
 	default:
 		fmt.Printf("Unknown logs subcommand: %s\n", sub)
 	}
 }
 
 func init() {
-	RegisterCommandHandler("logs", handleLogs)
+	RegisterCommand(
+		"logs",
+		handleLogs,
+		"View, stream, search, or save session logs",
+		"logs [-f | search <regex> | save <path>]",
+	)
 }

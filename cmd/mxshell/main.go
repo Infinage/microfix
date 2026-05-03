@@ -77,7 +77,7 @@ func main() {
 		// Dispatch to handler
 		default:
 			if handler, ok := handlers.CommandRegistry[cmdName]; ok {
-				handler(ctx, args)
+				handler.Handler(ctx, args)
 			} else {
 				fmt.Printf("Unknown command: %s\n", cmdName)
 			}

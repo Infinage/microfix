@@ -161,5 +161,10 @@ func handleConfig(ctx *AppContext, args []string) {
 }
 
 func init() {
-	RegisterCommandHandler("config", handleConfig)
+	RegisterCommand(
+		"config",
+		handleConfig,
+		"View or modify the current session configuration",
+		"config [load <path> | save <path> | set <key> <val>]",
+	)
 }

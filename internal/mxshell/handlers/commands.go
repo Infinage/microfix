@@ -14,12 +14,20 @@ type AppContext struct {
 }
 
 // Type enforce what can be registered
-type CommandHandler func(ctx *AppContext, args []string)
+type Command struct {
+	Handler     func(ctx *AppContext, args []string)
+	Description string
+	Usage       string
+}
 
 // Map containing commands and corresponding handlers
-var CommandRegistry = make(map[string]CommandHandler)
+var CommandRegistry = make(map[string]Command)
 
 // Global func to register new handlers
-func RegisterCommandHandler(command string, handler CommandHandler) {
-	CommandRegistry[command] = handler
+func RegisterCommand(command string, handler func(*AppContext, []string), desc, usage string) {
+	CommandRegistry[command] = Command{
+		Handler:     handler,
+		Description: desc,
+		Usage:       usage,
+	}
 }

@@ -51,7 +51,7 @@ func (log Log) Content() string {
 // MsgName: Logon, Heartbeat, etc. Can be "", then ignored
 // Only technically valid for Recv and Send
 func (log Log) String(msgName string) string {
-	ts := log.Timestamp.Format("15:04:05.000")
+	ts := log.Timestamp.Format("2006-01-02 15:04:05.000")
 
 	// Choose a symbol based on type
 	symbol := ".."
@@ -64,7 +64,7 @@ func (log Log) String(msgName string) string {
 		symbol = "!!"
 	}
 
-	// Get the MsgName (Logon, Heartbeat, etc.)
+	// Optional message name
 	if msgName != "" {
 		msgName = fmt.Sprintf("[%s] ", msgName)
 	}

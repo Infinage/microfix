@@ -11,14 +11,14 @@ import (
 
 func TestLogFormatting(t *testing.T) {
 	// Fixed time for deterministic string testing
-	now, _ := time.Parse("15:04:05.000", "08:30:00.000")
+	now, _ := time.Parse("2006-01-02 15:04:05.000", "1964-04-07 08:30:00.000")
 
 	t.Run("Message Log Formatting", func(t *testing.T) {
 		msg := message.Message{message.Field{Tag: 35, Value: "A"}}
 		l := newMessageLog(now, msg, true) // RECV
 
 		got := l.String("Logon")
-		wantPrefix := "[08:30:00.000] RECV <<"
+		wantPrefix := "[1964-04-07 08:30:00.000] RECV <<"
 		if !strings.HasPrefix(got, wantPrefix) {
 			t.Errorf("Expected prefix %q, got %q", wantPrefix, got)
 		}
@@ -32,7 +32,7 @@ func TestLogFormatting(t *testing.T) {
 		l := newErrorLog(now, err)
 
 		got := l.String("")
-		want := "[08:30:00.000] ERR  !! socket timeout"
+		want := "[1964-04-07 08:30:00.000] ERR  !! socket timeout"
 		if got != want {
 			t.Errorf("\nWant: %s\nGot : %s", want, got)
 		}
@@ -42,7 +42,7 @@ func TestLogFormatting(t *testing.T) {
 		l := newSysEventLog(now, "Handshake complete")
 
 		got := l.String("")
-		want := "[08:30:00.000] SYS  .. Handshake complete"
+		want := "[1964-04-07 08:30:00.000] SYS  .. Handshake complete"
 		if got != want {
 			t.Errorf("\nWant: %s\nGot : %s", want, got)
 		}

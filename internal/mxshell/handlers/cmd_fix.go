@@ -170,5 +170,10 @@ func handleFix(ctx *AppContext, args []string) {
 }
 
 func init() {
-	RegisterCommandHandler("fix", handleFix)
+	RegisterCommand(
+		"fix",
+		handleFix,
+		"Query FIX dictionary, generate samples, and validate messages",
+		"fix [search <regex> | meta <header|trailer> | validate <msg> | <field|message|sample> <id>]",
+	)
 }

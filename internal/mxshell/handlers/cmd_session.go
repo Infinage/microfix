@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"os"
+	"sort"
 	"time"
 
 	"github.com/infinage/microfix/internal/mxshell/config"
@@ -167,10 +168,64 @@ func handleReset(ctx *AppContext, _ []string) {
 	fmt.Println("──────────────────────────────────────────────────")
 }
 
+func handleHelp(_ *AppContext, args []string) {
+	const version = "v0.1.0"
+
+	// If user asks: help <command>
+	if len(args) > 1 {
+		cmdName := args[1]
+		cmd, ok := CommandRegistry[cmdName]
+		if !ok {
+			fmt.Printf("Unknown command: %s\n", cmdName)
+			return
+		}
+
+		fmt.Println("Command :", cmdName)
+		fmt.Println("Desc    :", cmd.Description)
+		fmt.Println("Usage   :", cmd.Usage)
+		fmt.Println()
+		return
+	}
+
+	// Otherwise: list all commands
+	fmt.Println("Available Commands:")
+	fmt.Println("────────────────────────────────────────────")
+
+	fmt.Println("\nMXShell - Minimal FIX Client")
+	fmt.Println("Version :", version)
+	fmt.Println("Author  : nj.deesa@gmail.com")
+	fmt.Println("")
+
+	// Sort commands for stable output
+	names := make([]string, 0, len(CommandRegistry))
+	for name := range CommandRegistry {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	// Find max length for alignment
+	maxLen := 0
+	for _, name := range names {
+		if len(name) > maxLen {
+			maxLen = len(name)
+		}
+	}
+
+	// Print nicely aligned
+	for _, name := range names {
+		cmd := CommandRegistry[name]
+		fmt.Printf("  %-*s  │ %s\n", maxLen, name, cmd.Description)
+	}
+
+	fmt.Println("\nType 'help <command>' for more details.")
+	fmt.Println("────────────────────────────────────────────")
+}
+
 func init() {
-	RegisterCommandHandler("status", handleStatus)
-	RegisterCommandHandler("send", handleSend)
-	RegisterCommandHandler("connect", handleConnect)
-	RegisterCommandHandler("listen", handleListen)
-	RegisterCommandHandler("reset", handleReset)
+	RegisterCommand("status", handleStatus, "Display current session state and sequence numbers", "status")
+	RegisterCommand("send", handleSend, "Send a FIX message to the remote target", "send [-r] <msg>")
+	RegisterCommand("connect", handleConnect, "Initiate a TCP connection to the target", "connect")
+	RegisterCommand("listen", handleListen, "Listen on a local port for incoming connections", "listen")
+	RegisterCommand("reset", handleReset, "Close current session and initialize a new one", "reset")
+	RegisterCommand("help", handleHelp, "Display help", "help")
 }
