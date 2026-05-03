@@ -1,20 +1,59 @@
 package main
 
 import (
-	"bufio"
 	"encoding/csv"
 	"fmt"
 	"os"
+	"path"
 	"strings"
 
 	"github.com/infinage/microfix/internal/mxshell/config"
 	"github.com/infinage/microfix/internal/mxshell/handlers"
 	"github.com/infinage/microfix/pkg/ringbuf"
+
+	"github.com/peterh/liner"
 )
+
+func historyPath() (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		homeDir, err = os.Getwd()
+		if err != nil {
+			return "", fmt.Errorf("Failed to resolve UserHomeDir and CurrentWorkingDirectory")
+		}
+	}
+	return path.Join(homeDir, ".mxhistory"), nil
+}
+
+func loadHistory(line *liner.State) {
+	historyFp, err := historyPath()
+	if err != nil {
+		return
+	}
+	if f, err := os.Open(historyFp); err == nil {
+		line.ReadHistory(f)
+		f.Close()
+	}
+}
+
+func writeHistory(line *liner.State) {
+	historyFp, err := historyPath()
+	if err != nil {
+		return
+	}
+	if f, err := os.Create(historyFp); err == nil {
+		line.WriteHistory(f)
+		f.Close()
+	}
+}
 
 // --- Main Application ---
 
 func main() {
+	line := liner.NewLiner()
+	defer line.Close()
+	defer writeHistory(line)
+
 	fmt.Println(`
  __       __  __    __         ______   __                  __  __ 
 |  \     /  \|  \  |  \       /      \ |  \                |  \|  \
@@ -42,17 +81,19 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Set session into the context
 	ctx.Session = sess
-	reader := bufio.NewReader(os.Stdin)
+
+	// Abort prompts on interupt
+	loadHistory(line)
 
 	for {
-		fmt.Print("MFix> ")
-		input, _ := reader.ReadString('\n')
-		input = strings.TrimSpace(input)
-		if input == "" {
-			continue
+		input, err := line.Prompt("MFix> ")
+		if err != nil {
+			break
 		}
 
+		input = strings.TrimSpace(input)
 		creader := csv.NewReader(strings.NewReader(input))
 		creader.Comma = ' '
 		args, err := creader.Read()
@@ -60,6 +101,9 @@ func main() {
 			fmt.Printf("Not a valid input: %v\n", err.Error())
 			continue
 		}
+
+		// Add to history
+		line.AppendHistory(input)
 
 		cmdName := strings.ToLower(args[0])
 		switch cmdName {
@@ -72,7 +116,7 @@ func main() {
 		case "disconnect":
 			ctx.Session.Close()
 
-		// Claer screen
+		// Clear screen
 		case "clear":
 			fmt.Print("\033[H\033[2J")
 
