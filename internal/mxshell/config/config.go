@@ -15,6 +15,7 @@ type Config struct {
 	SpecDisplayOptFields bool   `json:"SpecDisplayOptFields"`
 
 	FixValidateStrict bool `json:"FixValidateStrict"`
+	FixSampleOptional bool `json:"FixSampleOptional"`
 
 	IpAddr string `json:"IpAddr"`
 	Port   uint16 `json:"Port"`
@@ -64,6 +65,7 @@ func InitConfig() Config {
 		SpecPath:             "FIX44.xml",
 		SpecDisplayOptFields: false,
 		FixValidateStrict:    true,
+		FixSampleOptional:    false,
 		IpAddr:               "0.0.0.0",
 		Port:                 1234,
 	}

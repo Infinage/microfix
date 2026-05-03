@@ -7,22 +7,22 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/infinage/microfix/internal/mxshell/config"
-	"github.com/infinage/microfix/internal/mxshell/pretty"
-
 	"github.com/infinage/microfix/pkg/message"
+	"github.com/infinage/microfix/pkg/pretty"
 	"github.com/infinage/microfix/pkg/session"
 	"github.com/infinage/microfix/pkg/spec"
 )
 
 func searchFixSpec(s *session.Session, pattern string) {
+	fmt.Println("\n─── FIX Spec Search ───────────────────────────────")
 	re, err := regexp.Compile("(?i)" + pattern)
 	if err != nil {
-		fmt.Printf("Invalid regex: %v\n", err)
+		fmt.Printf("  Status : FAILED\n")
+		fmt.Printf("  Error  : %v\n", err)
+		fmt.Println("────────────────────────────────────────────────────")
 		return
 	}
 
-	fmt.Println("\n─── FIX Spec Search ───────────────────────────────")
 	fmt.Printf("  Pattern : %s\n\n", pattern)
 
 	// Fields
@@ -58,27 +58,35 @@ func searchFixSpec(s *session.Session, pattern string) {
 	fmt.Println("────────────────────────────────────────────────────")
 }
 
-func queryFixSpec(s *session.Session, cfg *config.Config, sub, id string) {
+func queryFixSpec(ctx *AppContext, sub, id string) {
+	sp := ctx.Session.Spec()
+
 	switch sub {
 	case "field":
 		tag, _ := strconv.Atoi(id)
-		if f, ok := s.Spec().Fields[uint16(tag)]; ok {
+		if f, ok := sp.Fields[uint16(tag)]; ok {
 			fmt.Println("\n─── Field Definition ──────────────────────────────")
-			pretty.WritePrettyFieldDef(os.Stdout, f)
+			pretty.FieldDef(os.Stdout, f)
 			fmt.Println("────────────────────────────────────────────────────")
 		} else {
 			fmt.Printf("Field %s not found\n", id)
 		}
 	case "message":
-		if m, ok := s.Spec().Messages[id]; ok {
+		if m, ok := sp.Messages[id]; ok {
 			fmt.Println("\n─── Message Definition ────────────────────────────")
-			pretty.WritePrettySpecEntry(os.Stdout, m, s.Spec().FieldNames, cfg.SpecDisplayOptFields, 0)
+			pretty.SpecEntry(os.Stdout, m, sp.FieldNames, ctx.Config.SpecDisplayOptFields, 0)
 			fmt.Println("────────────────────────────────────────────────────")
 		} else {
 			fmt.Printf("Message %s not found\n", id)
 		}
 	case "sample":
-		if smp, err := s.Spec().Sample(id, spec.SampleOptions{IncludeOptional: true}); err == nil {
+		// If ValidationStrict is false, do a basic validation only
+		includeOptional := false
+		if ctx.Config.FixSampleOptional {
+			includeOptional = true
+		}
+
+		if smp, err := sp.Sample(id, spec.SampleOptions{IncludeOptional: includeOptional}); err == nil {
 			fmt.Println("\n─── Sample Message ────────────────────────────────")
 			fmt.Println(smp.String("|"))
 			fmt.Println("────────────────────────────────────────────────────")
@@ -90,15 +98,33 @@ func queryFixSpec(s *session.Session, cfg *config.Config, sub, id string) {
 	}
 }
 
-func validateMessage(ctx *AppContext, rawMsg string) {
+// Prettify and print the output matching against fix spec, does not validate
+func decodeMessage(ctx *AppContext, rawMsg string) {
 	delim := rawMsg[len(rawMsg)-1:]
 	msg, err := message.MessageFromString(rawMsg, delim)
 	if err != nil {
-		fmt.Printf("Invalid FIX input: %v\n", err)
+		fmt.Println("\n─── Decode Message ────────────────────────────────")
+		fmt.Printf("  Status : FAILED\n")
+		fmt.Printf("  Error  : %v\n", err)
+		fmt.Println("────────────────────────────────────────────────────")
 		return
 	}
+	fmt.Println("\n─── FIX Message (Spec View) ────────────────────────")
+	pretty.Message(os.Stdout, &msg, ctx.Session.Spec())
+	fmt.Println("────────────────────────────────────────────────────")
+}
 
+func validateMessage(ctx *AppContext, rawMsg string) {
 	fmt.Println("\n─── FIX Validation ────────────────────────────────")
+
+	delim := rawMsg[len(rawMsg)-1:]
+	msg, err := message.MessageFromString(rawMsg, delim)
+	if err != nil {
+		fmt.Printf("  Status : FAILED\n")
+		fmt.Printf("  Error  : %v\n", err)
+		fmt.Println("────────────────────────────────────────────────────")
+		return
+	}
 
 	// If ValidationStrict is false, do a basic validation only
 	validationMode := spec.ValidationStrict
@@ -142,12 +168,12 @@ func displayMeta(ctx *AppContext, meta string) {
 	}
 
 	fmt.Printf("\n──── %s Definition ────────────────────────────", strings.ToUpper(meta))
-	pretty.WritePrettySpecEntry(os.Stdout, entry, sp.FieldNames, ctx.Config.SpecDisplayOptFields, 0)
+	pretty.SpecEntry(os.Stdout, entry, sp.FieldNames, ctx.Config.SpecDisplayOptFields, 0)
 	fmt.Println("────────────────────────────────────────────────────")
 }
 
 func handleFix(ctx *AppContext, args []string) {
-	if len(args) < 3 {
+	if len(args) < 3 || len(args[2]) == 0 {
 		fmt.Println("Usage: \n" +
 			"fix meta [header|trailer]\n" +
 			"fix [field|message|sample] id\n" +
@@ -162,10 +188,12 @@ func handleFix(ctx *AppContext, args []string) {
 		displayMeta(ctx, args[2])
 	} else if sub == "validate" {
 		validateMessage(ctx, args[2])
+	} else if sub == "decode" {
+		decodeMessage(ctx, args[2])
 	} else {
 		sub := strings.ToLower(args[1])
-		id := strings.ToLower(args[2])
-		queryFixSpec(ctx.Session, ctx.Config, sub, id)
+		id := args[2]
+		queryFixSpec(ctx, sub, id)
 	}
 }
 
@@ -174,6 +202,6 @@ func init() {
 		"fix",
 		handleFix,
 		"Query FIX dictionary, generate samples, and validate messages",
-		"fix [search <regex> | meta <header|trailer> | validate <msg> | <field|message|sample> <id>]",
+		"fix [search <regex> | meta <header|trailer> | <decode|validate> <msg> | <field|message|sample> <id>]",
 	)
 }
