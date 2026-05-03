@@ -127,9 +127,29 @@ func validateMessage(ctx *AppContext, rawMsg string) {
 	fmt.Println("────────────────────────────────────────────────────")
 }
 
+func displayMeta(ctx *AppContext, meta string) {
+	sp := ctx.Session.Spec()
+
+	var entry spec.Entry
+	switch meta {
+	case "header":
+		entry = sp.Header
+	case "trailer":
+		entry = sp.Trailer
+	default:
+		fmt.Printf("Must be one of 'header', 'trailer', got: %v\n", meta)
+		return
+	}
+
+	fmt.Printf("\n──── %s Definition ────────────────────────────", strings.ToUpper(meta))
+	pretty.WritePrettySpecEntry(os.Stdout, entry, sp.FieldNames, ctx.Config.SpecDisplayOptFields, 0)
+	fmt.Println("────────────────────────────────────────────────────")
+}
+
 func handleFix(ctx *AppContext, args []string) {
 	if len(args) < 3 {
 		fmt.Println("Usage: \n" +
+			"fix meta [header|trailer]\n" +
 			"fix [field|message|sample] id\n" +
 			"fix validate <fixMessage>\n" +
 			"fix search pattern")
@@ -138,6 +158,8 @@ func handleFix(ctx *AppContext, args []string) {
 
 	if sub := strings.ToLower(args[1]); sub == "search" {
 		searchFixSpec(ctx.Session, args[2])
+	} else if sub == "meta" {
+		displayMeta(ctx, args[2])
 	} else if sub == "validate" {
 		validateMessage(ctx, args[2])
 	} else {
