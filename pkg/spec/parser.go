@@ -5,7 +5,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"os"
-	"path/filepath"
+	"path"
 )
 
 // BoolYN handles the FIX 'Y'/'N' attribute mapping
@@ -73,12 +73,12 @@ type FieldDef struct {
 var defaultSpecs embed.FS
 
 // Parse the XML spec and return a faithful object representation
-func loadRawSpec(path string) (rawSpec, error) {
-	raw, err := os.ReadFile(path)
+func loadRawSpec(fpath string) (rawSpec, error) {
+	raw, err := os.ReadFile(fpath)
 	if err != nil {
-		raw, err = defaultSpecs.ReadFile(filepath.Join("xml", path))
+		raw, err = defaultSpecs.ReadFile(path.Join("xml", fpath))
 		if err != nil {
-			return rawSpec{}, fmt.Errorf("Could not find spec %s in local or embedded path", path)
+			return rawSpec{}, fmt.Errorf("Could not find spec %s in local or embedded path", fpath)
 		}
 	}
 

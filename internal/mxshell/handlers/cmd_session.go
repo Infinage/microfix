@@ -72,7 +72,7 @@ func handleStatus(ctx *AppContext, _ []string) {
 
 func handleSend(ctx *AppContext, args []string) {
 	if len(args) < 1 {
-		fmt.Println("Usage: send [-r] <FixString>")
+		fmt.Println("Usage: send [-r] [-a] <FixString>")
 		return
 	}
 
@@ -103,7 +103,7 @@ func handleSend(ctx *AppContext, args []string) {
 
 	fmt.Println("\n─── Send Message ────────────────────────────────")
 
-	if err != nil {
+	if err == nil {
 		delim := raw[len(raw)-1:]
 		msg, err = message.MessageFromString(raw, delim)
 	}

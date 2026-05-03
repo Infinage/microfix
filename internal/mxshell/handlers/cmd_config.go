@@ -76,7 +76,7 @@ func setConfig(cfg *config.Config, key string, value string) {
 		return
 	}
 
-	oldVal := field.Interface()
+	oldVal := fmt.Sprint(field.Interface())
 
 	switch field.Kind() {
 	case reflect.String:
@@ -117,7 +117,7 @@ func setConfig(cfg *config.Config, key string, value string) {
 
 	fmt.Printf("  Status : OK\n")
 	fmt.Printf("  Field  : %s\n", key)
-	fmt.Printf("  Old    : %v\n", oldVal)
+	fmt.Printf("  Old    : %s\n", oldVal)
 	fmt.Printf("  New    : %v\n", field.Interface())
 
 	fmt.Println("──────────────────────────────────────────────────")
