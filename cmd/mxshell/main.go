@@ -28,8 +28,10 @@ func main() {
 	`)
 
 	cfg := config.InitConfig()
+	alias := config.InitAlias()
 
 	ctx := &handlers.AppContext{
+		Alias:  &alias,
 		Config: &cfg,
 		Logs:   ringbuf.NewCircularBuffer(1000),
 	}

@@ -160,7 +160,7 @@ func (engine *Engine) RecordWrite(now time.Time) {
 // Public since 'Session::Send' always finalizes before sending
 func (engine *Engine) FinalizeMessage(msg *message.Message, now time.Time) error {
 	if !msg.Contains(35, 9, 49, 56, 34, 52, 10) {
-		return fmt.Errorf("Missing required tags in OUTBOUND: [35, 9, 49, 56, 34, 52, 10]")
+		return fmt.Errorf("Missing some of the required tags in OUTBOUND: [35, 9, 49, 56, 34, 52, 10]")
 	}
 
 	// Set sender / target compId

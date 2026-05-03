@@ -76,18 +76,38 @@ func handleSend(ctx *AppContext, args []string) {
 		return
 	}
 
-	rawMsg := args[len(args)-1]
 	isRaw := false
+	isAlias := false
 	for _, a := range args {
-		if a == "-r" {
+		switch a {
+		case "-r":
 			isRaw = true
+
+		case "-a":
+			isAlias = true
+		}
+	}
+
+	var msg message.Message
+	var err error
+
+	// Resolve from Alias registry
+	raw := args[len(args)-1]
+	if isAlias {
+		if rawMsg, ok := (*ctx.Alias)[raw]; ok {
+			raw = rawMsg
+		} else {
+			err = fmt.Errorf("Alias %v not found", raw)
 		}
 	}
 
 	fmt.Println("\n─── Send Message ────────────────────────────────")
 
-	delim := rawMsg[len(rawMsg)-1:]
-	msg, err := message.MessageFromString(rawMsg, delim)
+	if err != nil {
+		delim := raw[len(raw)-1:]
+		msg, err = message.MessageFromString(raw, delim)
+	}
+
 	if err != nil {
 		fmt.Printf("  Status : FAILED\n")
 		fmt.Printf("  Error  : %v\n", err)
@@ -223,7 +243,7 @@ func handleHelp(_ *AppContext, args []string) {
 
 func init() {
 	RegisterCommand("status", handleStatus, "Display current session state and sequence numbers", "status")
-	RegisterCommand("send", handleSend, "Send a FIX message to the remote target", "send [-r] <msg>")
+	RegisterCommand("send", handleSend, "Send a FIX message to the remote target", "send [-r] [-a] <msg>")
 	RegisterCommand("connect", handleConnect, "Initiate a TCP connection to the target", "connect")
 	RegisterCommand("listen", handleListen, "Listen on a local port for incoming connections", "listen")
 	RegisterCommand("reset", handleReset, "Close current session and initialize a new one", "reset")

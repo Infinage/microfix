@@ -9,6 +9,7 @@ import (
 // Every handler takes in the context along with args
 type AppContext struct {
 	Session *session.Session
+	Alias   *config.Alias
 	Config  *config.Config
 	Logs    *ringbuf.CircularBuffer
 }
