@@ -71,6 +71,26 @@ type Action struct {
 	Err  error
 }
 
+// Custom error type to send message rejects
+type RejectError struct {
+	RefSeqNum int64
+	Text      string
+}
+
+func (err *RejectError) Error() string {
+	return fmt.Sprintf("[%v] - %v", err.RefSeqNum, err.Text)
+}
+
+// Helper to build a Reject ['35=3'] message
+func (engine *Engine) reject(err *RejectError) Action {
+	rejectMsg, _ := engine.Spec.Sample("3", spec.SampleOptions{
+		OptionalFields: map[uint16]any{58: nil},
+	})
+	rejectMsg.Set(45, fmt.Sprint(err.RefSeqNum))
+	rejectMsg.Set(58, err.Text)
+	return Action{Type: ActionSend, Msg: rejectMsg}
+}
+
 func NewEngine(specPath string, senderCompID string, targetCompID string, heartbeatInt int64) (*Engine, error) {
 	if heartbeatInt <= 0 {
 		return nil, fmt.Errorf("Heartbeat Interval must be greater than 0")
@@ -159,11 +179,19 @@ func (engine *Engine) FinalizeMessage(msg *message.Message, now time.Time) error
 	return nil
 }
 
-// Checks for MsgType, InSeqNum, Checksum, BodyLength, TargetCompID, SenderCompID + Spec Validation
+// Checks for MsgType, TargetCompID, SenderCompID, InSeqNum, Spec validation including Checksum, BodyLength
 func (engine *Engine) validate(msg *message.Message) error {
 	msgType, ok := msg.Get(35)
 	if !ok {
 		return fmt.Errorf("Missing MsgType tag [35]")
+	}
+
+	// Validate the TargetCompID / SenderCompID: check is swapped
+	if senderCompID, _ := msg.Get(49); senderCompID != engine.targetCompID {
+		return fmt.Errorf("SenderCompID [49] mismatch, expected '%v' got '%v'", engine.targetCompID, senderCompID)
+	}
+	if targetCompID, _ := msg.Get(56); targetCompID != engine.senderCompID {
+		return fmt.Errorf("TargetCompID [56] mismatch, expected '%v' got '%v'", engine.senderCompID, targetCompID)
 	}
 
 	// Validate that message has InSeqNum, set default value guaranteed to fail
@@ -186,17 +214,12 @@ func (engine *Engine) validate(msg *message.Message) error {
 		return fmt.Errorf("Input sequence number mismatch. Expected %v, got %v", engine.inSeqNum, received)
 	}
 
-	// Validate the TargetCompID / SenderCompID: check is swapped
-	if senderCompID, _ := msg.Get(49); senderCompID != engine.targetCompID {
-		return fmt.Errorf("SenderCompID [49] mismatch, expected '%v' got '%v'", engine.targetCompID, senderCompID)
-	}
-	if targetCompID, _ := msg.Get(56); targetCompID != engine.senderCompID {
-		return fmt.Errorf("TargetCompID [56] mismatch, expected '%v' got '%v'", engine.senderCompID, targetCompID)
-	}
-
 	// Validate per input spec
 	if ok, obs := engine.Spec.Validate(msg, spec.ValidationBasic); !ok {
-		return fmt.Errorf("Message validation failed: %v", obs)
+		return &RejectError{
+			RefSeqNum: engine.inSeqNum,
+			Text:      fmt.Sprintf("Message validation failed: %v", obs),
+		}
 	}
 
 	return nil
@@ -257,17 +280,22 @@ func (engine *Engine) OnTick(now time.Time) []Action {
 func (engine *Engine) OnMessage(msg *message.Message, now time.Time) []Action {
 	engine.lastReadTime = now
 
-	// Validate the message and return its MsgType
+	// Each subhandler returns a list of actions to be returned by this function to session
+	var actions []Action
+
+	// Validate the message
 	if err := engine.validate(msg); err != nil {
-		return []Action{{Type: ActionError, Err: err}}
+		actions = append(actions, Action{Type: ActionError, Err: err})
+		if rejectErr, ok := err.(*RejectError); ok {
+			actions = append(actions, engine.reject(rejectErr))
+			engine.inSeqNum++ // Increment seqNo in case of spec validation failure
+		}
+		return actions
 	}
 
 	// Every individual handler returns bool if msg is accepted
 	// We will update our inSeqNum only when it is accepted
 	var msgAccepted bool
-
-	// Each subhandler returns a list of actions to be returned by this function to session
-	var actions []Action
 
 	// Get the MessageType from msg object
 	msgType, _ := msg.Get(35)
@@ -420,7 +448,10 @@ func (engine *Engine) handleAppMessage(msg *message.Message) (bool, []Action) {
 		seqNoTag, _ := msg.FindFrom(36, 0)
 		val, err := seqNoTag.AsInt()
 		if err != nil {
-			actions = append(actions, Action{Type: ActionError, Err: fmt.Errorf("Invalid SeqNo [36] value set")})
+			seqNoField, _ := msg.FindFrom(34, 0)
+			seqNo, _ := seqNoField.AsInt()
+			err := &RejectError{RefSeqNum: seqNo, Text: "Invalid SeqNo [36] value set"}
+			actions = append(actions, Action{Type: ActionError, Err: err}, engine.reject(err))
 		} else if gapFillFlag, _ := msg.Get(123); gapFillFlag != "Y" {
 			engine.inSeqNum = val
 		}
