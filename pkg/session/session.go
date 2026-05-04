@@ -234,6 +234,9 @@ func (sess *Session) execute(actions []Action) {
 		case ActionError:
 			sess.writeLog(newErrorLog(time.Now(), action.Err))
 
+		case ActionLog:
+			sess.writeLog(newSysEventLog(time.Now(), action.Event))
+
 		case ActionClose:
 			sess.Close()
 		}

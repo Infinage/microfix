@@ -41,5 +41,6 @@ type resetSequence struct {
 }
 
 func (r resetSequence) apply(sess *Session) {
-	sess.engine.OnResetSequence(r.inSeqNum, r.outSeqNum)
+	actions := sess.engine.OnResetSequence(r.inSeqNum, r.outSeqNum)
+	sess.execute(actions)
 }

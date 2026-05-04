@@ -35,9 +35,26 @@ func (s SessionState) String() string {
 type ActionType int
 
 const (
+	// ActionSend instructs the session to transmit a FIX message over the network
+	// to the connected counterparty.
 	ActionSend ActionType = iota
+
+	// ActionDeliver routes a valid, application-level FIX message up the stack
+	// to be processed by the user's business logic.
 	ActionDeliver
+
+	// ActionError represents a protocol violation or internal fault.
+	// It signals an issue that requires logging, but is non-fatal unless
+	// accompanied by an ActionClose.
 	ActionError
+
+	// ActionLog emits an informational system event or state transition
+	// (e.g., "Session transitioning to Stale"). It is strictly for audit
+	// and debug visibility.
+	ActionLog
+
+	// ActionClose instructs the session to immediately terminate the
+	// underlying network transport and shut down.
 	ActionClose
 )
 
@@ -66,9 +83,10 @@ type Engine struct {
 }
 
 type Action struct {
-	Type ActionType
-	Msg  message.Message
-	Err  error
+	Type  ActionType
+	Msg   message.Message
+	Err   error
+	Event string
 }
 
 // Custom error type to send message rejects
@@ -167,8 +185,12 @@ func (engine *Engine) FinalizeMessage(msg *message.Message, now time.Time) error
 	msg.Set(49, engine.senderCompID)
 	msg.Set(56, engine.targetCompID)
 
-	// Update OutSeqNum
-	msg.Set(34, fmt.Sprint(engine.outSeqNum))
+	// Update OutSeqNum only if NOT a fill gap
+	msgType, _ := msg.Get(35)
+	gapFillFlag, _ := msg.Get(123)
+	if !(msgType == "4" && gapFillFlag == "Y") {
+		msg.Set(34, fmt.Sprint(engine.outSeqNum))
+	}
 
 	// Set SendingTime
 	msg.Set(52, now.UTC().Format("20060102-15:04:05.000"))
@@ -263,7 +285,8 @@ func (engine *Engine) OnTick(now time.Time) []Action {
 			tr, _ := engine.Spec.Sample("1", spec.SampleOptions{})
 			tr.Set(112, engine.testReqID)
 			engine.state = SessionStale
-			actions = append(actions, Action{Type: ActionSend, Msg: tr})
+			eventLog := fmt.Sprintf("No heartbeat received in %v. Transitioning to Stale", since.Truncate(time.Second))
+			actions = append(actions, Action{Type: ActionLog, Event: eventLog}, Action{Type: ActionSend, Msg: tr})
 		} else if since >= hbDuration*3 {
 			engine.off()
 			return []Action{
@@ -351,6 +374,7 @@ func (engine *Engine) handleStaleHeartbeat(msg *message.Message) (bool, []Action
 	if reqID != engine.testReqID { // Log warn but continue
 		actions = append(actions, Action{Type: ActionError, Err: fmt.Errorf("Expected Heartbeat TestReqID tag [112] to %v", engine.testReqID)})
 	}
+	actions = append(actions, Action{Type: ActionLog, Event: "Heartbeat received. Transitioning to Active."})
 	engine.state = SessionActive
 	return true, actions
 }
@@ -401,7 +425,9 @@ func (engine *Engine) handleLogon(msg *message.Message) (bool, []Action) {
 		lo.Set(108, fmt.Sprint(hbInt))
 
 		// Send logon request back and set state to active
-		actions = append(actions, Action{Type: ActionSend, Msg: lo})
+		actions = append(actions,
+			Action{Type: ActionLog, Event: "Logon request received, transitioning to Active"},
+			Action{Type: ActionSend, Msg: lo})
 	}
 
 	// If all good, we proceed to next stage
@@ -439,8 +465,10 @@ func (engine *Engine) handleAppMessage(msg *message.Message) (bool, []Action) {
 		actions = append(actions, Action{Type: ActionSend, Msg: hb})
 
 	case "2": // Resend request, for now we just do a SequenceReset
+		beginSeqNoField, _ := msg.Get(7)
 		seqReset, _ := engine.Spec.Sample("4", spec.SampleOptions{OptionalFields: map[uint16]any{123: nil}})
-		seqReset.Set(36, fmt.Sprintf("%d", engine.outSeqNum))
+		seqReset.Set(34, beginSeqNoField) // bypass outSeqNum update on finalize
+		seqReset.Set(36, fmt.Sprintf("%d", engine.outSeqNum+1))
 		seqReset.Set(123, "Y")
 		actions = append(actions, Action{Type: ActionSend, Msg: seqReset})
 

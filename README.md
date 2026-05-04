@@ -138,6 +138,7 @@ Config is managed via `.mxrc`:
 
 ## Roadmap
 
+* [ ] Fix protocol correctness
 * [ ] Batch execution / scripting
 * [ ] GUI (Svelte + WebView + C++)
 
