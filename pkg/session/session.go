@@ -214,7 +214,7 @@ func (sess *Session) handleSend(msg message.Message, passthrough bool) {
 	select {
 	case sess.base.Outgoing() <- msg:
 		now := time.Now()
-		sess.engine.RecordWrite(now)
+		sess.engine.RecordWrite(&msg, now)
 		sess.writeLog(newMessageLog(now, msg, false))
 	case <-sess.Done():
 		sess.writeLog(newErrorLog(time.Now(), fmt.Errorf("Send failed, session closed: %v", msg.String("|"))))

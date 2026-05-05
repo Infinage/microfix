@@ -169,9 +169,14 @@ func (engine *Engine) OnStart(isClient bool) []Action {
 }
 
 // Feedback that a write action was successful
-func (engine *Engine) RecordWrite(now time.Time) {
+func (engine *Engine) RecordWrite(msg *message.Message, now time.Time) {
 	engine.lastWriteTime = now
-	engine.outSeqNum++
+
+	// Ignore outSeqNum increment for a SequenceReset
+	// Would be set by `OnResetSequence`
+	if msgType, _ := msg.Get(35); msgType != "4" {
+		engine.outSeqNum++
+	}
 }
 
 // Returns an error if missing: [35, 9, 49, 56, 34, 52, 10]
@@ -306,12 +311,16 @@ func (engine *Engine) OnMessage(msg *message.Message, now time.Time) []Action {
 	// Each subhandler returns a list of actions to be returned by this function to session
 	var actions []Action
 
-	// Validate the message
+	// Validate the message and logout for non "RejectError"
 	if err := engine.validate(msg); err != nil {
 		actions = append(actions, Action{Type: ActionError, Err: err})
 		if rejectErr, ok := err.(*RejectError); ok {
 			actions = append(actions, engine.reject(rejectErr))
 			engine.inSeqNum++ // Increment seqNo in case of spec validation failure
+		} else {
+			lo, _ := engine.Spec.Sample("5", spec.SampleOptions{OptionalFields: map[uint16]any{58: nil}})
+			lo.Set(58, err.Error())
+			actions = append(actions, Action{Type: ActionSend, Msg: lo}, Action{Type: ActionClose})
 		}
 		return actions
 	}
@@ -347,13 +356,30 @@ func (engine *Engine) OnMessage(msg *message.Message, now time.Time) []Action {
 }
 
 func (engine *Engine) OnResetSequence(inSeqNum int64, outSeqNum int64) []Action {
-	// Trigger ResetSeq if required
 	var actions []Action
-	if state := engine.state; engine.outSeqNum != outSeqNum && state != SessionNew && state != SessionClosed {
-		seqReset, _ := engine.Spec.Sample("4", spec.SampleOptions{OptionalFields: map[uint16]any{123: nil}})
-		seqReset.Set(36, fmt.Sprintf("%d", engine.outSeqNum))
-		seqReset.Set(123, "N")
-		actions = append(actions, Action{Type: ActionSend, Msg: seqReset})
+
+	if state := engine.state; state != SessionNew && state != SessionClosed {
+		// Handle Outbound sequence changes
+		if outSeqNum > engine.outSeqNum {
+			// Out seq reset can only go forward per FIX protocol
+			seqReset, _ := engine.Spec.Sample("4", spec.SampleOptions{OptionalFields: map[uint16]any{123: nil}})
+			seqReset.Set(36, fmt.Sprintf("%d", outSeqNum))
+			seqReset.Set(123, "N")
+			actions = append(actions, Action{Type: ActionSend, Msg: seqReset})
+
+		} else if outSeqNum < engine.outSeqNum {
+			// Moving backward is not permitted, silently reset anyway for chaos testing
+			eventLog := fmt.Sprintf("Silently forced OutSeqNum backward from %d to %d. "+
+				"Expect counterparty disconnect on next send.", engine.outSeqNum, outSeqNum)
+			actions = append(actions, Action{Type: ActionLog, Event: eventLog})
+		}
+
+		// Handle Inbound sequence changes
+		if inSeqNum != engine.inSeqNum {
+			eventLog := fmt.Sprintf("Silently forced InSeqNum from %d to %d. "+
+				"Warning: May cause desync with counterparty.", engine.inSeqNum, inSeqNum)
+			actions = append(actions, Action{Type: ActionLog, Event: eventLog})
+		}
 	}
 
 	// Reset internal state
@@ -444,10 +470,10 @@ func (engine *Engine) handleAppMessage(msg *message.Message) (bool, []Action) {
 	if inSeqNum, _ := inSeqNumTag.AsInt(); inSeqNum > engine.inSeqNum {
 		resend, _ := engine.Spec.Sample("2", spec.SampleOptions{})
 		resend.Set(7, fmt.Sprintf("%d", engine.inSeqNum))
-		resend.Set(16, fmt.Sprintf("%d", inSeqNum-1))
+		resend.Set(16, fmt.Sprintf("%d", inSeqNum))
 		return false, []Action{
-			{Type: ActionSend, Msg: resend},
 			{Type: ActionError, Err: fmt.Errorf("Expected InSeqNum [34] %v, got %v, triggered resend request.", engine.inSeqNum, inSeqNum)},
+			{Type: ActionSend, Msg: resend},
 		}
 	}
 
@@ -468,7 +494,7 @@ func (engine *Engine) handleAppMessage(msg *message.Message) (bool, []Action) {
 		beginSeqNoField, _ := msg.Get(7)
 		seqReset, _ := engine.Spec.Sample("4", spec.SampleOptions{OptionalFields: map[uint16]any{123: nil}})
 		seqReset.Set(34, beginSeqNoField) // bypass outSeqNum update on finalize
-		seqReset.Set(36, fmt.Sprintf("%d", engine.outSeqNum+1))
+		seqReset.Set(36, fmt.Sprintf("%d", engine.outSeqNum))
 		seqReset.Set(123, "Y")
 		actions = append(actions, Action{Type: ActionSend, Msg: seqReset})
 
@@ -480,7 +506,7 @@ func (engine *Engine) handleAppMessage(msg *message.Message) (bool, []Action) {
 			seqNo, _ := seqNoField.AsInt()
 			err := &RejectError{RefSeqNum: seqNo, Text: "Invalid SeqNo [36] value set"}
 			actions = append(actions, Action{Type: ActionError, Err: err}, engine.reject(err))
-		} else if gapFillFlag, _ := msg.Get(123); gapFillFlag != "Y" {
+		} else {
 			engine.inSeqNum = val
 		}
 		return false, actions

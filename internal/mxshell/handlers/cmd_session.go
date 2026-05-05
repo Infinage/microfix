@@ -193,39 +193,53 @@ func handleReset(ctx *AppContext, _ []string) {
 func handleSeq(ctx *AppContext, args []string) {
 	sess := ctx.Session
 
+	// View current sequence numbers
 	if len(args) == 1 {
 		snap := sess.Status()
-		fmt.Println("\n─── Sequence Numbers ────────────────────────────")
+		fmt.Println("\n─── Sequence Status ────────────────────────────")
 		fmt.Printf("  InSeqNum  : %d\n", snap.InSeqNum)
 		fmt.Printf("  OutSeqNum : %d\n", snap.OutSeqNum)
-		fmt.Println("──────────────────────────────────────────────────")
+		fmt.Println("────────────────────────────────────────────────")
 		return
 	}
 
 	sub := strings.ToLower(args[1])
 
 	switch sub {
-	case "reset":
-		if len(args) != 4 {
-			fmt.Println("Usage: seq reset <inSeqNum> <outSeqNum>")
+	case "in", "out":
+		if len(args) != 3 {
+			fmt.Println("Usage: seq [in|out] <seqNum>")
 			return
 		}
 
-		inSeq, err1 := strconv.ParseInt(args[2], 10, 64)
-		outSeq, err2 := strconv.ParseInt(args[3], 10, 64)
-
-		if err1 != nil || err2 != nil || inSeq <= 0 || outSeq <= 0 {
-			fmt.Println("Invalid sequence numbers. Must be positive integers.")
+		seqNo, err := strconv.ParseInt(args[2], 10, 64)
+		if err != nil || seqNo <= 0 {
+			fmt.Println("Invalid sequence number. Must be a positive integer.")
 			return
 		}
 
+		snapshot := sess.Status()
+
+		inSeq := snapshot.InSeqNum
+		outSeq := snapshot.OutSeqNum
+
+		field := ""
+		if sub == "in" {
+			inSeq = seqNo
+			field = "InSeqNum"
+		} else {
+			outSeq = seqNo
+			field = "OutSeqNum"
+		}
+
+		// Engine handles the state changes and emit the appropriate logs
 		sess.ResetSequence(inSeq, outSeq)
 
-		fmt.Println("\n─── Sequence Reset ──────────────────────────────")
+		fmt.Println("\n─── Sequence Update ────────────────────────────")
 		fmt.Printf("  Status : OK\n")
-		fmt.Printf("  InSeq  : %d\n", inSeq)
-		fmt.Printf("  OutSeq : %d\n", outSeq)
-		fmt.Println("──────────────────────────────────────────────────")
+		fmt.Printf("  Field  : %s\n", field)
+		fmt.Printf("  Value  : %d\n", seqNo)
+		fmt.Println("────────────────────────────────────────────────")
 
 	default:
 		fmt.Printf("Unknown seq subcommand: %s\n", sub)
@@ -291,6 +305,6 @@ func init() {
 	RegisterCommand("connect", handleConnect, "Initiate a TCP connection to the target", "connect")
 	RegisterCommand("listen", handleListen, "Listen on a local port for incoming connections", "listen")
 	RegisterCommand("reset", handleReset, "Close current session and initialize a new one", "reset")
-	RegisterCommand("seq", handleSeq, "View or reset FIX sequence numbers", "seq [reset <inSeqNum> <outSeqNum>]")
+	RegisterCommand("seq", handleSeq, "View or reset FIX sequence numbers", "seq [in|out] <SeqNum>")
 	RegisterCommand("help", handleHelp, "Display help", "help")
 }

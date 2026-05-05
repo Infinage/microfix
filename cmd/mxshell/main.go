@@ -91,6 +91,8 @@ func main() {
 		input, err := line.Prompt("MFix> ")
 		if err != nil {
 			break
+		} else if input == "" {
+			continue
 		}
 
 		input = strings.TrimSpace(input)

@@ -1,6 +1,7 @@
 package session
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -51,7 +52,7 @@ func TestSession_Lifecycle(t *testing.T) {
 			if mt, _ := msg.Get(35); mt != "A" {
 				t.Fatalf("expected Logon (A), got %s", mt)
 			}
-		case <-time.After(500 * time.Millisecond):
+		case <-time.After(100 * time.Millisecond):
 			t.Fatal("no logon sent to wire")
 		}
 
@@ -124,6 +125,16 @@ func TestSession_Lifecycle(t *testing.T) {
 			t.Fatal("no log for incoming gap message")
 		}
 
+		// Should see a Err log for InSeqNum mismatch
+		select {
+		case l := <-sess.Log():
+			if l.Type != LogErr || !strings.Contains(l.Err.Error(), "Expected InSeqNum [34]") {
+				t.Errorf("expected ERR for InSeqNum, got %v", l.Type)
+			}
+		case <-time.After(100 * time.Millisecond):
+			t.Fatal("no log for outgoing ResendRequest")
+		}
+
 		// Should see a ResendRequest (35=2) on the wire
 		select {
 		case out := <-mockConn.outgoing:
@@ -134,15 +145,47 @@ func TestSession_Lifecycle(t *testing.T) {
 		case <-time.After(100 * time.Millisecond):
 			t.Fatal("expected resend request on wire")
 		}
-
-		// Should see a SEND log for that ResendRequest
-		select {
-		case l := <-sess.Log():
-			if l.Type != LogSend {
-				t.Errorf("expected LogSend for ResendRequest, got %v", l.Type)
-			}
-		case <-time.After(100 * time.Millisecond):
-			t.Fatal("no log for outgoing ResendRequest")
-		}
 	})
+}
+
+func TestSession_DeliverAppMessage(t *testing.T) {
+	mockConn := &MockConnection{
+		incoming: make(chan message.Message, 10),
+		outgoing: make(chan message.Message, 10),
+		errors:   make(chan error, 10),
+		done:     make(chan struct{}),
+	}
+
+	sess, _ := NewSession("FIX44.xml", "S", "T", 30)
+	sess.start(mockConn, false) // Start as acceptor
+
+	// Send a logon to drive state to active
+	logon, _ := sess.Spec().Sample("A", spec.SampleOptions{})
+	logon.Set(49, "T")
+	logon.Set(56, "S")
+	logon.Set(34, "1")
+	logon.Set(108, "30")
+	logon.Finalize()
+	mockConn.incoming <- logon
+
+	// Send an Application Message (New Order Single)
+	msg, _ := sess.Spec().Sample("D", spec.SampleOptions{})
+	msg.Set(49, "T")
+	msg.Set(56, "S")
+	msg.Set(34, "2") // If set to 1 we will get a logout
+	msg.Finalize()
+	mockConn.incoming <- msg
+
+	// Wait for the message to hit the public Incoming() channel
+	select {
+	case delivered, ok := <-sess.Incoming():
+		if !ok {
+			t.Fatalf("Incoming message channel closed")
+		}
+		if mt, _ := delivered.Get(35); mt != "D" {
+			t.Fatalf("Expected delivered message to be New Order Single (D), got %s", mt)
+		}
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("Timeout waiting for application message to be delivered")
+	}
 }
