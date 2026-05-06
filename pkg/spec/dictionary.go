@@ -178,3 +178,22 @@ func compileEntries(message []specEntry, components map[string]*componentContext
 
 	return result, nil
 }
+
+// Check ensures that XML spec has below tags present and marked as required.
+// BeginString [8], BodyLength [9], MsgType [35], SenderCompID [49], 
+// TargetCompID [56], MsgSeqNum [34], SendingTime [52], Checksum [10]
+func (s *Spec) CheckSessionCapabilities() error {
+	// Check for presence of header tags and that XML has it marked as required
+	for _, tag := range []uint16{8, 9, 35, 49, 56, 34, 52} {
+		if tagPos, ok := s.Header.Lookup[tag]; !ok || !s.Header.Entries[tagPos].Required {
+			return fmt.Errorf("Tag [%v] is missing or is marked optional", tag)
+		}
+	}
+
+	// Check for trailer containing checksum
+	if tagPos, ok := s.Trailer.Lookup[10]; !ok || !s.Trailer.Entries[tagPos].Required {
+		return fmt.Errorf("Tag [10] is missing or is marked optional")
+	}
+
+	return nil
+}

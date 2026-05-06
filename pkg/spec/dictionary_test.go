@@ -2,6 +2,7 @@ package spec
 
 import (
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -32,6 +33,12 @@ func TestLoadSpecs(t *testing.T) {
 			spec, err := LoadSpec(fileName)
 			if err != nil {
 				t.Fatalf("Failed to load %s: %v", fileName, err)
+			}
+
+			// Application level specs - FIX50* variants can be ignored
+			err = spec.CheckSessionCapabilities()
+			if !strings.HasPrefix(fileName, "FIX50") && err != nil {
+				t.Fatalf("Expected spec to have required tags, failed: %v", err.Error())
 			}
 
 			// Validate Basic Metadata

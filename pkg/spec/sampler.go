@@ -3,7 +3,6 @@ package spec
 import (
 	"fmt"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/infinage/microfix/pkg/message"
@@ -74,12 +73,11 @@ type SampleOptions struct {
 	GroupOverrides map[uint16]int
 }
 
-// Sample generates a message template based on the Spec.
-// It handles required fields, whitelisted optional fields (even deep in components),
-func (spec *Spec) Sample(msgType string, opts SampleOptions) (message.Message, error) {
+// Internal helper that takes in a list of entries and populates them into message struct
+func (spec *Spec) buildFromEntries(entries []Entry, opts SampleOptions) message.Message {
 
-	// hasWhitelistedDescendant checks if the current entry or any of its
-	// children/groups contain a tag present in the whitelist.
+	// This helper recursively checks if the current entry or any of 
+	// its children/groups contain a tag present in the whitelist.
 	var hasWhitelistedDescendant func(e *Entry) bool
 	hasWhitelistedDescendant = func(e *Entry) bool {
 		tag, _ := spec.FieldNames[e.Name]
@@ -91,24 +89,27 @@ func (spec *Spec) Sample(msgType string, opts SampleOptions) (message.Message, e
 		})
 	}
 
-	var addEntry func(msg *message.Message, entry Entry) error
-	addEntry = func(msg *message.Message, entry Entry) error {
+	// Recursively process an entry and add it fields into the message being built
+	var addEntry func(msg *message.Message, entry Entry)
+	addEntry = func(msg *message.Message, entry Entry) {
 		tag, _ := spec.FieldNames[entry.Name]
 
-		// Filtering Logic:
-		// 1. Required fields always pass.
+		// Shortcut to skip adding entry's contents into message. 
+		// 1. Required fields are never skipped
 		// 2. If a whitelist is provided, pass if this tag OR any child is whitelisted.
 		// 3. Otherwise, pass only if IncludeOptional is toggled on.
 		if !entry.Required {
 			if opts.OptionalFields != nil {
 				if !hasWhitelistedDescendant(&entry) {
-					return nil
+					return
 				}
 			} else if !opts.IncludeOptional {
-				return nil
+				return
 			}
 		}
 
+		// If field, try to check if it contains enum entries
+		// Prefer picking first enum over defaulted values
 		if !entry.IsGroup {
 			field, _ := spec.Fields[tag]
 			var value string = defaultString(field.Type)
@@ -123,7 +124,7 @@ func (spec *Spec) Sample(msgType string, opts SampleOptions) (message.Message, e
 			}
 
 			// Add the NumInGroup counter tag
-			*msg = append(*msg, message.Field{Tag: tag, Value: strconv.Itoa(repeat)})
+			*msg = append(*msg, message.Field{Tag: tag, Value: fmt.Sprint(repeat)})
 
 			// Recurse into group members
 			for range repeat {
@@ -132,35 +133,51 @@ func (spec *Spec) Sample(msgType string, opts SampleOptions) (message.Message, e
 				}
 			}
 		}
-		return nil
 	}
 
 	var result message.Message
+	for _, entry := range entries {
+		addEntry(&result, entry)
+	}
+
+	return result
+}
+
+func (spec *Spec) SampleHeader(opts SampleOptions) message.Message {
+	return spec.buildFromEntries(spec.Header.Entries, opts)
+}
+
+func (spec *Spec) SampleTrailer(opts SampleOptions) message.Message {
+	return spec.buildFromEntries(spec.Trailer.Entries, opts)
+}
+
+func (spec *Spec) SampleBody(msgType string, opts SampleOptions) (message.Message, error) {
 	msgSpec, ok := spec.Messages[msgType]
 	if !ok {
-		return result, fmt.Errorf("MsgType [%v] not found in spec", msgType)
+		return message.Message{}, fmt.Errorf("MsgType [%v] not found in spec", msgType)
 	}
 
-	// Assemble Header + Body + Trailer
-	layout := slices.Concat(spec.Header.Entries, msgSpec.Entries, spec.Trailer.Entries)
-	for _, entry := range layout {
-		if err := addEntry(&result, entry); err != nil {
-			return result, err
-		}
+	return spec.buildFromEntries(msgSpec.Entries, opts), nil
+}
+
+// Sample dumbly generates a message template based on the Spec.
+// Convenience function calling SampleHeader, SampleBody and SampleTrailer.
+// Does not finalize the message or add required tags, please use SpecRouter's Sample instead
+func (spec *Spec) Sample(msgType string, opts SampleOptions) (message.Message, error) {
+
+	// Returns err if MsgType is not found
+	body, err := spec.SampleBody(msgType, opts)
+	if err != nil {
+		return message.Message{}, err
 	}
 
-	// Update MsgType or insert if missing (ideally should never be missing)
-	if !result.Set(35, msgType) {
-		result.Insert(min(2, len(result)), message.Field{Tag: 35, Value: msgType})
-	}
+	header := spec.SampleHeader(opts)
+	trailer := spec.SampleTrailer(opts)
 
-	// Update BeginString or insert if missing (ideally should never be missing)
-	beginString := fmt.Sprintf("%v.%d.%d", spec.Type, spec.Major, spec.Minor)
-	if !result.Set(8, beginString) {
-		result.Insert(0, message.Field{Tag: 8, Value: beginString})
-	}
+	var result message.Message
+	result = append(result, header...)
+	result = append(result, body...)
+	result = append(result, trailer...)
 
-	// BodyLength and Checksum calculation
-	result.Finalize()
 	return result, nil
 }
