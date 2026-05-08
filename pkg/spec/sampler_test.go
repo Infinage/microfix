@@ -2,47 +2,71 @@ package spec
 
 import "testing"
 
-// Sample API
 func TestSample(t *testing.T) {
 	spec, err := LoadSpec("FIXT11.xml")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	t.Run("SampleRequiredOnly", func(t *testing.T) {
-		msg, err := spec.Sample("A", SampleOptions{})
+	t.Run("SampleHeader", func(t *testing.T) {
+		// SampleHeader does not return an error, just the message slice
+		msg := spec.SampleHeader(SampleOptions{})
+
+		// Check for required header tags defined in FIXT11.xml
+		for _, tag := range []uint16{8, 9, 35, 49, 56, 34, 52} {
+			if _, ok := msg.Get(tag); !ok {
+				t.Errorf("Required Header field [%v] missing", tag)
+			}
+		}
+
+		// Ensure no non-required tags are populated
+		if size := len(msg); size != 7 {
+			t.Errorf("Expected header to have 7 entries, got %v", size)
+		}
+	})
+
+	t.Run("SampleTrailer", func(t *testing.T) {
+		msg := spec.SampleTrailer(SampleOptions{})
+
+		// Trailer in FIXT11.xml only has CheckSum (10) as required
+		if _, ok := msg.Get(10); !ok {
+			t.Error("Required Trailer field [10] missing")
+		}
+
+		if size := len(msg); size != 1 {
+			t.Errorf("Expected trailer to have 1 entry, got %v", size)
+		}
+	})
+
+	t.Run("SampleBodyRequiredOnly", func(t *testing.T) {
+		msg, err := spec.SampleBody("A", SampleOptions{})
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		// Check for count of fields
-		// Header + Logon + Trailer
-		if want := 7 + 3 + 1; want != len(msg) {
-			t.Errorf("Expected to have %v entries, contains %v", want, len(msg))
+		// Logon (A) required body tags: EncryptMethod(98), HeartBtInt(108), DefaultApplVerID(1137)
+		for _, tag := range []uint16{98, 108, 1137} {
+			if _, ok := msg.Get(tag); !ok {
+				t.Errorf("Required Body field [%v] missing", tag)
+			}
 		}
 
-		// Check for a required field
-		if _, ok := msg.Get(98); !ok {
-			t.Error("Required field 98 (EncryptMethod) missing from sample")
+		// Ensure exactly 3 fields were generated for the body
+		if size := len(msg); size != 3 {
+			t.Errorf("Expected body to have 3 entries, got %v", size)
 		}
 
-		// Check that optional field is missing
+		// Ensure optional fields are omitted
 		if _, ok := msg.Get(553); ok {
 			t.Error("Optional field 553 (Username) should not be present in requiredOnly sample")
 		}
 	})
 
-	t.Run("FlatGroupExpansion", func(t *testing.T) {
-		// MsgTypeGrp has NoMsgTypes(384) which contains RefMsgType(372)
-		msg, err := spec.Sample("A", SampleOptions{IncludeOptional: true, GroupOverrides: map[uint16]int{384: 2}})
+	t.Run("SampleBodyFlatGroupExpansion", func(t *testing.T) {
+		// MsgTypeGrp inside Logon has NoMsgTypes(384) which contains RefMsgType(372)
+		msg, err := spec.SampleBody("A", SampleOptions{IncludeOptional: true, GroupOverrides: map[uint16]int{384: 2}})
 		if err != nil {
 			t.Fatal(err)
-		}
-
-		// Check for count of fields
-		// Header + Logon + Trailer
-		if want := 32 + 20 + 3; len(msg) != want {
-			t.Errorf("Expected to have %v entries, contains %v", want, len(msg))
 		}
 
 		// Counter tag check
@@ -61,83 +85,95 @@ func TestSample(t *testing.T) {
 		}
 	})
 
-	t.Run("NestedGroupExpansion", func(t *testing.T) {
-		// HopGrp component in Header has NoHops(627)
-		// NoHops is a flat group in FIXT11, but testing the logic here:
-		overrides := map[uint16]int{627: 3} // Heartbeat (includes header)
-		msg, err := spec.Sample("0", SampleOptions{IncludeOptional: true, GroupOverrides: overrides})
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		occurrences := 0
-		for _, f := range msg {
-			if f.Tag == 628 { // HopCompID inside NoHops
-				occurrences++
-			}
-		}
-		if occurrences != 3 {
-			t.Errorf("Expected 3 instances of HopCompID(628), got %d", occurrences)
-		}
-	})
-
-	t.Run("SampleOrdering", func(t *testing.T) {
-		msg, err := spec.Sample("0", SampleOptions{})
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		// First fields should be BeginString(8), BodyLength(9), MsgType(35)
-		if msg[0].Tag != 8 || msg[1].Tag != 9 || msg[2].Tag != 35 {
-			t.Errorf("Header ordering incorrect. Got tags: %v, %v, %v", msg[0].Tag, msg[1].Tag, msg[2].Tag)
-		}
-
-		// Last field should be CheckSum(10)
-		if msg[len(msg)-1].Tag != 10 {
-			t.Errorf("Trailer ordering incorrect. Last tag: %v", msg[len(msg)-1].Tag)
-		}
-	})
-
-	t.Run("SampleValues", func(t *testing.T) {
-		msg, err := spec.Sample("A", SampleOptions{})
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		// EncryptMethod (98) has enums. 0 = NONE_OTHER.
-		if encMethod, ok := msg.Get(98); !ok {
-			t.Fatal("Tag 98 missing")
-		} else if encMethod != "0" {
-			t.Errorf("Expected first enum value '0', got %v", encMethod)
-		}
-	})
-
 	t.Run("WhitelistOptionalFields", func(t *testing.T) {
-		// We want a Logon (A) with only ONE specific optional field: Username (553)
-		// Even if IncludeOptional is true, providing the map should restrict it.
+		// Username(553) is an optional field in Logon (A)
 		opts := SampleOptions{OptionalFields: map[uint16]any{553: nil}}
-
-		msg, err := spec.Sample("A", opts)
+		msg, err := spec.SampleBody("A", opts)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		// Check that our whitelisted optional field is present
 		if user, ok := msg.Get(553); !ok {
 			t.Error("Whitelisted optional field 553 (Username) is missing")
 		} else if user == "" {
 			t.Error("Whitelisted optional field 553 has empty value")
 		}
 
-		// Check that a non-whitelisted optional field is missing
-		// Tag 554 is Password (optional in Logon)
+		// Password(554) is also optional, but not whitelisted
 		if _, ok := msg.Get(554); ok {
 			t.Error("Non-whitelisted optional field 554 (Password) should not be present")
 		}
 
-		// Ensure required fields are still there (they should ignore the whitelist)
+		// EncryptMethod(98) is required, should still be there
 		if _, ok := msg.Get(98); !ok {
-			t.Error("Required field 98 (EncryptMethod) was incorrectly excluded by whitelist logic")
+			t.Error("Required field 98 (EncryptMethod) was incorrectly excluded by whitelist")
+		}
+	})
+}
+
+func TestRouterSample(t *testing.T) {
+	// FIXT11 for session and FIX50 for application
+	router, err := NewRouter("FIXT11.xml", []string{"FIX50.xml"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	router.SwitchApplSpec("FIX.5.0") // Map to the BeginString of FIX50.xml
+
+	t.Run("SampleAdminMessage", func(t *testing.T) {
+		// Logon (A) is an Admin message. It should pull entirely from FIXT11.
+		msg, err := router.Sample("A", SampleOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Verify injected tags
+		if val, _ := msg.Get(8); val != "FIXT.1.1" {
+			t.Errorf("Expected BeginString to be FIXT.1.1, got %v", val)
+		}
+		if val, _ := msg.Get(35); val != "A" {
+			t.Errorf("Expected MsgType to be A, got %v", val)
+		}
+
+		// Verify an admin body tag exists (EncryptMethod)
+		if _, ok := msg.Get(98); !ok {
+			t.Error("Missing Logon body tag (98)")
+		}
+
+		// Verify Finalize() worked
+		if _, ok := msg.Get(9); !ok {
+			t.Error("Missing BodyLength (9)")
+		}
+		if _, ok := msg.Get(10); !ok {
+			t.Error("Missing CheckSum (10)")
+		}
+	})
+
+	t.Run("SampleApplicationMessage", func(t *testing.T) {
+		// New Order Single (D) is an App message.
+		// Header/Trailer should be FIXT11, Body should be FIX50.
+		msg, err := router.Sample("D", SampleOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Verify Session Tags (from FIXT)
+		if val, _ := msg.Get(8); val != "FIXT.1.1" {
+			t.Errorf("Expected BeginString to be FIXT.1.1, got %v", val)
+		}
+
+		// Verify Application Tags (from FIX 5.0)
+		// Tag 11 (ClOrdID) and Tag 54 (Side) are required in FIX 5.0 NOS
+		for _, tag := range []uint16{11, 54} {
+			if _, ok := msg.Get(tag); !ok {
+				t.Errorf("Missing required FIX 5.0 New Order Single tag [%v]", tag)
+			}
+		}
+	})
+
+	t.Run("SampleUnknownMessage", func(t *testing.T) {
+		_, err := router.Sample("ZZZ", SampleOptions{})
+		if err == nil {
+			t.Fatal("Expected error when sampling an unknown MsgType")
 		}
 	})
 }

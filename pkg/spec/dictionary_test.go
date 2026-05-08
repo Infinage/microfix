@@ -13,18 +13,19 @@ func TestLoadSpecs(t *testing.T) {
 		fieldCount    int
 		headerLength  int
 		trailerLength int
+		beginStr      string
 	}
 
 	stats := map[string]specStats{
-		"FIX40.xml":    {msgCount: 27, fieldCount: 138, headerLength: 18, trailerLength: 3},
-		"FIX41.xml":    {msgCount: 28, fieldCount: 206, headerLength: 22, trailerLength: 3},
-		"FIX42.xml":    {msgCount: 46, fieldCount: 405, headerLength: 27, trailerLength: 3},
-		"FIX43.xml":    {msgCount: 68, fieldCount: 635, headerLength: 28, trailerLength: 3},
-		"FIX44.xml":    {msgCount: 93, fieldCount: 912, headerLength: 27, trailerLength: 3},
-		"FIX50.xml":    {msgCount: 93, fieldCount: 1090, headerLength: 0, trailerLength: 0},
-		"FIX50SP1.xml": {msgCount: 105, fieldCount: 1372, headerLength: 0, trailerLength: 0},
-		"FIX50SP2.xml": {msgCount: 108, fieldCount: 1451, headerLength: 0, trailerLength: 0},
-		"FIXT11.xml":   {msgCount: 7, fieldCount: 62, headerLength: 29, trailerLength: 3},
+		"FIX40.xml":    {msgCount: 27, fieldCount: 138, headerLength: 18, trailerLength: 3, beginStr: "FIX.4.0"},
+		"FIX41.xml":    {msgCount: 28, fieldCount: 206, headerLength: 22, trailerLength: 3, beginStr: "FIX.4.1"},
+		"FIX42.xml":    {msgCount: 46, fieldCount: 405, headerLength: 27, trailerLength: 3, beginStr: "FIX.4.2"},
+		"FIX43.xml":    {msgCount: 68, fieldCount: 635, headerLength: 28, trailerLength: 3, beginStr: "FIX.4.3"},
+		"FIX44.xml":    {msgCount: 93, fieldCount: 912, headerLength: 27, trailerLength: 3, beginStr: "FIX.4.4"},
+		"FIX50.xml":    {msgCount: 93, fieldCount: 1090, headerLength: 0, trailerLength: 0, beginStr: "FIX.5.0"},
+		"FIX50SP1.xml": {msgCount: 105, fieldCount: 1372, headerLength: 0, trailerLength: 0, beginStr: "FIX.5.0"},
+		"FIX50SP2.xml": {msgCount: 108, fieldCount: 1451, headerLength: 0, trailerLength: 0, beginStr: "FIX.5.0"},
+		"FIXT11.xml":   {msgCount: 7, fieldCount: 62, headerLength: 29, trailerLength: 3, beginStr: "FIXT.1.1"},
 	}
 
 	for fileName, expected := range stats {
@@ -44,6 +45,11 @@ func TestLoadSpecs(t *testing.T) {
 			// Validate Basic Metadata
 			if spec.Major == 0 {
 				t.Errorf("%s: Major version parsed as 0", fileName)
+			}
+
+			// Validate BeginString
+			if got := spec.BeginString(); got != expected.beginStr {
+				t.Errorf("%s: Expected %d BeginString, got %d", fileName, expected.beginStr, got)
 			}
 
 			// Validate Counts

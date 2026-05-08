@@ -180,7 +180,7 @@ func compileEntries(message []specEntry, components map[string]*componentContext
 }
 
 // Check ensures that XML spec has below tags present and marked as required.
-// BeginString [8], BodyLength [9], MsgType [35], SenderCompID [49], 
+// BeginString [8], BodyLength [9], MsgType [35], SenderCompID [49],
 // TargetCompID [56], MsgSeqNum [34], SendingTime [52], Checksum [10]
 func (s *Spec) CheckSessionCapabilities() error {
 	// Check for presence of header tags and that XML has it marked as required
@@ -196,4 +196,9 @@ func (s *Spec) CheckSessionCapabilities() error {
 	}
 
 	return nil
+}
+
+// Convenience function to produce BeginString for dictionary
+func (s *Spec) BeginString() string {
+	return fmt.Sprintf("%s.%d.%d", s.Type, s.Major, s.Minor)
 }

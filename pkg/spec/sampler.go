@@ -76,7 +76,7 @@ type SampleOptions struct {
 // Internal helper that takes in a list of entries and populates them into message struct
 func (spec *Spec) buildFromEntries(entries []Entry, opts SampleOptions) message.Message {
 
-	// This helper recursively checks if the current entry or any of 
+	// This helper recursively checks if the current entry or any of
 	// its children/groups contain a tag present in the whitelist.
 	var hasWhitelistedDescendant func(e *Entry) bool
 	hasWhitelistedDescendant = func(e *Entry) bool {
@@ -94,7 +94,7 @@ func (spec *Spec) buildFromEntries(entries []Entry, opts SampleOptions) message.
 	addEntry = func(msg *message.Message, entry Entry) {
 		tag, _ := spec.FieldNames[entry.Name]
 
-		// Shortcut to skip adding entry's contents into message. 
+		// Shortcut to skip adding entry's contents into message.
 		// 1. Required fields are never skipped
 		// 2. If a whitelist is provided, pass if this tag OR any child is whitelisted.
 		// 3. Otherwise, pass only if IncludeOptional is toggled on.
@@ -143,14 +143,17 @@ func (spec *Spec) buildFromEntries(entries []Entry, opts SampleOptions) message.
 	return result
 }
 
+// Sample just the header from spec
 func (spec *Spec) SampleHeader(opts SampleOptions) message.Message {
 	return spec.buildFromEntries(spec.Header.Entries, opts)
 }
 
+// Sample just the trailer from spec
 func (spec *Spec) SampleTrailer(opts SampleOptions) message.Message {
 	return spec.buildFromEntries(spec.Trailer.Entries, opts)
 }
 
+// Sample body from spec given MsgType, if MsgType is missing returns an error
 func (spec *Spec) SampleBody(msgType string, opts SampleOptions) (message.Message, error) {
 	msgSpec, ok := spec.Messages[msgType]
 	if !ok {
@@ -160,24 +163,49 @@ func (spec *Spec) SampleBody(msgType string, opts SampleOptions) (message.Messag
 	return spec.buildFromEntries(msgSpec.Entries, opts), nil
 }
 
-// Sample dumbly generates a message template based on the Spec.
-// Convenience function calling SampleHeader, SampleBody and SampleTrailer.
-// Does not finalize the message or add required tags, please use SpecRouter's Sample instead
-func (spec *Spec) Sample(msgType string, opts SampleOptions) (message.Message, error) {
+// IsAdmin checks if the message type is a session level message
+func (r *Router) IsAdmin(msgType string) bool {
+	switch msgType {
+	case "0", "1", "2", "3", "4", "5", "A", "n":
+		return true
+	}
+	return false
+}
+
+// Build a sample message from spec, headers/trailer are picked from session
+// spec while the body is picked from the applSpec that currenlty selected
+// ---
+// Ensure that Session/Engine sets correct values for required tags
+// and Finalize is called once again before send
+func (r *Router) Sample(msgType string, opts SampleOptions) (message.Message, error) {
+	// Route the message correctly to session layer or appl layer
+	var msgSpec *Spec = r.DefaultApplSpec()
+	if r.IsAdmin(msgType) {
+		msgSpec = r.DefaultSessionSpec()
+	}
 
 	// Returns err if MsgType is not found
-	body, err := spec.SampleBody(msgType, opts)
+	body, err := msgSpec.SampleBody(msgType, opts)
 	if err != nil {
 		return message.Message{}, err
 	}
 
-	header := spec.SampleHeader(opts)
-	trailer := spec.SampleTrailer(opts)
+	// Sample the header and body from the session layer spec
+	header := r.DefaultSessionSpec().SampleHeader(opts)
+	trailer := r.DefaultSessionSpec().SampleTrailer(opts)
 
+	// Construct the message from constituents
 	var result message.Message
 	result = append(result, header...)
 	result = append(result, body...)
 	result = append(result, trailer...)
+
+	// Inject context into message
+	result.Set(8, r.DefaultSessionSpec().BeginString())
+	result.Set(35, msgType)
+
+	// Calculate bodylen and checksum
+	result.Finalize()
 
 	return result, nil
 }
