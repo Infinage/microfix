@@ -31,7 +31,7 @@ func TestSession_Lifecycle(t *testing.T) {
 		done:     make(chan struct{}),
 	}
 
-	sess, err := NewSession("FIX44.xml", "SENDER", "TARGET", 30)
+	sess, err := NewSession("FIX44.xml", "SENDER", "TARGET", 30, EngineOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create session: %v", err)
 	}
@@ -68,7 +68,7 @@ func TestSession_Lifecycle(t *testing.T) {
 	})
 
 	t.Run("TransitionsToActiveOnLogonResponse", func(t *testing.T) {
-		resp, _ := sess.Spec().Sample("A", spec.SampleOptions{})
+		resp, _ := sess.Router().Sample("A", spec.SampleOptions{})
 		resp.Set(49, "TARGET")
 		resp.Set(56, "SENDER")
 		resp.Set(34, "1")
@@ -107,7 +107,7 @@ func TestSession_Lifecycle(t *testing.T) {
 
 	t.Run("SequenceGapTriggersResend", func(t *testing.T) {
 		// Send a message with SeqNum 10 (expecting 2)
-		msg, _ := sess.Spec().Sample("D", spec.SampleOptions{})
+		msg, _ := sess.Router().Sample("D", spec.SampleOptions{})
 		msg.Set(49, "TARGET")
 		msg.Set(56, "SENDER")
 		msg.Set(34, "10")
@@ -156,11 +156,11 @@ func TestSession_DeliverAppMessage(t *testing.T) {
 		done:     make(chan struct{}),
 	}
 
-	sess, _ := NewSession("FIX44.xml", "S", "T", 30)
+	sess, _ := NewSession("FIX44.xml", "S", "T", 30, EngineOptions{})
 	sess.start(mockConn, false) // Start as acceptor
 
 	// Send a logon to drive state to active
-	logon, _ := sess.Spec().Sample("A", spec.SampleOptions{})
+	logon, _ := sess.Router().Sample("A", spec.SampleOptions{})
 	logon.Set(49, "T")
 	logon.Set(56, "S")
 	logon.Set(34, "1")
@@ -169,7 +169,7 @@ func TestSession_DeliverAppMessage(t *testing.T) {
 	mockConn.incoming <- logon
 
 	// Send an Application Message (New Order Single)
-	msg, _ := sess.Spec().Sample("D", spec.SampleOptions{})
+	msg, _ := sess.Router().Sample("D", spec.SampleOptions{})
 	msg.Set(49, "T")
 	msg.Set(56, "S")
 	msg.Set(34, "2") // If set to 1 we will get a logout

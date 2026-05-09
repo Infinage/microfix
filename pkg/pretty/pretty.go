@@ -64,8 +64,10 @@ func SpecEntry(w io.Writer, e spec.Entry, lookup map[string]uint16, includeOptio
 }
 
 // Pretty print the message input per spec
-func Message(w io.Writer, msg *message.Message, sp *spec.Spec) error {
+func Message(w io.Writer, msg *message.Message, ro *spec.Router) error {
 	msgType, _ := msg.Get(35)
+	sp := ro.SpecForMsgType(msgType)
+
 	context, ok := sp.Messages[msgType]
 	if !ok {
 		printFields(w, msg, sp.Fields)

@@ -117,7 +117,7 @@ func TestRouterSample(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	router.SwitchApplSpec("FIX.5.0") // Map to the BeginString of FIX50.xml
+	router.SetDefaultApplVer("FIX.5.0") // Map to the BeginString of FIX50.xml
 
 	t.Run("SampleAdminMessage", func(t *testing.T) {
 		// Logon (A) is an Admin message. It should pull entirely from FIXT11.

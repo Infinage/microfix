@@ -49,7 +49,7 @@ func TestLoadSpecs(t *testing.T) {
 
 			// Validate BeginString
 			if got := spec.BeginString(); got != expected.beginStr {
-				t.Errorf("%s: Expected %d BeginString, got %d", fileName, expected.beginStr, got)
+				t.Errorf("%s: Expected %s BeginString, got %s", fileName, expected.beginStr, got)
 			}
 
 			// Validate Counts

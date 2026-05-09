@@ -12,6 +12,7 @@ type Config struct {
 	HeartbeatInt int64  `json:"HeartbeatInt"`
 
 	SpecPath             string `json:"SpecPath"`
+	DefaultApplVer       string `json:"DefaultApplVer"`
 	SpecDisplayOptFields bool   `json:"SpecDisplayOptFields"`
 
 	FixValidateStrict bool `json:"FixValidateStrict"`

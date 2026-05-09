@@ -59,20 +59,20 @@ func TestValidateDtypeEdges(t *testing.T) {
 }
 
 func TestValidate_HappyPath(t *testing.T) {
-	spec, err := LoadSpec("FIXT11.xml")
+	router, err := NewRouter("FIXT11.xml", []string{"FIXT11.xml"})
 	if err != nil {
-		t.Fatal("Failed to load spec")
+		t.Fatal("Failed to load router setup")
 	}
 
 	t.Run("SampleAndStrictValidate", func(t *testing.T) {
 		// Generate a valid message with all optional fields
-		msg, err := spec.Sample("A", SampleOptions{IncludeOptional: true})
+		msg, err := router.Sample("A", SampleOptions{IncludeOptional: true})
 		if err != nil {
 			t.Fatalf("Failed to sample: %v", err)
 		}
 
 		// Validate with Strict mode
-		ok, obs := spec.Validate(&msg, ValidationStrict)
+		ok, obs := router.Validate(&msg, ValidationStrict)
 		if !ok {
 			t.Log(msg.String("|"))
 			t.Errorf("Validation failed for sampled message: %v", strings.Join(obs, "; "))
@@ -81,17 +81,17 @@ func TestValidate_HappyPath(t *testing.T) {
 }
 
 func TestValidate_CorruptedMessages(t *testing.T) {
-	spec, _ := LoadSpec("FIXT11.xml")
+	router, _ := NewRouter("FIXT11.xml", []string{"FIXT11.xml"})
 
 	t.Run("InvalidChecksum", func(t *testing.T) {
-		msg, _ := spec.Sample("0", SampleOptions{})
+		msg, _ := router.Sample("0", SampleOptions{})
 
 		// Corrupt the checksum (Tag 10)
 		if !msg.Set(10, "999") {
 			t.Error("Checksum tag [10] missing in sampled Heartbeat")
 		}
 
-		ok, obs := spec.Validate(&msg, ValidationBasic)
+		ok, obs := router.Validate(&msg, ValidationBasic)
 		if ok {
 			t.Error("Validation should have failed for bad checksum")
 		}
@@ -106,14 +106,14 @@ func TestValidate_CorruptedMessages(t *testing.T) {
 	})
 
 	t.Run("InvalidBodyLength", func(t *testing.T) {
-		msg, _ := spec.Sample("0", SampleOptions{})
+		msg, _ := router.Sample("0", SampleOptions{})
 
 		// Corrupt BodyLength (Tag 9)
 		if !msg.Set(9, "0") {
 			t.Error("BodyLength tag [9] missing in sampled Heartbeat")
 		}
 
-		ok, obs := spec.Validate(&msg, ValidationBasic)
+		ok, obs := router.Validate(&msg, ValidationBasic)
 		if ok {
 			t.Error("Validation should have failed for bad body length")
 		}
@@ -128,8 +128,8 @@ func TestValidate_CorruptedMessages(t *testing.T) {
 	})
 
 	t.Run("MissingRequiredField", func(t *testing.T) {
-		msg, _ := spec.Sample("A", SampleOptions{})
-		ok, _ := spec.Validate(&msg, ValidationBasic)
+		msg, _ := router.Sample("A", SampleOptions{})
+		ok, _ := router.Validate(&msg, ValidationBasic)
 		if !ok {
 			t.Error("Validation expected to pass, but failed")
 		}
@@ -142,8 +142,8 @@ func TestValidate_CorruptedMessages(t *testing.T) {
 		// Recalculate checksum and bodylen
 		corrupted.Finalize()
 
-		// It should only throw for the missing requiref field
-		ok, obs := spec.Validate(&corrupted, ValidationBasic)
+		// It should only throw for the missing required field
+		ok, obs := router.Validate(&corrupted, ValidationBasic)
 		if ok {
 			t.Error("Validation should have failed when missing required field 98")
 		}
@@ -159,10 +159,10 @@ func TestValidate_CorruptedMessages(t *testing.T) {
 }
 
 func TestValidate_DataTypeAndUnknownTags(t *testing.T) {
-	spec, _ := LoadSpec("FIXT11.xml")
+	router, _ := NewRouter("FIXT11.xml", []string{"FIXT11.xml"})
 
 	t.Run("InvalidDataType_Strict", func(t *testing.T) {
-		msg, _ := spec.Sample("A", SampleOptions{})
+		msg, _ := router.Sample("A", SampleOptions{})
 
 		// HeartBtInt (Tag 108) is an INT. Let's put a string.
 		if !msg.Set(108, "ABC") {
@@ -172,7 +172,7 @@ func TestValidate_DataTypeAndUnknownTags(t *testing.T) {
 		// Finalize to recalculate the checksum, bodylen
 		msg.Finalize()
 
-		ok, obs := spec.Validate(&msg, ValidationStrict)
+		ok, obs := router.Validate(&msg, ValidationStrict)
 		if ok {
 			t.Error("Strict validation should catch non-integer value for Tag 108")
 		}
@@ -188,17 +188,17 @@ func TestValidate_DataTypeAndUnknownTags(t *testing.T) {
 
 	t.Run("UnknownTag_Strict", func(t *testing.T) {
 		// Inject a random tag not in the spec
-		msg, _ := spec.Sample("0", SampleOptions{})
-		msg = append(msg, message.Field{Tag: 9999, Value: "Unknown"})
+		msg, _ := router.Sample("0", SampleOptions{})
+		msg.Insert(len(msg)-1, message.Field{Tag: 9999, Value: "Unknown"})
 		msg.Finalize()
 
-		ok, _ := spec.Validate(&msg, ValidationStrict)
+		ok, _ := router.Validate(&msg, ValidationStrict)
 		if ok {
 			t.Error("Strict validation should fail for unknown tag 9999")
 		}
 
 		// Verify Basic validation ignores it (doesn't fail)
-		ok, obs := spec.Validate(&msg, ValidationBasic)
+		ok, obs := router.Validate(&msg, ValidationBasic)
 		if !ok {
 			t.Errorf("Basic validation should ignore unknown tags, got %v", strings.Join(obs, "; "))
 		}
@@ -206,7 +206,8 @@ func TestValidate_DataTypeAndUnknownTags(t *testing.T) {
 }
 
 func TestValidate_FromString(t *testing.T) {
-	spec, err := LoadSpec("FIX44.xml")
+	// Use DefaultRouter for FIX44 legacy parsing
+	router, err := NewDefaultRouter("FIX44.xml")
 	if err != nil {
 		t.Fatal("Failed to load Spec")
 	}
@@ -221,7 +222,7 @@ func TestValidate_FromString(t *testing.T) {
 				t.Fatalf("Parse error: %v", err)
 			}
 
-			ok, obs := spec.Validate(&msg, ValidationStrict)
+			ok, obs := router.Validate(&msg, ValidationStrict)
 			if !ok {
 				t.Errorf("Validation failed for raw string: %v", strings.Join(obs, "; "))
 			}
@@ -238,7 +239,7 @@ func TestValidate_FromString(t *testing.T) {
 				t.Fatalf("Parse error: %v", err)
 			}
 
-			ok, _ := spec.Validate(&msg, ValidationStrict)
+			ok, _ := router.Validate(&msg, ValidationStrict)
 			if ok {
 				t.Errorf("Validation expected to fail, but didn't")
 			}
@@ -247,11 +248,11 @@ func TestValidate_FromString(t *testing.T) {
 }
 
 func TestValidate_GroupOrdering(t *testing.T) {
-	spec, _ := LoadSpec("FIXT11.xml")
+	router, _ := NewRouter("FIXT11.xml", []string{"FIXT11.xml"})
 
 	// Generate a message with a group (e.g., HopGrp in Header)
 	// NoHops(627) -> HopCompID(628), HopSendingTime(629), HopRefID(630)
-	logon, _ := spec.Sample("0", SampleOptions{
+	logon, _ := router.Sample("0", SampleOptions{
 		OptionalFields: map[uint16]any{627: nil, 628: nil, 629: nil},
 		GroupOverrides: map[uint16]int{627: 2}},
 	)
@@ -267,7 +268,7 @@ func TestValidate_GroupOrdering(t *testing.T) {
 	t.Run("InvalidAnchorTag", func(t *testing.T) {
 		msg := slices.Clone(logon)
 		msg[pos628], msg[pos629] = msg[pos629], msg[pos628]
-		ok, obs := spec.Validate(&msg, ValidationStrict)
+		ok, obs := router.Validate(&msg, ValidationStrict)
 		if ok {
 			t.Error("Validation should fail when group members are out of order")
 		} else {
@@ -286,7 +287,7 @@ func TestValidate_GroupOrdering(t *testing.T) {
 		_, pos628 = msg.FindFrom(628, pos628+1)
 		_, pos629 = msg.FindFrom(629, pos629+1)
 		msg[pos628], msg[pos629] = msg[pos629], msg[pos628]
-		ok, obs := spec.Validate(&msg, ValidationStrict)
+		ok, obs := router.Validate(&msg, ValidationStrict)
 		if ok {
 			t.Error("Validation should fail when group members are out of order")
 		} else {

@@ -7,6 +7,7 @@ package session
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/infinage/microfix/pkg/message"
@@ -66,9 +67,17 @@ type Snapshot struct {
 	LastWriteTime time.Time
 }
 
+// Holds optional configuration for the session engine.
+// The zero-value of this struct represent safe defaults.
+type EngineOptions struct {
+	// DefaultApplVerID sets the wire value for Tag 1137 (e.g., "7" for FIX 5.0).
+	// Required if using FIXT multiplexing.
+	DefaultApplVer string
+}
+
 type Engine struct {
-	Spec  spec.Spec
-	state SessionState
+	Router spec.Router
+	state  SessionState
 
 	senderCompID string
 	targetCompID string
@@ -80,6 +89,8 @@ type Engine struct {
 
 	lastWriteTime time.Time
 	lastReadTime  time.Time
+
+	extraOpts EngineOptions
 }
 
 type Action struct {
@@ -101,7 +112,7 @@ func (err *RejectError) Error() string {
 
 // Helper to build a Reject ['35=3'] message
 func (engine *Engine) reject(err *RejectError) Action {
-	rejectMsg, _ := engine.Spec.Sample("3", spec.SampleOptions{
+	rejectMsg, _ := engine.Router.Sample("3", spec.SampleOptions{
 		OptionalFields: map[uint16]any{58: nil},
 	})
 	rejectMsg.Set(45, fmt.Sprint(err.RefSeqNum))
@@ -109,32 +120,38 @@ func (engine *Engine) reject(err *RejectError) Action {
 	return Action{Type: ActionSend, Msg: rejectMsg}
 }
 
-func NewEngine(specPath string, senderCompID string, targetCompID string, heartbeatInt int64) (*Engine, error) {
+func NewEngine(specPath string, senderCompID string, targetCompID string, heartbeatInt int64, opts EngineOptions) (*Engine, error) {
 	if heartbeatInt <= 0 {
 		return nil, fmt.Errorf("Heartbeat Interval must be greater than 0")
 	}
 
 	// Attempt to load the spec
-	sp, err := spec.LoadSpec(specPath)
+	router, err := spec.NewDefaultRouter(specPath)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to load spec: %v", err)
+		return nil, fmt.Errorf("Failed to initialize router: %v", err)
+	}
+
+	// Set the defaultApplVer from EngineOptions if provided
+	if ver := opts.DefaultApplVer; ver != "" && !router.SetDefaultApplVer(ver) {
+		return nil, fmt.Errorf("Failed to set DefaultApplVer: %v", ver)
 	}
 
 	// Ensure spec contains the message def for what we will be sending
 	for _, msgType := range []string{"0", "1", "2", "3", "4", "5", "A"} {
-		if _, err := sp.Sample(msgType, spec.SampleOptions{}); err != nil {
+		if _, err := router.Sample(msgType, spec.SampleOptions{}); err != nil {
 			return nil, fmt.Errorf("Failed to sample message: %v", msgType)
 		}
 	}
 
 	engine := &Engine{
-		Spec:         sp,
+		Router:       *router,
 		senderCompID: senderCompID,
 		targetCompID: targetCompID,
 		heartbeatInt: heartbeatInt,
 		testReqID:    "MICROFIX",
 		inSeqNum:     1,
 		outSeqNum:    1,
+		extraOpts:    opts,
 	}
 
 	// Starting as New State
@@ -146,8 +163,8 @@ func NewEngine(specPath string, senderCompID string, targetCompID string, heartb
 func (engine *Engine) off() []Action {
 	if engine.state != SessionClosed {
 		engine.state = SessionClosed
-		lo, _ := engine.Spec.Sample("5", spec.SampleOptions{})
-		return []Action{{Type: ActionSend, Msg: lo}, {Type: ActionClose}}
+		logout, _ := engine.Router.Sample("5", spec.SampleOptions{})
+		return []Action{{Type: ActionSend, Msg: logout}, {Type: ActionClose}}
 	}
 	return nil
 }
@@ -159,8 +176,9 @@ func (engine *Engine) OnStart(isClient bool) []Action {
 
 	if isClient {
 		engine.state = SessionLoggingIn
-		logon, _ := engine.Spec.Sample("A", spec.SampleOptions{})
+		logon, _ := engine.Router.Sample("A", spec.SampleOptions{})
 		logon.Set(108, fmt.Sprint(engine.heartbeatInt))
+		logon.Set(1137, engine.Router.GetDefaultApplVerID())
 		return []Action{{Type: ActionSend, Msg: logon}}
 	}
 
@@ -208,6 +226,13 @@ func (engine *Engine) FinalizeMessage(msg *message.Message, now time.Time) error
 
 // Checks for MsgType, TargetCompID, SenderCompID, InSeqNum, Spec validation including Checksum, BodyLength
 func (engine *Engine) validate(msg *message.Message) error {
+	// Validate BeginString [8]
+	beginStr, ok := msg.Get(8)
+	if want := engine.Router.SessionSpec().BeginString(); !ok || beginStr != want {
+		return fmt.Errorf("BeginString mistmatch, expected %v, found %v", want, beginStr)
+	}
+
+	// Validate MsgType [35]
 	msgType, ok := msg.Get(35)
 	if !ok {
 		return fmt.Errorf("Missing MsgType tag [35]")
@@ -241,8 +266,18 @@ func (engine *Engine) validate(msg *message.Message) error {
 		return fmt.Errorf("Input sequence number mismatch. Expected %v, got %v", engine.inSeqNum, received)
 	}
 
+	// Temporarily switch DefaultApplVerID if ApplVerID is set
+	// BeginString check against msg already done above
+	oldApplVer := engine.Router.GetDefaultApplVerID()
+	if applVerID, ok := msg.Get(1128); ok && strings.HasPrefix(beginStr, "FIXT") {
+		if !engine.Router.SetDefaultApplVerID(applVerID) {
+			return fmt.Errorf("Counterparty requested unsupported ApplVerID [1128]: %v", applVerID)
+		}
+		defer engine.Router.SetDefaultApplVerID(oldApplVer)
+	}
+
 	// Validate per input spec
-	if ok, obs := engine.Spec.Validate(msg, spec.ValidationBasic); !ok {
+	if ok, obs := engine.Router.Validate(msg, spec.ValidationBasic); !ok {
 		return &RejectError{
 			RefSeqNum: engine.inSeqNum,
 			Text:      fmt.Sprintf("Message validation failed: %v", obs),
@@ -280,14 +315,14 @@ func (engine *Engine) OnTick(now time.Time) []Action {
 
 	// Outgoing idle (send heartbeat)
 	if now.Sub(engine.lastWriteTime) >= hbDuration {
-		hb, _ := engine.Spec.Sample("0", spec.SampleOptions{})
+		hb, _ := engine.Router.Sample("0", spec.SampleOptions{})
 		actions = append(actions, Action{Type: ActionSend, Msg: hb})
 	}
 
 	// Incoming idle (send test request)
 	if since := now.Sub(engine.lastReadTime); since >= hbDuration {
 		if engine.state != SessionStale {
-			tr, _ := engine.Spec.Sample("1", spec.SampleOptions{})
+			tr, _ := engine.Router.Sample("1", spec.SampleOptions{})
 			tr.Set(112, engine.testReqID)
 			engine.state = SessionStale
 			eventLog := fmt.Sprintf("No heartbeat received in %v. Transitioning to Stale", since.Truncate(time.Second))
@@ -318,9 +353,9 @@ func (engine *Engine) OnMessage(msg *message.Message, now time.Time) []Action {
 			actions = append(actions, engine.reject(rejectErr))
 			engine.inSeqNum++ // Increment seqNo in case of spec validation failure
 		} else {
-			lo, _ := engine.Spec.Sample("5", spec.SampleOptions{OptionalFields: map[uint16]any{58: nil}})
-			lo.Set(58, err.Error())
-			actions = append(actions, Action{Type: ActionSend, Msg: lo}, Action{Type: ActionClose})
+			logout, _ := engine.Router.Sample("5", spec.SampleOptions{OptionalFields: map[uint16]any{58: nil}})
+			logout.Set(58, err.Error())
+			actions = append(actions, Action{Type: ActionSend, Msg: logout}, Action{Type: ActionClose})
 		}
 		return actions
 	}
@@ -362,7 +397,7 @@ func (engine *Engine) OnResetSequence(inSeqNum int64, outSeqNum int64) []Action 
 		// Handle Outbound sequence changes
 		if outSeqNum > engine.outSeqNum {
 			// Out seq reset can only go forward per FIX protocol
-			seqReset, _ := engine.Spec.Sample("4", spec.SampleOptions{OptionalFields: map[uint16]any{123: nil}})
+			seqReset, _ := engine.Router.Sample("4", spec.SampleOptions{OptionalFields: map[uint16]any{123: nil}})
 			seqReset.Set(36, fmt.Sprintf("%d", outSeqNum))
 			seqReset.Set(123, "N")
 			actions = append(actions, Action{Type: ActionSend, Msg: seqReset})
@@ -413,11 +448,11 @@ func (engine *Engine) handleLogon(msg *message.Message) (bool, []Action) {
 	hbInt, err := hbIntTag.AsInt()
 	if err != nil || hbInt < 1 {
 		engine.off()
-		lo, _ := engine.Spec.Sample("5", spec.SampleOptions{OptionalFields: map[uint16]any{58: nil}})
-		lo.Set(58, "Invalid HeartBeatInt [108]")
+		logout, _ := engine.Router.Sample("5", spec.SampleOptions{OptionalFields: map[uint16]any{58: nil}})
+		logout.Set(58, "Invalid HeartBeatInt [108]")
 		return false, []Action{
 			{Type: ActionError, Err: fmt.Errorf("Got a Logon with invalid HeartbeatInt [108]: %v", hbIntTag.Value)},
-			{Type: ActionSend, Msg: lo},
+			{Type: ActionSend, Msg: logout},
 			{Type: ActionClose},
 		}
 	}
@@ -425,11 +460,11 @@ func (engine *Engine) handleLogon(msg *message.Message) (bool, []Action) {
 	// If we were ones to send the logon, we expect heartbeatInt to strictly match
 	if engine.state == SessionLoggingIn && hbInt != engine.heartbeatInt {
 		engine.off()
-		lo, _ := engine.Spec.Sample("5", spec.SampleOptions{OptionalFields: map[uint16]any{58: nil}})
-		lo.Set(58, "HeartBeatInt [108] mismatch")
+		logout, _ := engine.Router.Sample("5", spec.SampleOptions{OptionalFields: map[uint16]any{58: nil}})
+		logout.Set(58, "HeartBeatInt [108] mismatch")
 		return false, []Action{
 			{Type: ActionError, Err: fmt.Errorf("Heartbeat Interval in Logon incorrect, expected %v, got %v", engine.heartbeatInt, hbInt)},
-			{Type: ActionSend, Msg: lo},
+			{Type: ActionSend, Msg: logout},
 			{Type: ActionClose},
 		}
 	}
@@ -447,13 +482,14 @@ func (engine *Engine) handleLogon(msg *message.Message) (bool, []Action) {
 		engine.heartbeatInt = hbInt
 
 		// Build a logon response back and add heartbeat interval
-		lo, _ := engine.Spec.Sample("A", spec.SampleOptions{})
-		lo.Set(108, fmt.Sprint(hbInt))
+		logon, _ := engine.Router.Sample("A", spec.SampleOptions{})
+		logon.Set(108, fmt.Sprint(hbInt))
+		logon.Set(1137, engine.Router.GetDefaultApplVerID())
 
 		// Send logon request back and set state to active
 		actions = append(actions,
 			Action{Type: ActionLog, Event: "Logon request received, transitioning to Active"},
-			Action{Type: ActionSend, Msg: lo})
+			Action{Type: ActionSend, Msg: logon})
 	}
 
 	// If all good, we proceed to next stage
@@ -468,9 +504,9 @@ func (engine *Engine) handleAppMessage(msg *message.Message) (bool, []Action) {
 	// Trigger a resend request (replay), if inSeqNum greater what we are expecting
 	inSeqNumTag, _ := msg.FindFrom(34, 0)
 	if inSeqNum, _ := inSeqNumTag.AsInt(); inSeqNum > engine.inSeqNum {
-		resend, _ := engine.Spec.Sample("2", spec.SampleOptions{})
+		resend, _ := engine.Router.Sample("2", spec.SampleOptions{})
 		resend.Set(7, fmt.Sprintf("%d", engine.inSeqNum))
-		resend.Set(16, fmt.Sprintf("%d", inSeqNum))
+		resend.Set(16, "0") // 0 means infinity in FIX Resend requests
 		return false, []Action{
 			{Type: ActionError, Err: fmt.Errorf("Expected InSeqNum [34] %v, got %v, triggered resend request.", engine.inSeqNum, inSeqNum)},
 			{Type: ActionSend, Msg: resend},
@@ -484,7 +520,7 @@ func (engine *Engine) handleAppMessage(msg *message.Message) (bool, []Action) {
 	case "0": // Already updated InSeqNum, noop
 
 	case "1": // Handle Test Request
-		hb, _ := engine.Spec.Sample("0", spec.SampleOptions{OptionalFields: map[uint16]any{112: nil}})
+		hb, _ := engine.Router.Sample("0", spec.SampleOptions{OptionalFields: map[uint16]any{112: nil}})
 		if reqId, ok := msg.Get(112); ok {
 			hb.Set(112, reqId)
 		}
@@ -492,7 +528,7 @@ func (engine *Engine) handleAppMessage(msg *message.Message) (bool, []Action) {
 
 	case "2": // Resend request, for now we just do a SequenceReset
 		beginSeqNoField, _ := msg.Get(7)
-		seqReset, _ := engine.Spec.Sample("4", spec.SampleOptions{OptionalFields: map[uint16]any{123: nil}})
+		seqReset, _ := engine.Router.Sample("4", spec.SampleOptions{OptionalFields: map[uint16]any{123: nil}})
 		seqReset.Set(34, beginSeqNoField) // bypass outSeqNum update on finalize
 		seqReset.Set(36, fmt.Sprintf("%d", engine.outSeqNum))
 		seqReset.Set(123, "Y")

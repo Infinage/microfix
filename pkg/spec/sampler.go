@@ -163,15 +163,6 @@ func (spec *Spec) SampleBody(msgType string, opts SampleOptions) (message.Messag
 	return spec.buildFromEntries(msgSpec.Entries, opts), nil
 }
 
-// IsAdmin checks if the message type is a session level message
-func (r *Router) IsAdmin(msgType string) bool {
-	switch msgType {
-	case "0", "1", "2", "3", "4", "5", "A", "n":
-		return true
-	}
-	return false
-}
-
 // Build a sample message from spec, headers/trailer are picked from session
 // spec while the body is picked from the applSpec that currenlty selected
 // ---
@@ -179,10 +170,7 @@ func (r *Router) IsAdmin(msgType string) bool {
 // and Finalize is called once again before send
 func (r *Router) Sample(msgType string, opts SampleOptions) (message.Message, error) {
 	// Route the message correctly to session layer or appl layer
-	var msgSpec *Spec = r.DefaultApplSpec()
-	if r.IsAdmin(msgType) {
-		msgSpec = r.DefaultSessionSpec()
-	}
+	msgSpec := r.SpecForMsgType(msgType)
 
 	// Returns err if MsgType is not found
 	body, err := msgSpec.SampleBody(msgType, opts)
@@ -191,8 +179,8 @@ func (r *Router) Sample(msgType string, opts SampleOptions) (message.Message, er
 	}
 
 	// Sample the header and body from the session layer spec
-	header := r.DefaultSessionSpec().SampleHeader(opts)
-	trailer := r.DefaultSessionSpec().SampleTrailer(opts)
+	header := r.SessionSpec().SampleHeader(opts)
+	trailer := r.SessionSpec().SampleTrailer(opts)
 
 	// Construct the message from constituents
 	var result message.Message
@@ -201,7 +189,7 @@ func (r *Router) Sample(msgType string, opts SampleOptions) (message.Message, er
 	result = append(result, trailer...)
 
 	// Inject context into message
-	result.Set(8, r.DefaultSessionSpec().BeginString())
+	result.Set(8, r.SessionSpec().BeginString())
 	result.Set(35, msgType)
 
 	// Calculate bodylen and checksum

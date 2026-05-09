@@ -21,7 +21,7 @@ func startLogger(sess *session.Session, cb *ringbuf.CircularBuffer) {
 		hint := ""
 		if msg := log.Msg; msg != nil {
 			msgType, _ := msg.Get(35)
-			entry, ok := sess.Spec().Messages[msgType]
+			entry, ok := sess.Router().SpecForMsgType(msgType).Messages[msgType]
 			if ok {
 				hint = entry.Name
 			}
@@ -37,6 +37,7 @@ func NewSession(cfg *config.Config) (*session.Session, error) {
 		cfg.SenderCompID,
 		cfg.TargetCompID,
 		cfg.HeartbeatInt,
+		session.EngineOptions{DefaultApplVer: cfg.DefaultApplVer},
 	)
 }
 

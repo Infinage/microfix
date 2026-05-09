@@ -57,70 +57,6 @@ const (
 	ValidationStrict                       // type check, unknown fields check
 )
 
-// Validate an input message and return list of observations
-func (spec *Spec) Validate(message *message.Message, mode ValidationMode) (bool, []string) {
-	var observations []string
-	if mode == ValidationNone {
-		return true, observations
-	}
-
-	msgType, ok := message.Get(35)
-	if !ok {
-		observations = append(observations, "MsgType Tag (35) missing")
-		return false, observations
-	}
-
-	// Checksum validation if required
-	if _, ok := spec.Trailer.Lookup[10]; ok {
-		if checksum, ok := message.Get(10); !ok {
-			observations = append(observations, "Missing checksum tag [10]")
-		} else if want := fmt.Sprintf("%03d", message.Checksum()); want != checksum {
-			observations = append(observations, fmt.Sprintf("Checksum validation failed: want %v, got %v",
-				want, checksum))
-		}
-	}
-
-	// Bodylength validation if required
-	if _, ok := spec.Header.Lookup[9]; ok {
-		bodylength := message.BodyLength()
-		bodyLenTag, pos := message.FindFrom(9, 0)
-		if pos == -1 {
-			observations = append(observations, "Missing bodylength tag [9]")
-		} else if got, err := bodyLenTag.AsUint(); err != nil || bodylength != got {
-			observations = append(observations, fmt.Sprintf("Bodylength validation failed: want %v, got %v",
-				bodylength, got))
-		}
-	}
-
-	msgSpec, ok := spec.Messages[msgType]
-	if !ok {
-		observations = append(observations, fmt.Sprintf("Unknown MsgType '35=%v'", msgType))
-		return false, observations
-	}
-
-	// Walk through and validate for entries against header, msg body and trailer
-	var err error
-	var pos int
-	pos, err = walkSpec(message, spec.Header, 0, &observations, spec.Fields, mode)
-	if err != nil {
-		return false, observations
-	}
-	pos, err = walkSpec(message, msgSpec, pos, &observations, spec.Fields, mode)
-	if err != nil {
-		return false, observations
-	}
-	pos, err = walkSpec(message, spec.Trailer, pos, &observations, spec.Fields, mode)
-	if err != nil {
-		return false, observations
-	}
-
-	if pos != len(*message) {
-		observations = append(observations, fmt.Sprintf("Message entry #%v didn't match the spec", pos))
-	}
-
-	return len(observations) == 0, observations
-}
-
 // Returns index just after processing the message for that context
 func walkSpec(msg *message.Message, context Entry, idx int, obs *[]string,
 	fields map[uint16]FieldDef, mode ValidationMode) (int, error) {
@@ -225,4 +161,96 @@ func walkSpec(msg *message.Message, context Entry, idx int, obs *[]string,
 	}
 
 	return idx, nil
+}
+
+// Validate an input message and return list of observations
+func (router *Router) Validate(msg *message.Message, mode ValidationMode) (bool, []string) {
+	var observations []string
+	if mode == ValidationNone {
+		return true, observations
+	}
+
+	// Check all mandatory tags by position
+	// If position is -1, ignore position check
+	mandatoryTags := []struct {
+		t uint16
+		p int
+	}{
+		{8, 0},              // BeginString
+		{9, 1},              // BodyLength
+		{35, 2},             // MsgType
+		{49, -1},            // SenderCompID
+		{56, -1},            // TargetCompID
+		{34, -1},            // MsgSeqNum
+		{52, -1},            // SendingTime
+		{10, len(*msg) - 1}, // CheckSum
+	}
+
+	// Iterate through requirements if all required
+	// tags are present and at correct position
+	for _, requirement := range mandatoryTags {
+		if _, pos := msg.FindFrom(requirement.t, 0); pos == -1 {
+			observations = append(observations, fmt.Sprintf("Missing required Tag [%v]", requirement.t))
+			return false, observations
+		} else if requirement.p != -1 && pos != requirement.p {
+			observations = append(observations, fmt.Sprintf("Expected Tag [%v] at pos %v, found at %v", requirement.t, requirement.p, pos))
+			return false, observations
+		}
+	}
+
+	// Validate BeginString [8]
+	beginStr, _ := msg.Get(8)
+	if want := router.SessionSpec().BeginString(); beginStr != want {
+		observations = append(observations, fmt.Sprintf("BeginString mistmatch, expected %v, found %v", want, beginStr))
+		return false, observations
+	}
+
+	// Mandatory checksum validation
+	checksum, _ := msg.Get(10)
+	if want := fmt.Sprintf("%03d", msg.Checksum()); want != checksum {
+		observations = append(observations, fmt.Sprintf("Checksum validation failed: want %v, got %v",
+			want, checksum))
+	}
+
+	// Mandatory bodylength validation
+	bodylength := msg.BodyLength()
+	bodyLenTag, _ := msg.FindFrom(9, 0)
+	if got, err := bodyLenTag.AsUint(); err != nil || bodylength != got {
+		observations = append(observations, fmt.Sprintf("Bodylength validation failed: want %v, got %v",
+			bodylength, got))
+	}
+
+	// Route the message correctly to session layer or appl layer
+	msgType, _ := msg.Get(35)
+	msgSpec := router.SpecForMsgType(msgType)
+	msgEntry, ok := msgSpec.Messages[msgType]
+	if !ok {
+		observations = append(observations, fmt.Sprintf("Unknown MsgType '35=%v'", msgType))
+		return false, observations
+	}
+
+	// Validate the header
+	pos, err := walkSpec(msg, router.SessionSpec().Header, 0, &observations, router.SessionSpec().Fields, mode)
+	if err != nil {
+		return false, observations
+	}
+
+	// Validate the message body following header, we start off where header finished
+	pos, err = walkSpec(msg, msgEntry, pos, &observations, msgSpec.Fields, mode)
+	if err != nil {
+		return false, observations
+	}
+
+	// Validate the trailer, start off where body validation left us
+	pos, err = walkSpec(msg, router.SessionSpec().Trailer, pos, &observations, router.SessionSpec().Fields, mode)
+	if err != nil {
+		return false, observations
+	}
+
+	// Any left over fields or if we ran out of "context" of entry supplied
+	if pos != len(*msg) {
+		observations = append(observations, fmt.Sprintf("Message entry #%v didn't match the spec", pos))
+	}
+
+	return len(observations) == 0, observations
 }

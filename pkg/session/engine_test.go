@@ -8,7 +8,7 @@ import (
 )
 
 func TestEngine_LogonFlow(t *testing.T) {
-	engine, _ := NewEngine("FIX44.xml", "S", "T", 30)
+	engine, _ := NewEngine("FIX44.xml", "S", "T", 30, EngineOptions{})
 
 	actions := engine.OnStart(true)
 
@@ -23,10 +23,10 @@ func TestEngine_LogonFlow(t *testing.T) {
 }
 
 func TestEngine_HandleLogonResponse(t *testing.T) {
-	engine, _ := NewEngine("FIX44.xml", "S", "T", 30)
+	engine, _ := NewEngine("FIX44.xml", "S", "T", 30, EngineOptions{})
 	engine.OnStart(true)
 
-	msg, _ := engine.Spec.Sample("A", spec.SampleOptions{})
+	msg, _ := engine.Router.Sample("A", spec.SampleOptions{})
 	msg.Set(49, "T")
 	msg.Set(56, "S")
 	msg.Set(34, "1")
@@ -44,11 +44,11 @@ func TestEngine_HandleLogonResponse(t *testing.T) {
 }
 
 func TestEngine_SequenceGap(t *testing.T) {
-	engine, _ := NewEngine("FIX44.xml", "S", "T", 30)
+	engine, _ := NewEngine("FIX44.xml", "S", "T", 30, EngineOptions{})
 	engine.state = SessionActive
 	engine.inSeqNum = 2
 
-	msg, _ := engine.Spec.Sample("D", spec.SampleOptions{})
+	msg, _ := engine.Router.Sample("D", spec.SampleOptions{})
 	msg.Set(49, "T")
 	msg.Set(56, "S")
 	msg.Set(34, "10")
@@ -67,7 +67,7 @@ func TestEngine_SequenceGap(t *testing.T) {
 }
 
 func TestEngine_HeartbeatOnIdle(t *testing.T) {
-	engine, _ := NewEngine("FIX44.xml", "S", "T", 1)
+	engine, _ := NewEngine("FIX44.xml", "S", "T", 1, EngineOptions{})
 	engine.state = SessionActive
 	engine.lastWriteTime = time.Now().Add(-2 * time.Second)
 
@@ -84,7 +84,7 @@ func TestEngine_HeartbeatOnIdle(t *testing.T) {
 }
 
 func TestEngine_StaleStateAndRecovery(t *testing.T) {
-	engine, _ := NewEngine("FIX44.xml", "S", "T", 30)
+	engine, _ := NewEngine("FIX44.xml", "S", "T", 30, EngineOptions{})
 	engine.state = SessionActive
 	engine.lastReadTime = time.Now().Add(-31 * time.Second) // Force idle timeout
 
@@ -108,7 +108,7 @@ func TestEngine_StaleStateAndRecovery(t *testing.T) {
 	}
 
 	// Receiving a Heartbeat with correct TestReqID should recover to Active
-	msg, _ := engine.Spec.Sample("0", spec.SampleOptions{})
+	msg, _ := engine.Router.Sample("0", spec.SampleOptions{})
 	msg.Set(49, "T")
 	msg.Set(56, "S")
 	msg.Set(34, "2")
@@ -124,12 +124,12 @@ func TestEngine_StaleStateAndRecovery(t *testing.T) {
 }
 
 func TestEngine_AcceptGapFill(t *testing.T) {
-	engine, _ := NewEngine("FIX44.xml", "S", "T", 30)
+	engine, _ := NewEngine("FIX44.xml", "S", "T", 30, EngineOptions{})
 	engine.state = SessionActive
 	engine.inSeqNum = 5 // We expect 5
 
 	// Counterparty sends a Gap Fill skipping us to 10
-	msg, _ := engine.Spec.Sample("4", spec.SampleOptions{})
+	msg, _ := engine.Router.Sample("4", spec.SampleOptions{})
 	msg.Set(49, "T")
 	msg.Set(56, "S")
 	msg.Set(34, "5")
@@ -154,11 +154,11 @@ func TestEngine_AcceptGapFill(t *testing.T) {
 }
 
 func TestEngine_RejectInvalidLogon(t *testing.T) {
-	engine, _ := NewEngine("FIX44.xml", "S", "T", 30)
+	engine, _ := NewEngine("FIX44.xml", "S", "T", 30, EngineOptions{})
 	engine.OnStart(true) // We are LoggingIn, expecting HB=30
 
 	// Server replies with HB=45 (Mismatch)
-	msg, _ := engine.Spec.Sample("A", spec.SampleOptions{})
+	msg, _ := engine.Router.Sample("A", spec.SampleOptions{})
 	msg.Set(49, "T")
 	msg.Set(56, "S")
 	msg.Set(34, "1")

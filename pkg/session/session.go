@@ -53,8 +53,8 @@ func (sess *Session) Done() <-chan struct{} {
 }
 
 // Starts a SINGLE use session
-func NewSession(specPath string, senderCompID string, targetCompID string, heartbeatInt int64) (*Session, error) {
-	engine, err := NewEngine(specPath, senderCompID, targetCompID, heartbeatInt)
+func NewSession(specPath string, senderCompID string, targetCompID string, heartbeatInt int64, engineOpts EngineOptions) (*Session, error) {
+	engine, err := NewEngine(specPath, senderCompID, targetCompID, heartbeatInt, engineOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -115,9 +115,9 @@ func (sess *Session) Connect(addr string) error {
 	return nil
 }
 
-// Returns the underlying spec object
-func (sess *Session) Spec() *spec.Spec {
-	return &sess.engine.Spec
+// Returns the underlying Router object
+func (sess *Session) Router() *spec.Router {
+	return &sess.engine.Router
 }
 
 // Send to the connected client, if passthrough is true fields are sent as is

@@ -25,30 +25,53 @@ func searchFixSpec(s *session.Session, pattern string) {
 
 	fmt.Printf("  Pattern : %s\n\n", pattern)
 
-	// Fields
+	ro := s.Router()
+	sessSpec := ro.SessionSpec()
+	applSpec := ro.ApplSpec()
+
+	// Merge Session and Appl results so user sees both
 	fmt.Println("  Fields")
 	fmt.Println("  ------")
 	fCount := 0
-	for tag, field := range s.Spec().Fields {
-		if re.MatchString(field.Name) || re.MatchString(strconv.Itoa(int(tag))) {
-			fmt.Printf("  %-5d │ %s\n", tag, field.Name)
-			fCount++
+
+	// Helper to search a field map
+	searchFields := func(fields map[uint16]spec.FieldDef, source string) {
+		for tag, field := range fields {
+			if re.MatchString(field.Name) || re.MatchString(strconv.Itoa(int(tag))) {
+				fmt.Printf("  %-5d │ %-25s [%s]\n", tag, field.Name, source)
+				fCount++
+			}
 		}
 	}
+
+	searchFields(sessSpec.Fields, "Session")
+	if sessSpec != applSpec {
+		searchFields(applSpec.Fields, "App")
+	}
+
 	if fCount == 0 {
 		fmt.Println("  (no matches)")
 	}
 
-	// Messages
+	// Search Messages
 	fmt.Println("\n  Messages")
 	fmt.Println("  --------")
 	mCount := 0
-	for msgType, msgDef := range s.Spec().Messages {
-		if re.MatchString(msgDef.Name) || re.MatchString(msgType) {
-			fmt.Printf("  %-5s │ %s\n", msgType, msgDef.Name)
-			mCount++
+
+	searchMessages := func(messages map[string]spec.Entry, source string) {
+		for msgType, msgDef := range messages {
+			if re.MatchString(msgDef.Name) || re.MatchString(msgType) {
+				fmt.Printf("  %-5s │ %-25s [%s]\n", msgType, msgDef.Name, source)
+				mCount++
+			}
 		}
 	}
+
+	searchMessages(sessSpec.Messages, "Session")
+	if sessSpec != applSpec {
+		searchMessages(applSpec.Messages, "App")
+	}
+
 	if mCount == 0 {
 		fmt.Println("  (no matches)")
 	}
@@ -59,34 +82,45 @@ func searchFixSpec(s *session.Session, pattern string) {
 }
 
 func queryFixSpec(ctx *AppContext, sub, id string) {
-	sp := ctx.Session.Spec()
+	ro := ctx.Session.Router()
 
 	switch sub {
 	case "field":
 		tag, _ := strconv.Atoi(id)
-		if f, ok := sp.Fields[uint16(tag)]; ok {
+
+		// Try Session Spec first, then App Spec
+		f, ok := ro.SessionSpec().Fields[uint16(tag)]
+		if !ok {
+			f, ok = ro.ApplSpec().Fields[uint16(tag)]
+		}
+
+		if ok {
 			fmt.Println("\n─── Field Definition ──────────────────────────────")
 			pretty.FieldDef(os.Stdout, f)
 			fmt.Println("────────────────────────────────────────────────────")
 		} else {
 			fmt.Printf("Field %s not found\n", id)
 		}
+
 	case "message":
-		if m, ok := sp.Messages[id]; ok {
+		// Ask the router which spec owns this message
+		msgSpec := ro.SpecForMsgType(id)
+		if m, ok := msgSpec.Messages[id]; ok {
 			fmt.Println("\n─── Message Definition ────────────────────────────")
-			pretty.SpecEntry(os.Stdout, m, sp.FieldNames, ctx.Config.SpecDisplayOptFields, 0)
+			pretty.SpecEntry(os.Stdout, m, msgSpec.FieldNames, ctx.Config.SpecDisplayOptFields, 0)
 			fmt.Println("────────────────────────────────────────────────────")
 		} else {
 			fmt.Printf("Message %s not found\n", id)
 		}
+
 	case "sample":
-		// If ValidationStrict is false, do a basic validation only
 		includeOptional := false
 		if ctx.Config.FixSampleOptional {
 			includeOptional = true
 		}
 
-		if smp, err := sp.Sample(id, spec.SampleOptions{IncludeOptional: includeOptional}); err == nil {
+		// The Router seamlessly stitches the sample together!
+		if smp, err := ro.Sample(id, spec.SampleOptions{IncludeOptional: includeOptional}); err == nil {
 			fmt.Println("\n─── Sample Message ────────────────────────────────")
 			fmt.Println(smp.String("|"))
 			fmt.Println("────────────────────────────────────────────────────")
@@ -98,7 +132,7 @@ func queryFixSpec(ctx *AppContext, sub, id string) {
 	}
 }
 
-// Prettify and print the output matching against fix spec, does not validate
+// Prettify and print the output matching against fix spec
 func decodeMessage(ctx *AppContext, rawMsg string) {
 	delim := rawMsg[len(rawMsg)-1:]
 	msg, err := message.MessageFromString(rawMsg, delim)
@@ -110,7 +144,11 @@ func decodeMessage(ctx *AppContext, rawMsg string) {
 		return
 	}
 	fmt.Println("\n─── FIX Message (Spec View) ────────────────────────")
-	pretty.Message(os.Stdout, &msg, ctx.Session.Spec())
+
+	// NOTE: You will need to update pretty.Message to accept a *spec.Router
+	// instead of a *spec.Spec so it can correctly look up names for both header and body tags!
+	pretty.Message(os.Stdout, &msg, ctx.Session.Router())
+
 	fmt.Println("────────────────────────────────────────────────────")
 }
 
@@ -126,15 +164,15 @@ func validateMessage(ctx *AppContext, rawMsg string) {
 		return
 	}
 
-	// If ValidationStrict is false, do a basic validation only
 	validationMode := spec.ValidationStrict
 	if !ctx.Config.FixValidateStrict {
 		validationMode = spec.ValidationBasic
 	}
 
-	_, obs := ctx.Session.Spec().Validate(&msg, validationMode)
+	// Just pass it to the Router!
+	ok, obs := ctx.Session.Router().Validate(&msg, validationMode)
 
-	if len(obs) == 0 {
+	if ok {
 		fmt.Println("  Status : OK")
 		fmt.Println("────────────────────────────────────────────────────")
 		return
@@ -154,7 +192,8 @@ func validateMessage(ctx *AppContext, rawMsg string) {
 }
 
 func displayMeta(ctx *AppContext, meta string) {
-	sp := ctx.Session.Spec()
+	// Headers and Trailers ALWAYS belong to the Session Spec
+	sp := ctx.Session.Router().SessionSpec()
 
 	var entry spec.Entry
 	switch meta {
@@ -167,11 +206,10 @@ func displayMeta(ctx *AppContext, meta string) {
 		return
 	}
 
-	fmt.Printf("\n──── %s Definition ────────────────────────────", strings.ToUpper(meta))
+	fmt.Printf("\n──── %s Definition ────────────────────────────\n", strings.ToUpper(meta))
 	pretty.SpecEntry(os.Stdout, entry, sp.FieldNames, ctx.Config.SpecDisplayOptFields, 0)
 	fmt.Println("────────────────────────────────────────────────────")
 }
-
 func handleFix(ctx *AppContext, args []string) {
 	if len(args) < 3 || len(args[2]) == 0 {
 		fmt.Println("Usage: \n" +
