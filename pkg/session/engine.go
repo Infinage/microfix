@@ -33,32 +33,6 @@ func (s SessionState) String() string {
 	return names[s]
 }
 
-type ActionType int
-
-const (
-	// ActionSend instructs the session to transmit a FIX message over the network
-	// to the connected counterparty.
-	ActionSend ActionType = iota
-
-	// ActionDeliver routes a valid, application-level FIX message up the stack
-	// to be processed by the user's business logic.
-	ActionDeliver
-
-	// ActionError represents a protocol violation or internal fault.
-	// It signals an issue that requires logging, but is non-fatal unless
-	// accompanied by an ActionClose.
-	ActionError
-
-	// ActionLog emits an informational system event or state transition
-	// (e.g., "Session transitioning to Stale"). It is strictly for audit
-	// and debug visibility.
-	ActionLog
-
-	// ActionClose instructs the session to immediately terminate the
-	// underlying network transport and shut down.
-	ActionClose
-)
-
 type Snapshot struct {
 	State         SessionState
 	InSeqNum      int64
@@ -96,13 +70,6 @@ type Engine struct {
 	extraOpts EngineOptions
 }
 
-type Action struct {
-	Type  ActionType
-	Msg   message.Message
-	Err   error
-	Event string
-}
-
 // Custom error type to send message rejects
 type RejectError struct {
 	RefSeqNum int64
@@ -111,16 +78,6 @@ type RejectError struct {
 
 func (err *RejectError) Error() string {
 	return fmt.Sprintf("[%v] - %v", err.RefSeqNum, err.Text)
-}
-
-// Helper to build a Reject ['35=3'] message
-func (engine *Engine) reject(err *RejectError) Action {
-	rejectMsg, _ := engine.Router.Sample("3", spec.SampleOptions{
-		OptionalFields: map[uint16]any{58: nil},
-	})
-	rejectMsg.Set(45, fmt.Sprint(err.RefSeqNum))
-	rejectMsg.Set(58, err.Text)
-	return Action{Type: ActionSend, Msg: rejectMsg}
 }
 
 func NewEngine(specPath string, senderCompID string, targetCompID string, heartbeatInt int64, opts EngineOptions) (*Engine, error) {
@@ -163,30 +120,14 @@ func NewEngine(specPath string, senderCompID string, targetCompID string, heartb
 	return engine, nil
 }
 
-func (engine *Engine) off() []Action {
-	if engine.state != SessionClosed {
-		engine.state = SessionClosed
-		logout, _ := engine.Router.Sample("5", spec.SampleOptions{})
-		return []Action{{Type: ActionSend, Msg: logout}, {Type: ActionClose}}
+func (engine *Engine) Snapshot() Snapshot {
+	return Snapshot{
+		State:         engine.state,
+		InSeqNum:      engine.inSeqNum,
+		OutSeqNum:     engine.outSeqNum,
+		LastReadTime:  engine.lastReadTime,
+		LastWriteTime: engine.lastWriteTime,
 	}
-	return nil
-}
-
-func (engine *Engine) OnStart(isClient bool) []Action {
-	now := time.Now()
-	engine.lastReadTime = now
-	engine.lastWriteTime = now
-
-	if isClient {
-		engine.state = SessionLoggingIn
-		logon, _ := engine.Router.Sample("A", spec.SampleOptions{})
-		logon.Set(108, fmt.Sprint(engine.heartbeatInt))
-		logon.Set(1137, engine.Router.GetDefaultApplVerID())
-		return []Action{{Type: ActionSend, Msg: logon}}
-	}
-
-	engine.state = SessionListening
-	return nil
 }
 
 // Feedback that a write action was successful
@@ -315,283 +256,4 @@ func (engine *Engine) validate(msg *message.Message, now time.Time) error {
 	}
 
 	return nil
-}
-
-func (engine *Engine) Snapshot() Snapshot {
-	return Snapshot{
-		State:         engine.state,
-		InSeqNum:      engine.inSeqNum,
-		OutSeqNum:     engine.outSeqNum,
-		LastReadTime:  engine.lastReadTime,
-		LastWriteTime: engine.lastWriteTime,
-	}
-}
-
-// Handle timeouts, track and send heartbeats
-func (engine *Engine) OnTick(now time.Time) []Action {
-
-	// Timeout logon requests if we did not receive a logon back
-	if engine.state == SessionLoggingIn && now.Sub(engine.lastWriteTime) > 3*time.Second {
-		engine.off()
-		return []Action{
-			{Type: ActionError, Err: fmt.Errorf("Logon timeout")},
-			{Type: ActionClose}, // No logout sent
-		}
-	}
-
-	// Check for outgoing / incoming idle
-	var actions []Action
-	hbDuration := time.Second * time.Duration(engine.heartbeatInt)
-
-	// Outgoing idle (send heartbeat)
-	if now.Sub(engine.lastWriteTime) >= hbDuration {
-		hb, _ := engine.Router.Sample("0", spec.SampleOptions{})
-		actions = append(actions, Action{Type: ActionSend, Msg: hb})
-	}
-
-	// Incoming idle (send test request)
-	if since := now.Sub(engine.lastReadTime); since >= hbDuration {
-		if engine.state != SessionStale {
-			tr, _ := engine.Router.Sample("1", spec.SampleOptions{})
-			tr.Set(112, engine.testReqID)
-			engine.state = SessionStale
-			eventLog := fmt.Sprintf("No heartbeat received in %v. Transitioning to Stale", since.Truncate(time.Second))
-			actions = append(actions, Action{Type: ActionLog, Event: eventLog}, Action{Type: ActionSend, Msg: tr})
-		} else if since >= hbDuration*3 {
-			engine.off()
-			return []Action{
-				{Type: ActionError, Err: fmt.Errorf("Counterparty dead")},
-				{Type: ActionClose}, // No logout sent
-			}
-		}
-	}
-
-	return actions
-}
-
-// Logic to respond to messages and set states
-func (engine *Engine) OnMessage(msg *message.Message, now time.Time) []Action {
-	engine.lastReadTime = now
-
-	// Each subhandler returns a list of actions to be returned by this function to session
-	var actions []Action
-
-	// Validate the message and logout for non "RejectError"
-	if err := engine.validate(msg, now); err != nil {
-		actions = append(actions, Action{Type: ActionError, Err: err})
-		if rejectErr, ok := err.(*RejectError); ok {
-			actions = append(actions, engine.reject(rejectErr))
-			engine.inSeqNum++ // Increment seqNo in case of spec validation failure
-		} else {
-			logout, _ := engine.Router.Sample("5", spec.SampleOptions{OptionalFields: map[uint16]any{58: nil}})
-			logout.Set(58, err.Error())
-			actions = append(actions, Action{Type: ActionSend, Msg: logout}, Action{Type: ActionClose})
-		}
-		return actions
-	}
-
-	// Every individual handler returns bool if msg is accepted
-	// We will update our inSeqNum only when it is accepted
-	var msgAccepted bool
-
-	// Get the MessageType from msg object
-	msgType, _ := msg.Get(35)
-
-	switch engine.state {
-	case SessionListening, SessionLoggingIn:
-		if msgType == "A" { // Appropriately handle logon as Server and as Client
-			msgAccepted, actions = engine.handleLogon(msg)
-		} else {
-			rejErr := &RejectError{RefSeqNum: engine.inSeqNum, Text: "First message not a logon"}
-			actions = []Action{engine.reject(rejErr)}
-			msgAccepted = false
-		}
-
-	case SessionActive:
-		msgAccepted, actions = engine.handleAppMessage(msg)
-
-	case SessionStale:
-		if msgType == "0" {
-			msgAccepted, actions = engine.handleStaleHeartbeat(msg)
-		}
-	}
-
-	// Update inbound sequence number
-	if msgAccepted {
-		engine.inSeqNum++
-	}
-
-	return actions
-}
-
-func (engine *Engine) OnResetSequence(inSeqNum int64, outSeqNum int64) []Action {
-	var actions []Action
-
-	if state := engine.state; state != SessionNew && state != SessionClosed {
-		// Handle Outbound sequence changes
-		if outSeqNum > engine.outSeqNum {
-			// Out seq reset can only go forward per FIX protocol
-			seqReset, _ := engine.Router.Sample("4", spec.SampleOptions{OptionalFields: map[uint16]any{123: nil}})
-			seqReset.Set(36, fmt.Sprintf("%d", outSeqNum))
-			seqReset.Set(123, "N")
-			actions = append(actions, Action{Type: ActionSend, Msg: seqReset})
-
-		} else if outSeqNum < engine.outSeqNum {
-			// Moving backward is not permitted, silently reset anyway for chaos testing
-			eventLog := fmt.Sprintf("Silently forced OutSeqNum backward from %d to %d. "+
-				"Expect counterparty disconnect on next send.", engine.outSeqNum, outSeqNum)
-			actions = append(actions, Action{Type: ActionLog, Event: eventLog})
-		}
-
-		// Handle Inbound sequence changes
-		if inSeqNum != engine.inSeqNum {
-			eventLog := fmt.Sprintf("Silently forced InSeqNum from %d to %d. "+
-				"Warning: May cause desync with counterparty.", engine.inSeqNum, inSeqNum)
-			actions = append(actions, Action{Type: ActionLog, Event: eventLog})
-		}
-	}
-
-	// Reset internal state
-	engine.outSeqNum = outSeqNum
-	engine.inSeqNum = inSeqNum
-
-	return actions
-}
-
-func (engine *Engine) OnDisconnect() []Action {
-	engine.state = SessionClosed
-	return nil
-}
-
-func (engine *Engine) handleStaleHeartbeat(msg *message.Message) (bool, []Action) {
-	var actions []Action
-	reqID, _ := msg.Get(112)
-	if reqID != engine.testReqID { // Log warn but continue
-		actions = append(actions, Action{Type: ActionError, Err: fmt.Errorf("Expected Heartbeat TestReqID tag [112] to %v", engine.testReqID)})
-	}
-	actions = append(actions, Action{Type: ActionLog, Event: "Heartbeat received. Transitioning to Active."})
-	engine.state = SessionActive
-	return true, actions
-}
-
-// If we get logon when we are in SessionNew state we accept it and send a logon back
-// If we get a logon when we are in Logging State we were validated and accepted
-func (engine *Engine) handleLogon(msg *message.Message) (bool, []Action) {
-	// Extract heartbeat interval
-	hbIntTag, _ := msg.FindFrom(108, 0)
-	hbInt, err := hbIntTag.AsInt()
-	if err != nil || hbInt < 1 {
-		engine.off()
-		logout, _ := engine.Router.Sample("5", spec.SampleOptions{OptionalFields: map[uint16]any{58: nil}})
-		logout.Set(58, "Invalid HeartBeatInt [108]")
-		return false, []Action{
-			{Type: ActionError, Err: fmt.Errorf("Got a Logon with invalid HeartbeatInt [108]: %v", hbIntTag.Value)},
-			{Type: ActionSend, Msg: logout},
-			{Type: ActionClose},
-		}
-	}
-
-	// If we were ones to send the logon, we expect heartbeatInt to strictly match
-	if engine.state == SessionLoggingIn && hbInt != engine.heartbeatInt {
-		engine.off()
-		logout, _ := engine.Router.Sample("5", spec.SampleOptions{OptionalFields: map[uint16]any{58: nil}})
-		logout.Set(58, "HeartBeatInt [108] mismatch")
-		return false, []Action{
-			{Type: ActionError, Err: fmt.Errorf("Heartbeat Interval in Logon incorrect, expected %v, got %v", engine.heartbeatInt, hbInt)},
-			{Type: ActionSend, Msg: logout},
-			{Type: ActionClose},
-		}
-	}
-
-	var actions []Action
-
-	// If flag set, reset sequence numbers
-	if resetSeqNumFlag, _ := msg.Get(141); resetSeqNumFlag == "Y" {
-		engine.inSeqNum, engine.outSeqNum = 1, 1
-	}
-
-	// We are SessionListening and Counterparty sends a logon, accept and send back a logon
-	if engine.state == SessionListening {
-		// Update negotiated heartbeat from input message
-		engine.heartbeatInt = hbInt
-
-		// Extract DefaultApplVerID from logon, gauranteed to pass
-		// since validate would have already caught it
-		applVerID, _ := msg.Get(1137)
-		engine.Router.SetDefaultApplVerID(applVerID)
-
-		// Build a logon response back and add heartbeat interval + applVerID if applicable
-		logon, _ := engine.Router.Sample("A", spec.SampleOptions{})
-		logon.Set(108, fmt.Sprint(hbInt))
-		logon.Set(1137, applVerID)
-
-		// Send logon request back and set state to active
-		actions = append(actions,
-			Action{Type: ActionLog, Event: "Logon request received, transitioning to Active"},
-			Action{Type: ActionSend, Msg: logon})
-	}
-
-	// If all good, we proceed to next stage
-	engine.state = SessionActive
-	return true, actions
-}
-
-func (engine *Engine) handleAppMessage(msg *message.Message) (bool, []Action) {
-	// Get the MsgType
-	msgType, _ := msg.Get(35)
-
-	// Trigger a resend request (replay), if inSeqNum greater what we are expecting
-	inSeqNumTag, _ := msg.FindFrom(34, 0)
-	if inSeqNum, _ := inSeqNumTag.AsInt(); inSeqNum > engine.inSeqNum {
-		resend, _ := engine.Router.Sample("2", spec.SampleOptions{})
-		resend.Set(7, fmt.Sprintf("%d", engine.inSeqNum))
-		resend.Set(16, "0") // 0 means infinity in FIX Resend requests
-		return false, []Action{
-			{Type: ActionError, Err: fmt.Errorf("Expected InSeqNum [34] %v, got %v, triggering resend request.", engine.inSeqNum, inSeqNum)},
-			{Type: ActionSend, Msg: resend},
-		}
-	}
-
-	// Actions based on message type and struct
-	var actions []Action
-
-	switch msgType {
-	case "0": // Already updated InSeqNum, noop
-
-	case "1": // Handle Test Request
-		hb, _ := engine.Router.Sample("0", spec.SampleOptions{OptionalFields: map[uint16]any{112: nil}})
-		if reqId, ok := msg.Get(112); ok {
-			hb.Set(112, reqId)
-		}
-		actions = append(actions, Action{Type: ActionSend, Msg: hb})
-
-	case "2": // Resend request, for now we just do a SequenceReset
-		beginSeqNoField, _ := msg.Get(7)
-		seqReset, _ := engine.Router.Sample("4", spec.SampleOptions{OptionalFields: map[uint16]any{123: nil}})
-		seqReset.Set(34, beginSeqNoField) // bypass outSeqNum update on finalize
-		seqReset.Set(36, fmt.Sprintf("%d", engine.outSeqNum))
-		seqReset.Set(123, "Y")
-		actions = append(actions, Action{Type: ActionSend, Msg: seqReset})
-
-	case "4": // Sequence Reset
-		seqNoTag, _ := msg.FindFrom(36, 0)
-		val, err := seqNoTag.AsInt()
-		if err != nil {
-			seqNoField, _ := msg.FindFrom(34, 0)
-			seqNo, _ := seqNoField.AsInt()
-			err := &RejectError{RefSeqNum: seqNo, Text: "Invalid SeqNo [36] value"}
-			actions = append(actions, Action{Type: ActionError, Err: err}, engine.reject(err))
-		} else {
-			engine.inSeqNum = val
-		}
-		return false, actions
-
-	case "5": // Logout
-		actions = append(actions, engine.off()...)
-
-	default: // Passthrough (blocking until session is closed)
-		actions = append(actions, Action{Type: ActionDeliver, Msg: *msg})
-	}
-
-	return true, actions
 }
