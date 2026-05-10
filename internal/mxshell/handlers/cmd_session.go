@@ -37,7 +37,10 @@ func NewSession(cfg *config.Config) (*session.Session, error) {
 		cfg.SenderCompID,
 		cfg.TargetCompID,
 		cfg.HeartbeatInt,
-		session.EngineOptions{DefaultApplVer: cfg.DefaultApplVer},
+		session.EngineOptions{
+			DefaultApplVer:   cfg.DefaultApplVer,
+			SkipLatencyCheck: cfg.SkipLatencyCheckInValidate,
+		},
 	)
 }
 
@@ -262,7 +265,6 @@ func handleHelp(_ *AppContext, args []string) {
 		fmt.Println("Command :", cmdName)
 		fmt.Println("Desc    :", cmd.Description)
 		fmt.Println("Usage   :", cmd.Usage)
-		fmt.Println()
 		return
 	}
 

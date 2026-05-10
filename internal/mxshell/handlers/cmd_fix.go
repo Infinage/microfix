@@ -143,12 +143,26 @@ func decodeMessage(ctx *AppContext, rawMsg string) {
 		fmt.Println("────────────────────────────────────────────────────")
 		return
 	}
+
 	fmt.Println("\n─── FIX Message (Spec View) ────────────────────────")
-
-	// NOTE: You will need to update pretty.Message to accept a *spec.Router
-	// instead of a *spec.Spec so it can correctly look up names for both header and body tags!
 	pretty.Message(os.Stdout, &msg, ctx.Session.Router())
+	fmt.Println("────────────────────────────────────────────────────")
+}
 
+// Recomputes the checksum and bodylen - inserts if missing
+func finalizeRawMessage(_ *AppContext, rawMsg string) {
+	delim := rawMsg[len(rawMsg)-1:]
+	msg, err := message.MessageFromString(rawMsg, delim)
+	if err != nil {
+		fmt.Println("\n─── Finalize Message ──────────────────────────────")
+		fmt.Printf("  Status : FAILED\n")
+		fmt.Printf("  Error  : %v\n", err)
+		fmt.Println("────────────────────────────────────────────────────")
+		return
+	}
+	fmt.Println("\n─── Finalized Message ─────────────────────────────────")
+	msg.Finalize()
+	fmt.Println(msg.String(delim))
 	fmt.Println("────────────────────────────────────────────────────")
 }
 
@@ -214,9 +228,9 @@ func handleFix(ctx *AppContext, args []string) {
 	if len(args) < 3 || len(args[2]) == 0 {
 		fmt.Println("Usage: \n" +
 			"fix meta [header|trailer]\n" +
-			"fix [field|message|sample] id\n" +
-			"fix validate <fixMessage>\n" +
-			"fix search pattern")
+			"fix [field|message|sample] <id>\n" +
+			"fix [decode|validate|finalize] <fixMessage>\n" +
+			"fix search <pattern>")
 		return
 	}
 
@@ -228,6 +242,8 @@ func handleFix(ctx *AppContext, args []string) {
 		validateMessage(ctx, args[2])
 	} else if sub == "decode" {
 		decodeMessage(ctx, args[2])
+	} else if sub == "finalize" {
+		finalizeRawMessage(ctx, args[2])
 	} else {
 		sub := strings.ToLower(args[1])
 		id := args[2]
@@ -240,6 +256,6 @@ func init() {
 		"fix",
 		handleFix,
 		"Query FIX dictionary, generate samples, and validate messages",
-		"fix [search <regex> | meta <header|trailer> | <decode|validate> <msg> | <field|message|sample> <id>]",
+		"fix [search <regex> | meta <header|trailer> | <decode|validate|finalize> <msg> | <field|message|sample> <id>]",
 	)
 }

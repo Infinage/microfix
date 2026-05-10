@@ -34,6 +34,13 @@ func streamLogs(cb *ringbuf.CircularBuffer) {
 	}
 }
 
+func clearLogs(cb *ringbuf.CircularBuffer) {
+	fmt.Println("\n─── Clear Logs -─────────────────────────────────")
+	cb.Clear()
+	fmt.Printf("  Status : OK\n")
+	fmt.Println("──────────────────────────────────────────────────")
+}
+
 // Filter out the logs based on regex and print to screen
 func searchLogs(cb *ringbuf.CircularBuffer, pattern string) {
 	filtered, err := cb.Filter(pattern)
@@ -85,6 +92,8 @@ func handleLogs(ctx *AppContext, args []string) {
 	switch sub {
 	case "-f":
 		streamLogs(ctx.Logs)
+	case "clear":
+		clearLogs(ctx.Logs)
 	case "search":
 		if len(args) < 3 {
 			fmt.Println("Usage: logs search <regex>")
@@ -107,6 +116,6 @@ func init() {
 		"logs",
 		handleLogs,
 		"View, stream, search, or save session logs",
-		"logs [-f | search <regex> | save <path>]",
+		"logs [-f | search <regex> | save <path> | clear]",
 	)
 }

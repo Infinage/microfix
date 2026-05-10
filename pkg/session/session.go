@@ -201,10 +201,11 @@ func (sess *Session) deliverMessage(msg *message.Message) {
 }
 
 // From World / Run loop to the external client we are connected to
+// Exposed via run loop, so safe to call engine altering methods inside
 func (sess *Session) handleSend(msg message.Message, passthrough bool) {
 	if !passthrough {
 		now := time.Now()
-		if err := sess.engine.FinalizeMessage(&msg, now); err != nil {
+		if err := sess.engine.finalizeMessage(&msg, now); err != nil {
 			sess.writeLog(newErrorLog(now, err))
 			return
 		}
@@ -214,7 +215,7 @@ func (sess *Session) handleSend(msg message.Message, passthrough bool) {
 	select {
 	case sess.base.Outgoing() <- msg:
 		now := time.Now()
-		sess.engine.RecordWrite(&msg, now)
+		sess.engine.recordWrite(&msg, now)
 		sess.writeLog(newMessageLog(now, msg, false))
 	case <-sess.Done():
 		sess.writeLog(newErrorLog(time.Now(), fmt.Errorf("Send failed, session closed: %v", msg.String("|"))))

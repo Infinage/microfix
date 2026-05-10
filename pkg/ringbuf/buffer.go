@@ -96,3 +96,12 @@ func (cb *CircularBuffer) Filter(pattern string) ([]string, error) {
 
 	return results, nil
 }
+
+// Clear all logs from buffer
+func (cb *CircularBuffer) Clear() {
+	cb.mu.Lock()
+	defer cb.mu.Unlock()
+	for idx := range cb.size {
+		cb.lines[idx] = ""
+	}
+}

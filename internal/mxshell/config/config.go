@@ -15,6 +15,8 @@ type Config struct {
 	DefaultApplVer       string `json:"DefaultApplVer"`
 	SpecDisplayOptFields bool   `json:"SpecDisplayOptFields"`
 
+	SkipLatencyCheckInValidate bool `json:"SkipLatencyCheckInValidate"`
+
 	FixValidateStrict bool `json:"FixValidateStrict"`
 	FixSampleOptional bool `json:"FixSampleOptional"`
 

@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestCircularBuffer_WriteAndDump(t *testing.T) {
+func TestCircularBuffer_BasicOps(t *testing.T) {
 	cb := NewCircularBuffer(3)
 
 	// Fill the buffer
@@ -26,6 +26,15 @@ func TestCircularBuffer_WriteAndDump(t *testing.T) {
 
 	if output != expected {
 		t.Errorf("expected:\n%s\n\ngot:\n%s", expected, output)
+	}
+
+	// Clear the logs and ensure that dump yeilds empty
+	buf.Reset()
+	cb.Clear()
+	cb.Dump(&buf)
+
+	if output := buf.String(); output != "" {
+		t.Errorf("Expected buffer to be empty post clear, got:\n%v", output)
 	}
 }
 

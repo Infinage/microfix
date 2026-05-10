@@ -73,6 +73,9 @@ type EngineOptions struct {
 	// DefaultApplVerID sets the wire value for Tag 1137 (e.g., "7" for FIX 5.0).
 	// Required if using FIXT multiplexing.
 	DefaultApplVer string
+
+	// Skip latency check - by default messages with time delta exceeding 2 min are rejected
+	SkipLatencyCheck bool
 }
 
 type Engine struct {
@@ -187,7 +190,7 @@ func (engine *Engine) OnStart(isClient bool) []Action {
 }
 
 // Feedback that a write action was successful
-func (engine *Engine) RecordWrite(msg *message.Message, now time.Time) {
+func (engine *Engine) recordWrite(msg *message.Message, now time.Time) {
 	engine.lastWriteTime = now
 
 	// Ignore outSeqNum increment for a SequenceReset
@@ -197,11 +200,10 @@ func (engine *Engine) RecordWrite(msg *message.Message, now time.Time) {
 	}
 }
 
-// Returns an error if missing: [35, 9, 49, 56, 34, 52, 10]
-// Public since 'Session::Send' always finalizes before sending
-func (engine *Engine) FinalizeMessage(msg *message.Message, now time.Time) error {
-	if !msg.Contains(35, 9, 49, 56, 34, 52, 10) {
-		return fmt.Errorf("Missing some of the required tags in OUTBOUND: [35, 9, 49, 56, 34, 52, 10]")
+// Returns an error if missing tags: [8, 9, 35, 49, 56, 34, 52, 10] or on failing outbound validation.
+func (engine *Engine) finalizeMessage(msg *message.Message, now time.Time) error {
+	if !msg.Contains(8, 9, 35, 49, 56, 34, 52, 10) {
+		return fmt.Errorf("OUTBOUND missing required session fields: %s", msg.String("|"))
 	}
 
 	// Set sender / target compId
@@ -218,14 +220,43 @@ func (engine *Engine) FinalizeMessage(msg *message.Message, now time.Time) error
 	// Set SendingTime
 	msg.Set(52, now.UTC().Format("20060102-15:04:05.000"))
 
+	// Enforce session BeginString
+	msg.Set(8, engine.Router.SessionSpec().BeginString())
+
 	// Recalculate the bodylen and checksum
 	msg.Finalize()
+
+	// Perform basic validate before sending
+	if ok, obs := engine.validateAgainstSpec(msg, spec.ValidationBasic); !ok {
+		return fmt.Errorf("OUTBOUND validation failed: %v | Message: %s", obs, msg.String("|"))
+	}
 
 	return nil
 }
 
-// Checks for MsgType, TargetCompID, SenderCompID, InSeqNum, Spec validation including Checksum, BodyLength
-func (engine *Engine) validate(msg *message.Message) error {
+// Helper to temporarily switch engine DefaultApplVerID if applVerID is set, validate and toggle back
+func (engine *Engine) validateAgainstSpec(msg *message.Message, mode spec.ValidationMode) (bool, []string) {
+	beginStr, ok := msg.Get(8)
+	if !ok {
+		return false, []string{"Missing BeginString"}
+	}
+
+	// Switch DefaultApplVerID if ApplVerID is set
+	oldApplVer := engine.Router.GetDefaultApplVerID()
+	if applVerID, ok := msg.Get(1128); ok && strings.HasPrefix(beginStr, "FIXT") {
+		if !engine.Router.SetDefaultApplVerID(applVerID) {
+			return false, []string{fmt.Sprintf("Message specifies unsupported ApplVerID [1128]: %v", applVerID)}
+		}
+		defer engine.Router.SetDefaultApplVerID(oldApplVer)
+	}
+
+	// Validate per input spec
+	return engine.Router.Validate(msg, mode)
+}
+
+// Checks for MsgType, TargetCompID, SenderCompID, InSeqNum, SendingTime
+// followed by Spec validation including Checksum, BodyLength
+func (engine *Engine) validate(msg *message.Message, now time.Time) error {
 	// Validate BeginString [8]
 	beginStr, ok := msg.Get(8)
 	if want := engine.Router.SessionSpec().BeginString(); !ok || beginStr != want {
@@ -266,18 +297,17 @@ func (engine *Engine) validate(msg *message.Message) error {
 		return fmt.Errorf("Input sequence number mismatch. Expected %v, got %v", engine.inSeqNum, received)
 	}
 
-	// Temporarily switch DefaultApplVerID if ApplVerID is set
-	// BeginString check against msg already done above
-	oldApplVer := engine.Router.GetDefaultApplVerID()
-	if applVerID, ok := msg.Get(1128); ok && strings.HasPrefix(beginStr, "FIXT") {
-		if !engine.Router.SetDefaultApplVerID(applVerID) {
-			return fmt.Errorf("Counterparty requested unsupported ApplVerID [1128]: %v", applVerID)
-		}
-		defer engine.Router.SetDefaultApplVerID(oldApplVer)
+	// SendingTime validation - by passed if SkipLatencyCheck is set in EngineOpts
+	if sendingTimeTag, pos := msg.FindFrom(52, 0); pos == -1 {
+		return fmt.Errorf("Missing required session field SendingTime [52]")
+	} else if sendingTime, err := sendingTimeTag.AsTZTimestamp(); err != nil {
+		return &RejectError{RefSeqNum: engine.inSeqNum, Text: "Invalid SendingTime [52] value"}
+	} else if diff := now.Sub(sendingTime).Abs(); !engine.extraOpts.SkipLatencyCheck && diff > 2*time.Minute {
+		return &RejectError{RefSeqNum: engine.inSeqNum, Text: "SendingTime accuracy problem [52]"}
 	}
 
-	// Validate per input spec
-	if ok, obs := engine.Router.Validate(msg, spec.ValidationBasic); !ok {
+	// Validate for FIX Spec correctness
+	if ok, obs := engine.validateAgainstSpec(msg, spec.ValidationBasic); !ok {
 		return &RejectError{
 			RefSeqNum: engine.inSeqNum,
 			Text:      fmt.Sprintf("Message validation failed: %v", obs),
@@ -347,7 +377,7 @@ func (engine *Engine) OnMessage(msg *message.Message, now time.Time) []Action {
 	var actions []Action
 
 	// Validate the message and logout for non "RejectError"
-	if err := engine.validate(msg); err != nil {
+	if err := engine.validate(msg, now); err != nil {
 		actions = append(actions, Action{Type: ActionError, Err: err})
 		if rejectErr, ok := err.(*RejectError); ok {
 			actions = append(actions, engine.reject(rejectErr))
@@ -371,6 +401,10 @@ func (engine *Engine) OnMessage(msg *message.Message, now time.Time) []Action {
 	case SessionListening, SessionLoggingIn:
 		if msgType == "A" { // Appropriately handle logon as Server and as Client
 			msgAccepted, actions = engine.handleLogon(msg)
+		} else {
+			rejErr := &RejectError{RefSeqNum: engine.inSeqNum, Text: "First message not a logon"}
+			actions = []Action{engine.reject(rejErr)}
+			msgAccepted = false
 		}
 
 	case SessionActive:
@@ -481,10 +515,15 @@ func (engine *Engine) handleLogon(msg *message.Message) (bool, []Action) {
 		// Update negotiated heartbeat from input message
 		engine.heartbeatInt = hbInt
 
-		// Build a logon response back and add heartbeat interval
+		// Extract DefaultApplVerID from logon, gauranteed to pass
+		// since validate would have already caught it
+		applVerID, _ := msg.Get(1137)
+		engine.Router.SetDefaultApplVerID(applVerID)
+
+		// Build a logon response back and add heartbeat interval + applVerID if applicable
 		logon, _ := engine.Router.Sample("A", spec.SampleOptions{})
 		logon.Set(108, fmt.Sprint(hbInt))
-		logon.Set(1137, engine.Router.GetDefaultApplVerID())
+		logon.Set(1137, applVerID)
 
 		// Send logon request back and set state to active
 		actions = append(actions,
@@ -508,7 +547,7 @@ func (engine *Engine) handleAppMessage(msg *message.Message) (bool, []Action) {
 		resend.Set(7, fmt.Sprintf("%d", engine.inSeqNum))
 		resend.Set(16, "0") // 0 means infinity in FIX Resend requests
 		return false, []Action{
-			{Type: ActionError, Err: fmt.Errorf("Expected InSeqNum [34] %v, got %v, triggered resend request.", engine.inSeqNum, inSeqNum)},
+			{Type: ActionError, Err: fmt.Errorf("Expected InSeqNum [34] %v, got %v, triggering resend request.", engine.inSeqNum, inSeqNum)},
 			{Type: ActionSend, Msg: resend},
 		}
 	}
@@ -540,7 +579,7 @@ func (engine *Engine) handleAppMessage(msg *message.Message) (bool, []Action) {
 		if err != nil {
 			seqNoField, _ := msg.FindFrom(34, 0)
 			seqNo, _ := seqNoField.AsInt()
-			err := &RejectError{RefSeqNum: seqNo, Text: "Invalid SeqNo [36] value set"}
+			err := &RejectError{RefSeqNum: seqNo, Text: "Invalid SeqNo [36] value"}
 			actions = append(actions, Action{Type: ActionError, Err: err}, engine.reject(err))
 		} else {
 			engine.inSeqNum = val

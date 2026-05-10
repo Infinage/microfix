@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/infinage/microfix/pkg/message"
 )
@@ -12,7 +13,7 @@ import (
 func defaultString(dtype string) string {
 	switch strings.ToLower(dtype) {
 	case "int", "seqnum", "tagnum", "length", "numingroup":
-		return "4"
+		return "704"
 
 	case "amt", "float", "percentage", "price", "priceoffset", "qty":
 		return "7.0466"
@@ -24,25 +25,28 @@ func defaultString(dtype string) string {
 		return "J"
 
 	case "multiplecharvalue":
-		return "A B"
+		return "R J"
 
 	case "multiplestringvalue", "multiplevaluestring":
-		return "AB CD"
+		return "JA GA"
 
 	case "utcdateonly", "localmktdate", "date":
-		return "19660407"
+		return time.Now().UTC().Format("20060102")
 
 	case "utctimeonly", "localmkttime", "time":
-		return "12:00:00"
+		return time.Now().UTC().Format("15:04:05.000")
 
-	case "utctimestamp", "utcdate", "tztimestamp":
-		return "20260404-12:00:00Z"
+	case "utctimestamp", "utcdate":
+		return time.Now().UTC().Format("20060102-15:04:05.000")
+
+	case "tztimestamp":
+		return time.Now().Format("20060102-15:04:05.000Z07:00")
 
 	case "tztimeonly":
-		return "12:00:00Z"
+		return time.Now().Format("15:04:05Z07:00")
 
 	case "monthyear":
-		return "202604"
+		return time.Now().UTC().Format("200601")
 
 	default:
 		return dtype
