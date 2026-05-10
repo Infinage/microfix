@@ -183,7 +183,6 @@ func validateMessage(ctx *AppContext, rawMsg string) {
 		validationMode = spec.ValidationBasic
 	}
 
-	// Just pass it to the Router!
 	ok, obs := ctx.Session.Router().Validate(&msg, validationMode)
 
 	if ok {

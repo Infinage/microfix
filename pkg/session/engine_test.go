@@ -164,6 +164,51 @@ func TestEngine_StaleStateAndRecovery(t *testing.T) {
 	}
 }
 
+func TestEngine_PossDupBypass(t *testing.T) {
+	// Helper to guarantee a fresh, isolated engine state for each test
+	setupTest := func() (*Engine, message.Message) {
+		engine, _ := NewEngine("FIX44.xml", "S", "T", 30, EngineOptions{})
+		engine.state = SessionActive
+		engine.inSeqNum = 5 // Engine is expecting 5
+
+		msg, _ := engine.Router.Sample("D", spec.SampleOptions{OptionalFields: map[uint16]any{43: nil}})
+		msg.Set(49, "T")
+		msg.Set(56, "S")
+		msg.Set(34, "3") // Stale sequence number
+		return engine, msg
+	}
+
+	t.Run("PossDup=N rejects sequence mismatch", func(t *testing.T) {
+		engine, msg := setupTest()
+		msg.Set(43, "N")
+		msg.Finalize()
+
+		errEncountered := false
+		for _, a := range engine.OnMessage(&msg, time.Now()) {
+			if a.Type == ActionError && strings.Contains(a.Err.Error(), "sequence number mismatch") {
+				errEncountered = true
+				break
+			}
+		}
+
+		if !errEncountered {
+			t.Error("Engine incorrectly accepted a message with a sequence mismatch")
+		}
+	})
+
+	t.Run("PossDup=Y bypasses sequence mismatch", func(t *testing.T) {
+		engine, msg := setupTest()
+		msg.Set(43, "Y")
+		msg.Finalize()
+
+		for _, a := range engine.OnMessage(&msg, time.Now()) {
+			if a.Type == ActionError && strings.Contains(a.Err.Error(), "sequence number mismatch") {
+				t.Fatalf("Engine incorrectly rejected a PossDup=Y message: %v", a.Err)
+			}
+		}
+	})
+}
+
 func TestEngine_AcceptGapFill(t *testing.T) {
 	engine, _ := NewEngine("FIX44.xml", "S", "T", 30, EngineOptions{})
 	engine.state = SessionActive
@@ -279,6 +324,22 @@ func TestEngine_OutboundValidation(t *testing.T) {
 			t.Error("Expected FinalizeMessage to fail due to missing Tag 112, but it succeeded")
 		} else if !strings.Contains(err.Error(), "Missing required field tag [112]") {
 			t.Errorf("Expected Tag 112 error, got: %v", err)
+		}
+	})
+
+	t.Run("Unsupported / Invalid ApplVerID", func(t *testing.T) {
+		// Sample heartbeat with invalid ApplVerID [1128]
+		raw := "8=FIXT.1.1|9=65|35=0|49=STRING|56=STRING|34=704|52=20260510-09:11:48.977|1128=99|10=199|"
+		msg, err := message.MessageFromString(raw, "|")
+		if err != nil {
+			t.Fatalf("Failed to parse test string: %v", err)
+		}
+
+		ok, obs := engine.validateAgainstSpec(&msg, spec.ValidationBasic)
+		if ok {
+			t.Error("Expected validateAgainstSpec to fail due to invalid ApplVerID, but passed")
+		} else if len(obs) != 1 || !strings.HasPrefix(obs[0], "Message specifies unsupported ApplVerID [1128]") {
+			t.Errorf("Expected ApplVerID invalid err, got: %v", obs)
 		}
 	})
 }

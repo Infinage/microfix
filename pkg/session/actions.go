@@ -333,6 +333,12 @@ func (engine *Engine) handleAppMessage(msg *message.Message) (bool, []Action) {
 			seqNo, _ := seqNoField.AsInt()
 			err := &RejectError{RefSeqNum: seqNo, Text: "Invalid SeqNo [36] value"}
 			actions = append(actions, Action{Type: ActionError, Err: err}, engine.reject(err))
+		} else if val < engine.inSeqNum {
+			err := &RejectError{
+				RefSeqNum: engine.inSeqNum,
+				Text:      fmt.Sprintf("NewSeqNo [%d] is lower than expected [%d]", val, engine.inSeqNum),
+			}
+			actions = append(actions, Action{Type: ActionError, Err: err}, engine.reject(err))
 		} else {
 			engine.inSeqNum = val
 		}

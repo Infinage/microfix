@@ -189,3 +189,30 @@ func TestSession_DeliverAppMessage(t *testing.T) {
 		t.Fatal("Timeout waiting for application message to be delivered")
 	}
 }
+
+func TestSession_AbruptDisconnect(t *testing.T) {
+	mockConn := &MockConnection{
+		incoming: make(chan message.Message, 3),
+		outgoing: make(chan message.Message, 3),
+		errors:   make(chan error, 3),
+		done:     make(chan struct{}),
+	}
+
+	// Simulate a suddenly dropped TCP connection
+	sess, _ := NewSession("FIX44.xml", "S", "T", 30, EngineOptions{})
+	sess.start(mockConn, false)
+	mockConn.Close()
+
+	// Wait for the session to process the Done signal and clean itself up
+	select {
+	case <-sess.Done():
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("Session failed to shut down after underlying connection closed")
+	}
+
+	// Verify tombstone state was captured
+	status := sess.Status()
+	if status.State != SessionClosed {
+		t.Errorf("Expected final tombstone state to be SessionClosed, got %v", status.State)
+	}
+}
