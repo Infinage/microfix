@@ -2,6 +2,7 @@ package session
 
 import (
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -9,32 +10,45 @@ import (
 	"github.com/infinage/microfix/pkg/spec"
 )
 
-// setupEngine creates a test Engine using:
-//   - SenderCompID = "S"
-//   - TargetCompID = "T"
-//   - HeartBeatInt = 30
-//
-// If applPaths is empty, a default router is created from specPath.
-// Otherwise a FIXT-style router is created using specPath as the
-// session spec and applPaths as application-level specs.
-func setupEngine(t *testing.T, specPath string, applPaths []string) *Engine {
+var (
+	// Store our parsed routers globally in memory for the tests
+	testRouterFIX44  *spec.Router
+	testRouterFIXT11 *spec.Router
+
+	// Ensures we only parse the XML files once, no matter how many tests run
+	parseOnce sync.Once
+)
+
+// setupEngine creates a test Engine using pre-parsed routers
+func setupEngine(t *testing.T, loadFIXT bool) *Engine {
 	t.Helper()
 
-	var err error
-	var router *spec.Router
-	var engine *Engine
+	// Parse the XML files exactly ONCE for the entire test suite
+	parseOnce.Do(func() {
+		var err error
+		testRouterFIX44, err = spec.NewDefaultRouter("FIX44.xml")
+		if err != nil {
+			panic("Failed to parse FIX44.xml for tests: " + err.Error())
+		}
 
-	if len(applPaths) == 0 {
-		if router, err = spec.NewDefaultRouter(specPath); err != nil {
-			t.Fatalf("Failed to initialize default router: %v", err)
+		// Here is where you explicitly load FIXT11 with a specific app spec (FIX44)
+		testRouterFIXT11, err = spec.NewRouter("FIXT11.xml", []string{"FIX44.xml"})
+		if err != nil {
+			panic("Failed to parse FIXT11.xml for tests: " + err.Error())
 		}
+	})
+
+	// Select the correct pre-parsed router from memory
+	var router *spec.Router
+	if loadFIXT {
+		router = testRouterFIXT11
 	} else {
-		if router, err = spec.NewRouter(specPath, applPaths); err != nil {
-			t.Fatalf("Failed to initialize router: %v", err)
-		}
+		router = testRouterFIX44
 	}
 
-	if engine, err = NewEngine(router, "S", "T", 30, EngineOptions{}); err != nil {
+	// Pass the memory pointer to the engine
+	engine, err := NewEngine(router, "S", "T", 30, EngineOptions{})
+	if err != nil {
 		t.Fatalf("Failed to initialize engine: %v", err)
 	}
 
@@ -62,7 +76,7 @@ func buildMessage(t *testing.T, engine *Engine, msgType string, extraTags map[ui
 }
 
 func TestEngine_LogonFlow(t *testing.T) {
-	engine := setupEngine(t, "FIX44.xml", nil)
+	engine := setupEngine(t, false)
 	actions := engine.OnStart(true)
 
 	if len(actions) != 1 || actions[0].Type != ActionSend {
@@ -76,7 +90,7 @@ func TestEngine_LogonFlow(t *testing.T) {
 }
 
 func TestEngine_HandleLogonRequest(t *testing.T) {
-	engine := setupEngine(t, "FIX44.xml", nil)
+	engine := setupEngine(t, false)
 	engine.OnStart(false)
 
 	// Building a heartbeat while engine is looking for logon
@@ -107,7 +121,7 @@ func TestEngine_HandleLogonRequest(t *testing.T) {
 }
 
 func TestEngine_HandleLogonResponse(t *testing.T) {
-	engine := setupEngine(t, "FIX44.xml", nil)
+	engine := setupEngine(t, false)
 	engine.OnStart(true)
 
 	msg := buildMessage(t, engine, "A", map[uint16]string{108: "30"}, spec.SampleOptions{})
@@ -122,7 +136,7 @@ func TestEngine_HandleLogonResponse(t *testing.T) {
 }
 
 func TestEngine_SequenceGap(t *testing.T) {
-	engine := setupEngine(t, "FIX44.xml", nil)
+	engine := setupEngine(t, false)
 	engine.state = SessionActive
 	engine.inSeqNum = 2
 
@@ -141,7 +155,7 @@ func TestEngine_SequenceGap(t *testing.T) {
 }
 
 func TestEngine_HeartbeatOnIdle(t *testing.T) {
-	engine := setupEngine(t, "FIX44.xml", nil)
+	engine := setupEngine(t, false)
 	engine.heartbeatInt = 1
 	engine.state = SessionActive
 	engine.lastWriteTime = time.Now().Add(-2 * time.Second)
@@ -159,7 +173,7 @@ func TestEngine_HeartbeatOnIdle(t *testing.T) {
 }
 
 func TestEngine_StaleStateAndRecovery(t *testing.T) {
-	engine := setupEngine(t, "FIX44.xml", nil)
+	engine := setupEngine(t, false)
 	engine.state = SessionActive
 	engine.lastReadTime = time.Now().Add(-31 * time.Second) // Force idle timeout
 
@@ -192,7 +206,7 @@ func TestEngine_StaleStateAndRecovery(t *testing.T) {
 }
 
 func TestEngine_PossDupBypass(t *testing.T) {
-	engine := setupEngine(t, "FIX44.xml", nil)
+	engine := setupEngine(t, false)
 	engine.state = SessionActive
 	engine.inSeqNum = 5 // Engine is expecting 5
 
@@ -230,7 +244,7 @@ func TestEngine_PossDupBypass(t *testing.T) {
 }
 
 func TestEngine_AcceptGapFill(t *testing.T) {
-	engine := setupEngine(t, "FIX44.xml", nil)
+	engine := setupEngine(t, false)
 	engine.state = SessionActive
 	engine.inSeqNum = 5 // We expect 5
 
@@ -253,7 +267,7 @@ func TestEngine_AcceptGapFill(t *testing.T) {
 }
 
 func TestEngine_RejectInvalidLogon(t *testing.T) {
-	engine := setupEngine(t, "FIX44.xml", nil)
+	engine := setupEngine(t, false)
 	engine.OnStart(true) // We are LoggingIn, expecting HB=30
 
 	// Server replies with HB=45 (Mismatch)
@@ -279,7 +293,7 @@ func TestEngine_RejectInvalidLogon(t *testing.T) {
 }
 
 func TestEngine_InboundValidation(t *testing.T) {
-	engine := setupEngine(t, "FIX44.xml", nil)
+	engine := setupEngine(t, false)
 	t.Run("Sending time accuracy problem", func(t *testing.T) {
 		msg, err := message.MessageFromString("8=FIX.4.4|9=42|35=0|49=T|56=S|34=4|52=20260404-12:00:00Z|10=253|", "|")
 		if err != nil {
@@ -296,7 +310,7 @@ func TestEngine_InboundValidation(t *testing.T) {
 func TestEngine_OutboundValidation(t *testing.T) {
 	// Expect some slow down since this will construct a default
 	// router with all FIX40 - FIX50SP02 XML specs
-	engine := setupEngine(t, "FIXT11.xml", []string{"FIX44.xml"})
+	engine := setupEngine(t, true)
 	engine.senderCompID = "CLIENT"
 	engine.targetCompID = "SERVER"
 
@@ -351,7 +365,7 @@ func TestEngine_OutboundValidation(t *testing.T) {
 }
 
 func TestEngine_StrictInboundValidation(t *testing.T) {
-	engine := setupEngine(t, "FIX44.xml", nil)
+	engine := setupEngine(t, false)
 
 	t.Run("Reject malformed SendingTime format", func(t *testing.T) {
 		msg, _ := message.MessageFromString("8=FIX.4.4|9=00|35=0|49=T|56=S|34=1|52=INVALID|10=000|", "|")
@@ -387,7 +401,7 @@ func TestEngine_StrictInboundValidation(t *testing.T) {
 }
 
 func TestEngine_OutboundSequenceIncrementRules(t *testing.T) {
-	engine := setupEngine(t, "FIX44.xml", nil)
+	engine := setupEngine(t, false)
 	engine.outSeqNum = 10
 
 	t.Run("Normal messages increment OutSeqNum", func(t *testing.T) {
@@ -409,7 +423,7 @@ func TestEngine_OutboundSequenceIncrementRules(t *testing.T) {
 }
 
 func TestEngine_LogoutFlow(t *testing.T) {
-	engine := setupEngine(t, "FIX44.xml", nil)
+	engine := setupEngine(t, false)
 	engine.state = SessionActive
 
 	// Logout message
@@ -426,7 +440,7 @@ func TestEngine_LogoutFlow(t *testing.T) {
 }
 
 func TestEngine_ResendRequestBuildsCorrectTags(t *testing.T) {
-	engine := setupEngine(t, "FIX44.xml", nil)
+	engine := setupEngine(t, false)
 	engine.state = SessionActive
 	engine.inSeqNum = 100 // We expect 100
 
@@ -450,7 +464,7 @@ func TestEngine_ResendRequestBuildsCorrectTags(t *testing.T) {
 }
 
 func TestEngine_SequenceResetRewindRejection(t *testing.T) {
-	engine := setupEngine(t, "FIX44.xml", nil)
+	engine := setupEngine(t, false)
 	engine.state = SessionActive
 	engine.inSeqNum = 50
 
@@ -467,7 +481,7 @@ func TestEngine_SequenceResetRewindRejection(t *testing.T) {
 }
 
 func TestEngine_HeartbeatEchoesTestReqID(t *testing.T) {
-	engine := setupEngine(t, "FIX44.xml", nil)
+	engine := setupEngine(t, false)
 	engine.state = SessionActive
 
 	msg := buildMessage(t, engine, "1", map[uint16]string{112: "ECHO_ME_123"}, spec.SampleOptions{})
