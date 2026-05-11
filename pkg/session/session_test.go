@@ -216,3 +216,26 @@ func TestSession_AbruptDisconnect(t *testing.T) {
 		t.Errorf("Expected final tombstone state to be SessionClosed, got %v", status.State)
 	}
 }
+
+func TestSession_DoubleCloseSafety(t *testing.T) {
+	mockConn := &MockConnection{
+		incoming: make(chan message.Message, 10),
+		outgoing: make(chan message.Message, 10),
+		errors:   make(chan error, 10),
+		done:     make(chan struct{}),
+	}
+
+	sess, _ := NewSession("FIX44.xml", "S", "T", 30, EngineOptions{})
+	sess.start(mockConn, false)
+
+	// Attempting to close simultaneously or consecutively should not panic or block
+	sess.Close()
+	sess.Close()
+
+	select {
+	case <-sess.Done():
+		// Pass. The transport channel gracefully closed and the session tore down without a panic.
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("Session deadlock on Double Close")
+	}
+}

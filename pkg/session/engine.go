@@ -80,15 +80,14 @@ func (err *RejectError) Error() string {
 	return fmt.Sprintf("[%v] - %v", err.RefSeqNum, err.Text)
 }
 
-func NewEngine(specPath string, senderCompID string, targetCompID string, heartbeatInt int64, opts EngineOptions) (*Engine, error) {
+func NewEngine(router *spec.Router, senderCompID string, targetCompID string, heartbeatInt int64, opts EngineOptions) (*Engine, error) {
 	if heartbeatInt <= 0 {
 		return nil, fmt.Errorf("Heartbeat Interval must be greater than 0")
 	}
 
 	// Attempt to load the spec
-	router, err := spec.NewDefaultRouter(specPath)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize router: %v", err)
+	if router == nil {
+		return nil, fmt.Errorf("Router cannot be nil")
 	}
 
 	// Set the defaultApplVer from EngineOptions if provided

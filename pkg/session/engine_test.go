@@ -9,9 +9,60 @@ import (
 	"github.com/infinage/microfix/pkg/spec"
 )
 
-func TestEngine_LogonFlow(t *testing.T) {
-	engine, _ := NewEngine("FIX44.xml", "S", "T", 30, EngineOptions{})
+// setupEngine creates a test Engine using:
+//   - SenderCompID = "S"
+//   - TargetCompID = "T"
+//   - HeartBeatInt = 30
+//
+// If applPaths is empty, a default router is created from specPath.
+// Otherwise a FIXT-style router is created using specPath as the
+// session spec and applPaths as application-level specs.
+func setupEngine(t *testing.T, specPath string, applPaths []string) *Engine {
+	t.Helper()
 
+	var err error
+	var router *spec.Router
+	var engine *Engine
+
+	if len(applPaths) == 0 {
+		if router, err = spec.NewDefaultRouter(specPath); err != nil {
+			t.Fatalf("Failed to initialize default router: %v", err)
+		}
+	} else {
+		if router, err = spec.NewRouter(specPath, applPaths); err != nil {
+			t.Fatalf("Failed to initialize router: %v", err)
+		}
+	}
+
+	if engine, err = NewEngine(router, "S", "T", 30, EngineOptions{}); err != nil {
+		t.Fatalf("Failed to initialize engine: %v", err)
+	}
+
+	return engine
+}
+
+func buildMessage(t *testing.T, engine *Engine, msgType string, extraTags map[uint16]string, sampleOpts spec.SampleOptions) message.Message {
+	t.Helper()
+
+	msg, err := engine.Router.Sample(msgType, sampleOpts)
+	if err != nil {
+		t.Fatalf("Failed to build message: %v", err)
+	}
+
+	msg.Set(49, "T")
+	msg.Set(56, "S")
+	msg.Set(34, "1")
+
+	for k, v := range extraTags {
+		msg.Set(k, v)
+	}
+
+	msg.Finalize()
+	return msg
+}
+
+func TestEngine_LogonFlow(t *testing.T) {
+	engine := setupEngine(t, "FIX44.xml", nil)
 	actions := engine.OnStart(true)
 
 	if len(actions) != 1 || actions[0].Type != ActionSend {
@@ -25,15 +76,11 @@ func TestEngine_LogonFlow(t *testing.T) {
 }
 
 func TestEngine_HandleLogonRequest(t *testing.T) {
-	engine, _ := NewEngine("FIX44.xml", "S", "T", 30, EngineOptions{})
+	engine := setupEngine(t, "FIX44.xml", nil)
 	engine.OnStart(false)
 
 	// Building a heartbeat while engine is looking for logon
-	msg, _ := engine.Router.Sample("0", spec.SampleOptions{})
-	msg.Set(49, "T")
-	msg.Set(56, "S")
-	msg.Set(34, "1")
-	msg.Finalize()
+	msg := buildMessage(t, engine, "0", nil, spec.SampleOptions{})
 
 	// We expect a reject request
 	actions := engine.OnMessage(&msg, time.Now())
@@ -46,11 +93,7 @@ func TestEngine_HandleLogonRequest(t *testing.T) {
 	}
 
 	// Building a logon
-	msg, _ = engine.Router.Sample("A", spec.SampleOptions{})
-	msg.Set(49, "T")
-	msg.Set(56, "S")
-	msg.Set(34, "1")
-	msg.Finalize()
+	msg = buildMessage(t, engine, "A", nil, spec.SampleOptions{})
 
 	// Engine should send a logon response
 	actions = engine.OnMessage(&msg, time.Now())
@@ -64,16 +107,10 @@ func TestEngine_HandleLogonRequest(t *testing.T) {
 }
 
 func TestEngine_HandleLogonResponse(t *testing.T) {
-	engine, _ := NewEngine("FIX44.xml", "S", "T", 30, EngineOptions{})
+	engine := setupEngine(t, "FIX44.xml", nil)
 	engine.OnStart(true)
 
-	msg, _ := engine.Router.Sample("A", spec.SampleOptions{})
-	msg.Set(49, "T")
-	msg.Set(56, "S")
-	msg.Set(34, "1")
-	msg.Set(108, "30")
-	msg.Finalize()
-
+	msg := buildMessage(t, engine, "A", map[uint16]string{108: "30"}, spec.SampleOptions{})
 	actions := engine.OnMessage(&msg, time.Now())
 
 	if engine.state != SessionActive {
@@ -85,16 +122,12 @@ func TestEngine_HandleLogonResponse(t *testing.T) {
 }
 
 func TestEngine_SequenceGap(t *testing.T) {
-	engine, _ := NewEngine("FIX44.xml", "S", "T", 30, EngineOptions{})
+	engine := setupEngine(t, "FIX44.xml", nil)
 	engine.state = SessionActive
 	engine.inSeqNum = 2
 
-	msg, _ := engine.Router.Sample("D", spec.SampleOptions{})
-	msg.Set(49, "T")
-	msg.Set(56, "S")
-	msg.Set(34, "10")
-	msg.Finalize()
-
+	// Expecting inSeqNum 2 but we set SeqNum as 10
+	msg := buildMessage(t, engine, "D", map[uint16]string{34: "10"}, spec.SampleOptions{})
 	actions := engine.OnMessage(&msg, time.Now())
 
 	if len(actions) != 2 || actions[1].Type != ActionSend {
@@ -108,7 +141,8 @@ func TestEngine_SequenceGap(t *testing.T) {
 }
 
 func TestEngine_HeartbeatOnIdle(t *testing.T) {
-	engine, _ := NewEngine("FIX44.xml", "S", "T", 1, EngineOptions{})
+	engine := setupEngine(t, "FIX44.xml", nil)
+	engine.heartbeatInt = 1
 	engine.state = SessionActive
 	engine.lastWriteTime = time.Now().Add(-2 * time.Second)
 
@@ -125,7 +159,7 @@ func TestEngine_HeartbeatOnIdle(t *testing.T) {
 }
 
 func TestEngine_StaleStateAndRecovery(t *testing.T) {
-	engine, _ := NewEngine("FIX44.xml", "S", "T", 30, EngineOptions{})
+	engine := setupEngine(t, "FIX44.xml", nil)
 	engine.state = SessionActive
 	engine.lastReadTime = time.Now().Add(-31 * time.Second) // Force idle timeout
 
@@ -149,14 +183,7 @@ func TestEngine_StaleStateAndRecovery(t *testing.T) {
 	}
 
 	// Receiving a Heartbeat with correct TestReqID should recover to Active
-	msg, _ := engine.Router.Sample("0", spec.SampleOptions{})
-	msg.Set(49, "T")
-	msg.Set(56, "S")
-	msg.Set(34, "2")
-	msg.Set(112, engine.testReqID) // Matching ID
-	msg.Finalize()
-
-	engine.inSeqNum = 2 // Sync sequence to avoid resend logic
+	msg := buildMessage(t, engine, "0", map[uint16]string{112: engine.testReqID}, spec.SampleOptions{})
 	engine.OnMessage(&msg, time.Now())
 
 	if engine.state != SessionActive {
@@ -165,21 +192,15 @@ func TestEngine_StaleStateAndRecovery(t *testing.T) {
 }
 
 func TestEngine_PossDupBypass(t *testing.T) {
-	// Helper to guarantee a fresh, isolated engine state for each test
-	setupTest := func() (*Engine, message.Message) {
-		engine, _ := NewEngine("FIX44.xml", "S", "T", 30, EngineOptions{})
-		engine.state = SessionActive
-		engine.inSeqNum = 5 // Engine is expecting 5
+	engine := setupEngine(t, "FIX44.xml", nil)
+	engine.state = SessionActive
+	engine.inSeqNum = 5 // Engine is expecting 5
 
-		msg, _ := engine.Router.Sample("D", spec.SampleOptions{OptionalFields: map[uint16]any{43: nil}})
-		msg.Set(49, "T")
-		msg.Set(56, "S")
-		msg.Set(34, "3") // Stale sequence number
-		return engine, msg
-	}
+	// Sample message with stale SeqNum and ensuring PossDup optional field is sampled
+	msg := buildMessage(t, engine, "D", map[uint16]string{34: "3"},
+		spec.SampleOptions{OptionalFields: map[uint16]any{43: nil}})
 
 	t.Run("PossDup=N rejects sequence mismatch", func(t *testing.T) {
-		engine, msg := setupTest()
 		msg.Set(43, "N")
 		msg.Finalize()
 
@@ -197,7 +218,6 @@ func TestEngine_PossDupBypass(t *testing.T) {
 	})
 
 	t.Run("PossDup=Y bypasses sequence mismatch", func(t *testing.T) {
-		engine, msg := setupTest()
 		msg.Set(43, "Y")
 		msg.Finalize()
 
@@ -210,19 +230,12 @@ func TestEngine_PossDupBypass(t *testing.T) {
 }
 
 func TestEngine_AcceptGapFill(t *testing.T) {
-	engine, _ := NewEngine("FIX44.xml", "S", "T", 30, EngineOptions{})
+	engine := setupEngine(t, "FIX44.xml", nil)
 	engine.state = SessionActive
 	engine.inSeqNum = 5 // We expect 5
 
-	// Counterparty sends a Gap Fill skipping us to 10
-	msg, _ := engine.Router.Sample("4", spec.SampleOptions{})
-	msg.Set(49, "T")
-	msg.Set(56, "S")
-	msg.Set(34, "5")
-	msg.Set(123, "Y") // GapFill flag
-	msg.Set(36, "10") // NewSeqNo
-	msg.Finalize()
-
+	// Counterparty sends a Gap Fill skipping us to 10 (GapFill [123], NewSeqNo [36])
+	msg := buildMessage(t, engine, "4", map[uint16]string{34: "5", 123: "Y", 36: "10"}, spec.SampleOptions{})
 	actions := engine.OnMessage(&msg, time.Now())
 
 	// Sequence resets return false for msgAccepted, so inSeqNum isn't auto-incremented by the loop
@@ -240,17 +253,11 @@ func TestEngine_AcceptGapFill(t *testing.T) {
 }
 
 func TestEngine_RejectInvalidLogon(t *testing.T) {
-	engine, _ := NewEngine("FIX44.xml", "S", "T", 30, EngineOptions{})
+	engine := setupEngine(t, "FIX44.xml", nil)
 	engine.OnStart(true) // We are LoggingIn, expecting HB=30
 
 	// Server replies with HB=45 (Mismatch)
-	msg, _ := engine.Router.Sample("A", spec.SampleOptions{})
-	msg.Set(49, "T")
-	msg.Set(56, "S")
-	msg.Set(34, "1")
-	msg.Set(108, "45")
-	msg.Finalize()
-
+	msg := buildMessage(t, engine, "A", map[uint16]string{108: "45"}, spec.SampleOptions{})
 	actions := engine.OnMessage(&msg, time.Now())
 
 	if engine.state != SessionClosed {
@@ -272,9 +279,9 @@ func TestEngine_RejectInvalidLogon(t *testing.T) {
 }
 
 func TestEngine_InboundValidation(t *testing.T) {
-	engine, _ := NewEngine("FIX44.xml", "STRING", "STRING", 30, EngineOptions{})
+	engine := setupEngine(t, "FIX44.xml", nil)
 	t.Run("Sending time accuracy problem", func(t *testing.T) {
-		msg, err := message.MessageFromString("8=FIX.4.4|9=52|35=0|49=STRING|56=STRING|34=4|52=20260404-12:00:00Z|10=005|", "|")
+		msg, err := message.MessageFromString("8=FIX.4.4|9=42|35=0|49=T|56=S|34=4|52=20260404-12:00:00Z|10=253|", "|")
 		if err != nil {
 			t.Fatalf("Failed to parse test string: %v", err)
 		}
@@ -289,10 +296,9 @@ func TestEngine_InboundValidation(t *testing.T) {
 func TestEngine_OutboundValidation(t *testing.T) {
 	// Expect some slow down since this will construct a default
 	// router with all FIX40 - FIX50SP02 XML specs
-	engine, err := NewEngine("FIXT11.xml", "CLIENT", "SERVER", 30, EngineOptions{})
-	if err != nil {
-		t.Fatalf("Failed to initialize engine for tests: %v", err)
-	}
+	engine := setupEngine(t, "FIXT11.xml", []string{"FIX44.xml"})
+	engine.senderCompID = "CLIENT"
+	engine.targetCompID = "SERVER"
 
 	t.Run("Missing core required tags", func(t *testing.T) {
 		// Missing Tag 35 (MsgType)
@@ -342,4 +348,139 @@ func TestEngine_OutboundValidation(t *testing.T) {
 			t.Errorf("Expected ApplVerID invalid err, got: %v", obs)
 		}
 	})
+}
+
+func TestEngine_StrictInboundValidation(t *testing.T) {
+	engine := setupEngine(t, "FIX44.xml", nil)
+
+	t.Run("Reject malformed SendingTime format", func(t *testing.T) {
+		msg, _ := message.MessageFromString("8=FIX.4.4|9=00|35=0|49=T|56=S|34=1|52=INVALID|10=000|", "|")
+		err := engine.validate(&msg, time.Now())
+		if err == nil || !strings.Contains(err.Error(), "Invalid SendingTime [52]") {
+			t.Fatalf("expected invalid sending time error, got %v", err)
+		}
+	})
+
+	t.Run("Reject SenderCompID mismatch with Hard Disconnect", func(t *testing.T) {
+		// Msg sent by "WRONG", but we expect "T"
+		msg, _ := message.MessageFromString("8=FIX.4.4|9=00|35=0|49=WRONG|56=S|34=1|52=20260510-12:00:00.000|10=000|", "|")
+		err := engine.validate(&msg, time.Now())
+		if err == nil || !strings.Contains(err.Error(), "SenderCompID [49] mismatch") {
+			t.Fatalf("expected SenderCompID mismatch error, got %v", err)
+		}
+
+		// Verify OnMessage converts a non-RejectError (like CompID mismatch) into a Logout + Close
+		actions := engine.OnMessage(&msg, time.Now())
+		if len(actions) != 3 || actions[2].Type != ActionClose {
+			t.Fatalf("Expected hard disconnect on CompID mismatch, got %v", actions)
+		}
+	})
+
+	t.Run("Reject BeginString mismatch", func(t *testing.T) {
+		// Engine is FIX.4.4, but msg is FIX.4.2
+		msg, _ := message.MessageFromString("8=FIX.4.2|9=00|35=0|49=T|56=S|34=1|52=20260510-12:00:00.000|10=000|", "|")
+		err := engine.validate(&msg, time.Now())
+		if err == nil || !strings.Contains(err.Error(), "BeginString mistmatch") {
+			t.Fatalf("expected BeginString mismatch error, got %v", err)
+		}
+	})
+}
+
+func TestEngine_OutboundSequenceIncrementRules(t *testing.T) {
+	engine := setupEngine(t, "FIX44.xml", nil)
+	engine.outSeqNum = 10
+
+	t.Run("Normal messages increment OutSeqNum", func(t *testing.T) {
+		msg, _ := engine.Router.Sample("0", spec.SampleOptions{})
+		engine.recordWrite(&msg, time.Now())
+		if engine.outSeqNum != 11 {
+			t.Errorf("Expected outSeqNum 11, got %v", engine.outSeqNum)
+		}
+	})
+
+	t.Run("Sequence Reset (GapFill) does NOT increment", func(t *testing.T) {
+		msg, _ := engine.Router.Sample("4", spec.SampleOptions{OptionalFields: map[uint16]any{123: nil}})
+		msg.Set(123, "Y")
+		engine.recordWrite(&msg, time.Now())
+		if engine.outSeqNum != 11 { // Remains 11!
+			t.Errorf("Expected outSeqNum to remain 11, got %v", engine.outSeqNum)
+		}
+	})
+}
+
+func TestEngine_LogoutFlow(t *testing.T) {
+	engine := setupEngine(t, "FIX44.xml", nil)
+	engine.state = SessionActive
+
+	// Logout message
+	msg := buildMessage(t, engine, "5", nil, spec.SampleOptions{})
+	actions := engine.OnMessage(&msg, time.Now())
+
+	if engine.state != SessionClosed {
+		t.Errorf("Expected engine state SessionClosed, got %v", engine.state)
+	}
+
+	if len(actions) != 2 || actions[0].Type != ActionSend || actions[1].Type != ActionClose {
+		t.Fatalf("Expected [ActionSend(Logout), ActionClose], got %v", actions)
+	}
+}
+
+func TestEngine_ResendRequestBuildsCorrectTags(t *testing.T) {
+	engine := setupEngine(t, "FIX44.xml", nil)
+	engine.state = SessionActive
+	engine.inSeqNum = 100 // We expect 100
+
+	// Counterparty sends SeqNum: 105
+	msg := buildMessage(t, engine, "D", map[uint16]string{34: "105"}, spec.SampleOptions{})
+	actions := engine.OnMessage(&msg, time.Now())
+
+	if len(actions) < 2 {
+		t.Fatalf("Expected actions, got %v", actions)
+	}
+	resendMsg := actions[1].Msg
+	if mt, _ := resendMsg.Get(35); mt != "2" {
+		t.Fatalf("Expected MsgType 2, got %v", mt)
+	}
+	if begin, _ := resendMsg.Get(7); begin != "100" {
+		t.Errorf("Expected BeginSeqNo (7) to be 100, got %v", begin)
+	}
+	if end, _ := resendMsg.Get(16); end != "0" {
+		t.Errorf("Expected EndSeqNo (16) to be 0, got %v", end)
+	}
+}
+
+func TestEngine_SequenceResetRewindRejection(t *testing.T) {
+	engine := setupEngine(t, "FIX44.xml", nil)
+	engine.state = SessionActive
+	engine.inSeqNum = 50
+
+	// Counterparty maliciously or accidentally tries to rewind us to 10
+	msg := buildMessage(t, engine, "4", map[uint16]string{34: "50", 36: "10"}, spec.SampleOptions{})
+	actions := engine.OnMessage(&msg, time.Now())
+
+	if engine.inSeqNum != 50 {
+		t.Errorf("Engine dangerously allowed sequence rewind! Expected 50, got %v", engine.inSeqNum)
+	}
+	if len(actions) == 0 || actions[0].Type != ActionError {
+		t.Errorf("Expected engine to reject the rewind attempt")
+	}
+}
+
+func TestEngine_HeartbeatEchoesTestReqID(t *testing.T) {
+	engine := setupEngine(t, "FIX44.xml", nil)
+	engine.state = SessionActive
+
+	msg := buildMessage(t, engine, "1", map[uint16]string{112: "ECHO_ME_123"}, spec.SampleOptions{})
+	actions := engine.OnMessage(&msg, time.Now())
+
+	if len(actions) < 1 {
+		t.Fatalf("Expected actions, got %v", actions)
+	}
+	hbMsg := actions[0].Msg
+	if mt, _ := hbMsg.Get(35); mt != "0" {
+		t.Fatalf("Expected Heartbeat (0), got %v", mt)
+	}
+	if reqID, _ := hbMsg.Get(112); reqID != "ECHO_ME_123" {
+		t.Errorf("Expected TestReqID (112) to be echoed, got %v", reqID)
+	}
 }

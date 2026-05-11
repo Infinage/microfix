@@ -29,8 +29,9 @@ type Session struct {
 	requests chan userRequest
 
 	// Track if the session has been closed, also store the last snapshot "tomstone"
-	tombstone atomic.Value
-	closed    atomic.Bool
+	tombstone      atomic.Value
+	closeRequested atomic.Bool
+	closed         atomic.Bool
 }
 
 func (sess *Session) Incoming() <-chan message.Message {
@@ -54,7 +55,12 @@ func (sess *Session) Done() <-chan struct{} {
 
 // Starts a SINGLE use session
 func NewSession(specPath string, senderCompID string, targetCompID string, heartbeatInt int64, engineOpts EngineOptions) (*Session, error) {
-	engine, err := NewEngine(specPath, senderCompID, targetCompID, heartbeatInt, engineOpts)
+	router, err := spec.NewDefaultRouter(specPath)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to initialize router: %v", err)
+	}
+
+	engine, err := NewEngine(router, senderCompID, targetCompID, heartbeatInt, engineOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -72,11 +78,12 @@ func NewSession(specPath string, senderCompID string, targetCompID string, heart
 
 // Close the session (gaurd to ensure we dont try to close a non active session)
 func (sess *Session) Close() {
-	if sess.base != nil && !sess.closed.Load() {
+	if sess.base != nil && sess.closeRequested.CompareAndSwap(false, true) {
 		select {
 		case sess.requests <- closeRequest{}:
 		case <-sess.Done():
-			sess.closed.Store(true)
+			// Do nothing, run loop already exiting and defer block
+			// will handle tombstone and set sess.closed
 		}
 	}
 }
@@ -128,7 +135,7 @@ func (sess *Session) Send(msg message.Message, passthrough bool) {
 		return
 	}
 
-	if !sess.closed.Load() {
+	if !sess.closeRequested.Load() {
 		sess.requests <- messageSendRequest{message: msg, passthrough: passthrough}
 	}
 }
@@ -166,7 +173,7 @@ func (sess *Session) Status() Snapshot {
 
 // Reset the session number (queue to run loop)
 func (sess *Session) ResetSequence(inSeqNum int64, outSeqNum int64) {
-	if sess.base == nil || sess.closed.Load() {
+	if sess.base == nil || sess.closeRequested.Load() {
 		return
 	}
 	sess.requests <- resetSequence{inSeqNum: inSeqNum, outSeqNum: outSeqNum}
