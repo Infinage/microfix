@@ -2,6 +2,7 @@ package session
 
 import (
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/infinage/microfix/pkg/message"
@@ -184,7 +185,7 @@ func (engine *Engine) OnResetSequence(inSeqNum int64, outSeqNum int64) []Action 
 		if outSeqNum > engine.outSeqNum {
 			// Out seq reset can only go forward per FIX protocol
 			seqReset, _ := engine.Router.Sample("4", spec.SampleOptions{OptionalFields: map[uint16]any{123: nil}})
-			seqReset.Set(36, fmt.Sprintf("%d", outSeqNum))
+			seqReset.Set(36, fmt.Sprint(outSeqNum))
 			seqReset.Set(123, "N")
 			actions = append(actions, Action{Type: ActionSend, Msg: seqReset})
 
@@ -288,6 +289,69 @@ func (engine *Engine) handleLogon(msg *message.Message) (bool, []Action) {
 	return true, actions
 }
 
+func (engine *Engine) handleResend(msg *message.Message) []Action {
+	var actions []Action
+	var beginSeq, endSeq int64
+	var err error
+
+	// We can ignore the error here since we would have
+	// already caught it during validation
+	seqNoField, _ := msg.FindFrom(34, 0)
+	seqNo, _ := seqNoField.AsInt()
+
+	beginSeqNoField, _ := msg.FindFrom(7, 0)
+	if beginSeq, err = beginSeqNoField.AsInt(); err != nil || beginSeq <= 0 {
+		err := &RejectError{RefSeqNum: seqNo, Text: "Invalid BeginSeqNo [7] value"}
+		actions = append(actions, Action{Type: ActionError, Err: err}, engine.reject(err))
+		return actions
+	}
+
+	endSeqNoField, _ := msg.FindFrom(16, 0)
+	if endSeq, err = endSeqNoField.AsInt(); err != nil {
+		err := &RejectError{RefSeqNum: seqNo, Text: "Invalid EndSeqNo [16] value"}
+		actions = append(actions, Action{Type: ActionError, Err: err}, engine.reject(err))
+		return actions
+	}
+
+	// outSeqNum represents the seqno of next message to sent
+	// last message sent to client would have outSeqNum - 1
+	if endSeq == 0 || endSeq > engine.outSeqNum-1 {
+		endSeq = engine.outSeqNum - 1
+	}
+
+	// Build seq reset msg once and reuse whenever needed
+	seqResetTemplate, _ := engine.Router.Sample("4", spec.SampleOptions{OptionalFields: map[uint16]any{123: nil}})
+	seqResetTemplate.Set(123, "Y") // GapFillFlag
+
+	// Tracking last seq that was sent out
+	prevSeqNo := beginSeq - 1
+	for _, replayEntry := range engine.store.Fetch(beginSeq, endSeq) {
+		// Send a reset sequence whenever there is a gap
+		if replayEntry.seqNo > prevSeqNo+1 {
+			seqReset := slices.Clone(seqResetTemplate)
+			seqReset.Set(34, fmt.Sprint(prevSeqNo+1)) // outSeqNum field update is bypassed on finalize for reset requests
+			seqReset.Set(36, fmt.Sprint(replayEntry.seqNo))
+			actions = append(actions, Action{Type: ActionSend, Msg: seqReset})
+		}
+
+		// Insert after MsgSeqNo and before SendingTime (> 3 should be okay)
+		replay := slices.Clone(replayEntry.Msg)
+		replay.Insert(6, message.Field{Tag: 43, Value: "Y"})
+		actions = append(actions, Action{Type: ActionSend, Msg: replay})
+		prevSeqNo = replayEntry.seqNo
+	}
+
+	// If last msg sent is behind the requested seqno, send a final gapfill
+	if prevSeqNo < endSeq {
+		seqReset := seqResetTemplate
+		seqReset.Set(34, fmt.Sprint(prevSeqNo+1))
+		seqReset.Set(36, fmt.Sprint(endSeq+1))
+		actions = append(actions, Action{Type: ActionSend, Msg: seqReset})
+	}
+
+	return actions
+}
+
 func (engine *Engine) handleAppMessage(msg *message.Message) (bool, []Action) {
 	// Get the MsgType
 	msgType, _ := msg.Get(35)
@@ -296,7 +360,7 @@ func (engine *Engine) handleAppMessage(msg *message.Message) (bool, []Action) {
 	inSeqNumTag, _ := msg.FindFrom(34, 0)
 	if inSeqNum, _ := inSeqNumTag.AsInt(); inSeqNum > engine.inSeqNum {
 		resend, _ := engine.Router.Sample("2", spec.SampleOptions{})
-		resend.Set(7, fmt.Sprintf("%d", engine.inSeqNum))
+		resend.Set(7, fmt.Sprint(engine.inSeqNum))
 		resend.Set(16, "0") // 0 means infinity in FIX Resend requests
 		return false, []Action{
 			{Type: ActionError, Err: fmt.Errorf("Expected InSeqNum [34] %v, got %v, triggering resend request.", engine.inSeqNum, inSeqNum)},
@@ -317,13 +381,8 @@ func (engine *Engine) handleAppMessage(msg *message.Message) (bool, []Action) {
 		}
 		actions = append(actions, Action{Type: ActionSend, Msg: hb})
 
-	case "2": // Resend request, for now we just do a SequenceReset
-		beginSeqNoField, _ := msg.Get(7)
-		seqReset, _ := engine.Router.Sample("4", spec.SampleOptions{OptionalFields: map[uint16]any{123: nil}})
-		seqReset.Set(34, beginSeqNoField) // bypass outSeqNum update on finalize
-		seqReset.Set(36, fmt.Sprintf("%d", engine.outSeqNum))
-		seqReset.Set(123, "Y")
-		actions = append(actions, Action{Type: ActionSend, Msg: seqReset})
+	case "2": // Resend request
+		actions = append(actions, engine.handleResend(msg)...)
 
 	case "4": // Sequence Reset
 		seqNoTag, _ := msg.FindFrom(36, 0)

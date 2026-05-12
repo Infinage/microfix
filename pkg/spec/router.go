@@ -122,10 +122,17 @@ func (router *Router) SessionSpec() *Spec {
 	return router.sessSpec
 }
 
-// For AdminMessage, returns SessionSpec otherwise returns ApplSpec
-func (r *Router) SpecForMsgType(msgType string) *Spec {
+func (r *Router) IsAdmin(msgType string) bool {
 	switch msgType {
 	case "0", "1", "2", "3", "4", "5", "A", "n":
+		return true
+	}
+	return false
+}
+
+// For AdminMessage, returns SessionSpec otherwise returns ApplSpec
+func (r *Router) SpecForMsgType(msgType string) *Spec {
+	if r.IsAdmin(msgType) {
 		return r.SessionSpec()
 	}
 	return r.ApplSpec()

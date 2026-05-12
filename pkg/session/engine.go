@@ -67,6 +67,8 @@ type Engine struct {
 	lastWriteTime time.Time
 	lastReadTime  time.Time
 
+	store MessageStore
+
 	extraOpts EngineOptions
 }
 
@@ -110,6 +112,7 @@ func NewEngine(router *spec.Router, senderCompID string, targetCompID string, he
 		testReqID:    "MICROFIX",
 		inSeqNum:     1,
 		outSeqNum:    1,
+		store:        NewMessageStore(),
 		extraOpts:    opts,
 	}
 
@@ -133,10 +136,16 @@ func (engine *Engine) Snapshot() Snapshot {
 func (engine *Engine) recordWrite(msg *message.Message, now time.Time) {
 	engine.lastWriteTime = now
 
-	// Ignore outSeqNum increment for a SequenceReset
-	// Would be set by `OnResetSequence`
 	if msgType, _ := msg.Get(35); msgType != "4" {
+		// Ignore updating outSeqNum increment for a SequenceReset
+		// would be set by `OnResetSequence` instead
 		engine.outSeqNum++
+
+		// Store only non admin message into our store
+		// And we clone so that downstream updates dont affect the store
+		if !engine.Router.IsAdmin(msgType) {
+			engine.store.Append(*msg)
+		}
 	}
 }
 

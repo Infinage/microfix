@@ -135,25 +135,6 @@ func TestEngine_HandleLogonResponse(t *testing.T) {
 	}
 }
 
-func TestEngine_SequenceGap(t *testing.T) {
-	engine := setupEngine(t, false)
-	engine.state = SessionActive
-	engine.inSeqNum = 2
-
-	// Expecting inSeqNum 2 but we set SeqNum as 10
-	msg := buildMessage(t, engine, "D", map[uint16]string{34: "10"}, spec.SampleOptions{})
-	actions := engine.OnMessage(&msg, time.Now())
-
-	if len(actions) != 2 || actions[1].Type != ActionSend {
-		t.Fatalf("expected resend request")
-	}
-
-	mt, _ := actions[1].Msg.Get(35)
-	if mt != "2" {
-		t.Fatalf("expected MsgType 2, got %s", mt)
-	}
-}
-
 func TestEngine_HeartbeatOnIdle(t *testing.T) {
 	engine := setupEngine(t, false)
 	engine.heartbeatInt = 1
@@ -439,6 +420,25 @@ func TestEngine_LogoutFlow(t *testing.T) {
 	}
 }
 
+func TestEngine_SequenceGap(t *testing.T) {
+	engine := setupEngine(t, false)
+	engine.state = SessionActive
+	engine.inSeqNum = 2
+
+	// Expecting inSeqNum 2 but we set SeqNum as 10
+	msg := buildMessage(t, engine, "D", map[uint16]string{34: "10"}, spec.SampleOptions{})
+	actions := engine.OnMessage(&msg, time.Now())
+
+	if len(actions) != 2 || actions[1].Type != ActionSend {
+		t.Fatalf("expected resend request")
+	}
+
+	mt, _ := actions[1].Msg.Get(35)
+	if mt != "2" {
+		t.Fatalf("expected MsgType 2, got %s", mt)
+	}
+}
+
 func TestEngine_ResendRequestBuildsCorrectTags(t *testing.T) {
 	engine := setupEngine(t, false)
 	engine.state = SessionActive
@@ -497,4 +497,120 @@ func TestEngine_HeartbeatEchoesTestReqID(t *testing.T) {
 	if reqID, _ := hbMsg.Get(112); reqID != "ECHO_ME_123" {
 		t.Errorf("Expected TestReqID (112) to be echoed, got %v", reqID)
 	}
+}
+
+func TestEngine_HandleResend(t *testing.T) {
+	engine := setupEngine(t, false)
+	engine.state = SessionActive
+
+	// Simulate engine state:
+	// We sent 5 messages.
+	// Seq 1: App
+	// Seq 2: App
+	// Seq 3: Admin (Heartbeat - NOT stored)
+	// Seq 4: App
+	// Seq 5: Admin (TestRequest - NOT stored)
+	// engine.outSeqNum is currently 6 (the next message we will send)
+	engine.outSeqNum = 6
+
+	msg1 := buildMessage(t, engine, "D", map[uint16]string{34: "1"}, spec.SampleOptions{})
+	msg2 := buildMessage(t, engine, "D", map[uint16]string{34: "2"}, spec.SampleOptions{})
+	msg4 := buildMessage(t, engine, "D", map[uint16]string{34: "4"}, spec.SampleOptions{})
+
+	engine.store.Append(msg1)
+	engine.store.Append(msg2)
+	engine.store.Append(msg4)
+
+	t.Run("Pure GapFill (Resending only missing admin messages)", func(t *testing.T) {
+		// Counterparty asks for 3 to 3. We don't have 3.
+		req := buildMessage(t, engine, "2", map[uint16]string{34: "1", 7: "3", 16: "3"}, spec.SampleOptions{})
+		actions := engine.OnMessage(&req, time.Now())
+
+		if len(actions) != 1 {
+			t.Fatalf("Expected 1 action, got %d", len(actions))
+		}
+
+		gapFill := actions[0].Msg
+		mt, _ := gapFill.Get(35)
+		gfFlag, _ := gapFill.Get(123)
+		tag34, _ := gapFill.Get(34)
+		tag36, _ := gapFill.Get(36)
+
+		if mt != "4" || gfFlag != "Y" {
+			t.Errorf("Expected GapFill (35=4, 123=Y), got %s, %s", mt, gfFlag)
+		}
+		if tag34 != "3" || tag36 != "4" {
+			t.Errorf("Expected GapFill from 3 to 4, got %s to %s", tag34, tag36)
+		}
+	})
+
+	t.Run("Mix of App Replay and GapFills", func(t *testing.T) {
+		// Counterparty asks for 2 to 4
+		// Expect: Replay 2, GapFill 3, Replay 4
+		req := buildMessage(t, engine, "2", map[uint16]string{34: "2", 7: "2", 16: "4"}, spec.SampleOptions{})
+		actions := engine.OnMessage(&req, time.Now())
+
+		if len(actions) != 3 {
+			t.Fatalf("Expected 3 actions, got %d", len(actions))
+		}
+
+		// Check Msg 2 Replay
+		mt1, _ := actions[0].Msg.Get(35)
+		pd1, _ := actions[0].Msg.Get(43)
+		if mt1 != "D" || pd1 != "Y" {
+			t.Errorf("Expected Replay 'D' with PossDup='Y', got '%s', '%s'", mt1, pd1)
+		}
+
+		// Check GapFill for Msg 3
+		mt2, _ := actions[1].Msg.Get(35)
+		tag36, _ := actions[1].Msg.Get(36)
+		if mt2 != "4" || tag36 != "4" {
+			t.Errorf("Expected GapFill to sequence 4, got '%s', '%s'", mt2, tag36)
+		}
+
+		// Check Msg 4 Replay
+		mt3, _ := actions[2].Msg.Get(35)
+		if mt3 != "D" {
+			t.Errorf("Expected Replay 'D', got '%s'", mt3)
+		}
+	})
+
+	t.Run("Infinity Request (16=0) with trailing gap", func(t *testing.T) {
+		// Counterparty asks for 4 to 0 (Infinity)
+		// Expect: Replay 4, GapFill 5 to 6 (since outSeqNum is 6)
+		req := buildMessage(t, engine, "2", map[uint16]string{34: "3", 7: "4", 16: "0"}, spec.SampleOptions{})
+		actions := engine.OnMessage(&req, time.Now())
+
+		if len(actions) != 2 {
+			t.Fatalf("Expected 2 actions, got %d", len(actions))
+		}
+
+		// Check Msg 4 Replay
+		mt1, _ := actions[0].Msg.Get(35)
+		if mt1 != "D" {
+			t.Errorf("Expected Replay 'D', got %s", mt1)
+		}
+
+		// Check Trailing GapFill for Msg 5
+		mt2, _ := actions[1].Msg.Get(35)
+		tag34, _ := actions[1].Msg.Get(34)
+		tag36, _ := actions[1].Msg.Get(36)
+
+		if mt2 != "4" {
+			t.Errorf("Expected Trailing GapFill (4), got %s", mt2)
+		}
+		if tag34 != "5" || tag36 != "6" {
+			t.Errorf("Expected final GapFill from 5 to 6, got %s to %s", tag34, tag36)
+		}
+	})
+
+	t.Run("Deep Copy Verification", func(t *testing.T) {
+		// Verify that playing back the messages didn't permanently corrupt the store with 43=Y
+		entries := engine.store.Fetch(1, 1)
+		if len(entries) == 1 {
+			if _, hasPossDup := entries[0].Msg.Get(43); hasPossDup {
+				t.Error("CRITICAL: Message in store was mutated with 43=Y during replay!")
+			}
+		}
+	})
 }
