@@ -261,6 +261,7 @@ func (engine *Engine) handleLogon(msg *message.Message) (bool, []Action) {
 	// If flag set, reset sequence numbers
 	if resetSeqNumFlag, _ := msg.Get(141); resetSeqNumFlag == "Y" {
 		engine.inSeqNum, engine.outSeqNum = 1, 1
+		engine.store.Reset() // Remove all message from store
 	}
 
 	// We are SessionListening and Counterparty sends a logon, accept and send back a logon

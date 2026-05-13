@@ -14,7 +14,7 @@ import (
 	"github.com/infinage/microfix/pkg/session"
 )
 
-// Read from sesson and write into circular buffer
+// Read from session and write into circular buffer
 func startLogger(sess *session.Session, cb *ringbuf.CircularBuffer) {
 	// Session closes logs on run loop exit
 	for log := range sess.Log() {
@@ -138,8 +138,17 @@ func handleSend(ctx *AppContext, args []string) {
 	fmt.Println("──────────────────────────────────────────────────")
 }
 
-func handleConnect(ctx *AppContext, _ []string) {
+func handleConnect(ctx *AppContext, args []string) {
+	if len(args) > 2 {
+		fmt.Println("Usage: connect [<host:port>]")
+		return
+	}
+
+	// Even if user passes an invalid data, will fail at net.Dial
 	addr := fmt.Sprintf("%s:%d", ctx.Config.IpAddr, ctx.Config.Port)
+	if len(args) == 2 {
+		addr = args[1]
+	}
 
 	fmt.Println("\n─── Connect ─────────────────────────────────────")
 
@@ -155,8 +164,17 @@ func handleConnect(ctx *AppContext, _ []string) {
 	fmt.Println("──────────────────────────────────────────────────")
 }
 
-func handleListen(ctx *AppContext, _ []string) {
+func handleListen(ctx *AppContext, args []string) {
+	if len(args) > 2 {
+		fmt.Println("Usage: listen [<host:port>]")
+		return
+	}
+
+	// Even if user passes an invalid data, will fail at net.Dial
 	addr := fmt.Sprintf("%s:%d", ctx.Config.IpAddr, ctx.Config.Port)
+	if len(args) == 2 {
+		addr = args[1]
+	}
 
 	fmt.Println("\n─── Listen ──────────────────────────────────────")
 
@@ -305,9 +323,9 @@ func handleHelp(_ *AppContext, args []string) {
 func init() {
 	RegisterCommand("status", handleStatus, "Display current session state and sequence numbers", "status")
 	RegisterCommand("send", handleSend, "Send a FIX message to the remote target", "send [-r] [-a] <msg>")
-	RegisterCommand("connect", handleConnect, "Initiate a TCP connection to the target", "connect")
-	RegisterCommand("listen", handleListen, "Listen on a local port for incoming connections", "listen")
+	RegisterCommand("connect", handleConnect, "Initiate a TCP connection to the target", "connect [<host:port>]")
+	RegisterCommand("listen", handleListen, "Listen on a local port for an incoming connection", "listen [<host:port>]")
 	RegisterCommand("reset", handleReset, "Close current session and initialize a new one", "reset")
-	RegisterCommand("seq", handleSeq, "View or reset FIX sequence numbers", "seq [in|out] <SeqNum>")
+	RegisterCommand("seq", handleSeq, "View or manually override FIX sequence numbers", "seq [in|out] <SeqNum>")
 	RegisterCommand("help", handleHelp, "Display help", "help")
 }

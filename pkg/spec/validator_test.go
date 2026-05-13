@@ -72,7 +72,7 @@ func TestValidate_HappyPath(t *testing.T) {
 		}
 
 		// Validate with Strict mode
-		ok, obs := router.Validate(&msg, ValidationStrict)
+		obs, ok := router.Validate(&msg, ValidationStrict)
 		if !ok {
 			t.Log(msg.String("|"))
 			t.Errorf("Validation failed for sampled message: %v", strings.Join(obs, "; "))
@@ -91,7 +91,7 @@ func TestValidate_CorruptedMessages(t *testing.T) {
 			t.Error("Checksum tag [10] missing in sampled Heartbeat")
 		}
 
-		ok, obs := router.Validate(&msg, ValidationBasic)
+		obs, ok := router.Validate(&msg, ValidationBasic)
 		if ok {
 			t.Error("Validation should have failed for bad checksum")
 		}
@@ -113,7 +113,7 @@ func TestValidate_CorruptedMessages(t *testing.T) {
 			t.Error("BodyLength tag [9] missing in sampled Heartbeat")
 		}
 
-		ok, obs := router.Validate(&msg, ValidationBasic)
+		obs, ok := router.Validate(&msg, ValidationBasic)
 		if ok {
 			t.Error("Validation should have failed for bad body length")
 		}
@@ -129,7 +129,7 @@ func TestValidate_CorruptedMessages(t *testing.T) {
 
 	t.Run("MissingRequiredField", func(t *testing.T) {
 		msg, _ := router.Sample("A", SampleOptions{})
-		ok, _ := router.Validate(&msg, ValidationBasic)
+		_, ok := router.Validate(&msg, ValidationBasic)
 		if !ok {
 			t.Error("Validation expected to pass, but failed")
 		}
@@ -143,7 +143,7 @@ func TestValidate_CorruptedMessages(t *testing.T) {
 		corrupted.Finalize()
 
 		// It should only throw for the missing required field
-		ok, obs := router.Validate(&corrupted, ValidationBasic)
+		obs, ok := router.Validate(&corrupted, ValidationBasic)
 		if ok {
 			t.Error("Validation should have failed when missing required field 98")
 		}
@@ -172,7 +172,7 @@ func TestValidate_DataTypeAndUnknownTags(t *testing.T) {
 		// Finalize to recalculate the checksum, bodylen
 		msg.Finalize()
 
-		ok, obs := router.Validate(&msg, ValidationStrict)
+		obs, ok := router.Validate(&msg, ValidationStrict)
 		if ok {
 			t.Error("Strict validation should catch non-integer value for Tag 108")
 		}
@@ -192,13 +192,13 @@ func TestValidate_DataTypeAndUnknownTags(t *testing.T) {
 		msg.Insert(len(msg)-1, message.Field{Tag: 9999, Value: "Unknown"})
 		msg.Finalize()
 
-		ok, _ := router.Validate(&msg, ValidationStrict)
+		_, ok := router.Validate(&msg, ValidationStrict)
 		if ok {
 			t.Error("Strict validation should fail for unknown tag 9999")
 		}
 
 		// Verify Basic validation ignores it (doesn't fail)
-		ok, obs := router.Validate(&msg, ValidationBasic)
+		obs, ok := router.Validate(&msg, ValidationBasic)
 		if !ok {
 			t.Errorf("Basic validation should ignore unknown tags, got %v", strings.Join(obs, "; "))
 		}
@@ -222,7 +222,7 @@ func TestValidate_FromString(t *testing.T) {
 				t.Fatalf("Parse error: %v", err)
 			}
 
-			ok, obs := router.Validate(&msg, ValidationStrict)
+			obs, ok := router.Validate(&msg, ValidationStrict)
 			if !ok {
 				t.Errorf("Validation failed for raw string: %v", strings.Join(obs, "; "))
 			}
@@ -239,7 +239,7 @@ func TestValidate_FromString(t *testing.T) {
 				t.Fatalf("Parse error: %v", err)
 			}
 
-			ok, _ := router.Validate(&msg, ValidationStrict)
+			_, ok := router.Validate(&msg, ValidationStrict)
 			if ok {
 				t.Errorf("Validation expected to fail, but didn't")
 			}
@@ -268,7 +268,7 @@ func TestValidate_GroupOrdering(t *testing.T) {
 	t.Run("InvalidAnchorTag", func(t *testing.T) {
 		msg := slices.Clone(logon)
 		msg[pos628], msg[pos629] = msg[pos629], msg[pos628]
-		ok, obs := router.Validate(&msg, ValidationStrict)
+		obs, ok := router.Validate(&msg, ValidationStrict)
 		if ok {
 			t.Error("Validation should fail when group members are out of order")
 		} else {
@@ -287,7 +287,7 @@ func TestValidate_GroupOrdering(t *testing.T) {
 		_, pos628 = msg.FindFrom(628, pos628+1)
 		_, pos629 = msg.FindFrom(629, pos629+1)
 		msg[pos628], msg[pos629] = msg[pos629], msg[pos628]
-		ok, obs := router.Validate(&msg, ValidationStrict)
+		obs, ok := router.Validate(&msg, ValidationStrict)
 		if ok {
 			t.Error("Validation should fail when group members are out of order")
 		} else {

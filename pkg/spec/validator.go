@@ -164,10 +164,10 @@ func walkSpec(msg *message.Message, context Entry, idx int, obs *[]string,
 }
 
 // Validate an input message and return list of observations
-func (router *Router) Validate(msg *message.Message, mode ValidationMode) (bool, []string) {
+func (router *Router) Validate(msg *message.Message, mode ValidationMode) ([]string, bool) {
 	var observations []string
 	if mode == ValidationNone {
-		return true, observations
+		return observations, true
 	}
 
 	// Check all mandatory tags by position
@@ -191,10 +191,10 @@ func (router *Router) Validate(msg *message.Message, mode ValidationMode) (bool,
 	for _, requirement := range mandatoryTags {
 		if _, pos := msg.FindFrom(requirement.t, 0); pos == -1 {
 			observations = append(observations, fmt.Sprintf("Missing required Tag [%v]", requirement.t))
-			return false, observations
+			return observations, false
 		} else if requirement.p != -1 && pos != requirement.p {
 			observations = append(observations, fmt.Sprintf("Expected Tag [%v] at pos %v, found at %v", requirement.t, requirement.p, pos))
-			return false, observations
+			return observations, false
 		}
 	}
 
@@ -202,7 +202,7 @@ func (router *Router) Validate(msg *message.Message, mode ValidationMode) (bool,
 	beginStr, _ := msg.Get(8)
 	if want := router.SessionSpec().BeginString(); beginStr != want {
 		observations = append(observations, fmt.Sprintf("BeginString mistmatch, expected %v, found %v", want, beginStr))
-		return false, observations
+		return observations, false
 	}
 
 	// Mandatory checksum validation
@@ -226,25 +226,25 @@ func (router *Router) Validate(msg *message.Message, mode ValidationMode) (bool,
 	msgEntry, ok := msgSpec.Messages[msgType]
 	if !ok {
 		observations = append(observations, fmt.Sprintf("Unknown MsgType '35=%v'", msgType))
-		return false, observations
+		return observations, false
 	}
 
 	// Validate the header
 	pos, err := walkSpec(msg, router.SessionSpec().Header, 0, &observations, router.SessionSpec().Fields, mode)
 	if err != nil {
-		return false, observations
+		return observations, false
 	}
 
 	// Validate the message body following header, we start off where header finished
 	pos, err = walkSpec(msg, msgEntry, pos, &observations, msgSpec.Fields, mode)
 	if err != nil {
-		return false, observations
+		return observations, false
 	}
 
 	// Validate the trailer, start off where body validation left us
 	pos, err = walkSpec(msg, router.SessionSpec().Trailer, pos, &observations, router.SessionSpec().Fields, mode)
 	if err != nil {
-		return false, observations
+		return observations, false
 	}
 
 	// Any left over fields or if we ran out of "context" of entry supplied
@@ -252,5 +252,5 @@ func (router *Router) Validate(msg *message.Message, mode ValidationMode) (bool,
 		observations = append(observations, fmt.Sprintf("Message entry #%v didn't match the spec", pos))
 	}
 
-	return len(observations) == 0, observations
+	return observations, len(observations) == 0
 }

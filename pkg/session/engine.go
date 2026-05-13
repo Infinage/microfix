@@ -176,7 +176,7 @@ func (engine *Engine) finalizeMessage(msg *message.Message, now time.Time) error
 	msg.Finalize()
 
 	// Perform basic validate before sending
-	if ok, obs := engine.validateAgainstSpec(msg, spec.ValidationBasic); !ok {
+	if obs, ok := engine.validateAgainstSpec(msg, spec.ValidationBasic); !ok {
 		return fmt.Errorf("OUTBOUND validation failed: %v | Message: %s", obs, msg.String("|"))
 	}
 
@@ -184,17 +184,17 @@ func (engine *Engine) finalizeMessage(msg *message.Message, now time.Time) error
 }
 
 // Helper to temporarily switch engine DefaultApplVerID if applVerID is set, validate and toggle back
-func (engine *Engine) validateAgainstSpec(msg *message.Message, mode spec.ValidationMode) (bool, []string) {
+func (engine *Engine) validateAgainstSpec(msg *message.Message, mode spec.ValidationMode) ([]string, bool) {
 	beginStr, ok := msg.Get(8)
 	if !ok {
-		return false, []string{"Missing BeginString"}
+		return []string{"Missing BeginString"}, false
 	}
 
 	// Switch DefaultApplVerID if ApplVerID is set
 	oldApplVer := engine.Router.GetDefaultApplVerID()
 	if applVerID, ok := msg.Get(1128); ok && strings.HasPrefix(beginStr, "FIXT") {
 		if !engine.Router.SetDefaultApplVerID(applVerID) {
-			return false, []string{fmt.Sprintf("Message specifies unsupported ApplVerID [1128]: %v", applVerID)}
+			return []string{fmt.Sprintf("Message specifies unsupported ApplVerID [1128]: %v", applVerID)}, false
 		}
 		defer engine.Router.SetDefaultApplVerID(oldApplVer)
 	}
@@ -256,7 +256,7 @@ func (engine *Engine) validate(msg *message.Message, now time.Time) error {
 	}
 
 	// Validate for FIX Spec correctness
-	if ok, obs := engine.validateAgainstSpec(msg, spec.ValidationBasic); !ok {
+	if obs, ok := engine.validateAgainstSpec(msg, spec.ValidationBasic); !ok {
 		return &RejectError{
 			RefSeqNum: engine.inSeqNum,
 			Text:      fmt.Sprintf("Message validation failed: %v", obs),

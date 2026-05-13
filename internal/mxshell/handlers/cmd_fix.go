@@ -183,7 +183,7 @@ func validateMessage(ctx *AppContext, rawMsg string) {
 		validationMode = spec.ValidationBasic
 	}
 
-	ok, obs := ctx.Session.Router().Validate(&msg, validationMode)
+	obs, ok := ctx.Session.Router().Validate(&msg, validationMode)
 
 	if ok {
 		fmt.Println("  Status : OK")

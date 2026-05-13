@@ -336,7 +336,7 @@ func TestEngine_OutboundValidation(t *testing.T) {
 			t.Fatalf("Failed to parse test string: %v", err)
 		}
 
-		ok, obs := engine.validateAgainstSpec(&msg, spec.ValidationBasic)
+		obs, ok := engine.validateAgainstSpec(&msg, spec.ValidationBasic)
 		if ok {
 			t.Error("Expected validateAgainstSpec to fail due to invalid ApplVerID, but passed")
 		} else if len(obs) != 1 || !strings.HasPrefix(obs[0], "Message specifies unsupported ApplVerID [1128]") {
