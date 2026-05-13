@@ -1,0 +1,72 @@
+name: Build and Release MicroFIX
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    
+    strategy:
+          matrix:
+            goos: [linux, windows]
+            goarch: [amd64, arm64]
+            exclude:
+              - goos: windows
+                goarch: arm64
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26' # Update to your specific Go version
+
+      - name: Install UPX
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y upx-ucl
+
+      - name: Enforce go fmt
+        run: |
+          UNFORMATTED=$(go fmt ./...)
+          if [ -n "$UNFORMATTED" ]; then
+            echo "The following files are not formatted:"
+            echo "$UNFORMATTED"
+            echo "Please run 'go fmt ./...' locally and push again."
+            exit 1
+          fi
+
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Build Production Binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0  # Disable CGO for statically linked binaries
+        run: |
+          # Target the mxshell entrypoint
+          OUTPUT_NAME="mxshell-${{ matrix.goos }}-${{ matrix.goarch }}"
+          
+          # -s strips symbol table, -w strips DWARF debugging info
+          go build -ldflags="-s -w" -o $OUTPUT_NAME ./cmd/mxshell
+          
+          # Pass the filename to the next steps
+          echo "BINARY_NAME=$OUTPUT_NAME" >> $GITHUB_ENV
+
+      - name: Compress with UPX
+        run: upx --best ${{ env.BINARY_NAME }}
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          # This creates 4 separate zip files in the GitHub UI
+          name: microfix-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: ${{ env.BINARY_NAME }}
+          retention-days: 7
