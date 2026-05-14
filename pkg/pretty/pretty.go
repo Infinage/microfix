@@ -65,18 +65,20 @@ func SpecEntry(w io.Writer, e spec.Entry, lookup map[string]uint16, includeOptio
 
 // Pretty print the message input per spec
 func Message(w io.Writer, msg *message.Message, ro *spec.Router) error {
-	msgType, _ := msg.Get(35)
-	sp := ro.SpecForMsgType(msgType)
+	ssp := ro.SessionSpec()
 
-	context, ok := sp.Messages[msgType]
+	msgType, _ := msg.Get(35)
+	bsp := ro.SpecForMsgType(msgType)
+
+	context, ok := bsp.Messages[msgType]
 	if !ok {
-		printFields(w, msg, sp.Fields)
+		printFields(w, msg, bsp.Fields)
 		return fmt.Errorf("unknown MsgType: '%s'", msgType)
 	}
 
 	// HEADER
 	fmt.Fprintln(w, "[HEADER]")
-	trees, pos := buildTrees(msg, sp, &sp.Header, 0)
+	trees, pos := buildTrees(ro, msg, ssp, &ssp.Header, 0)
 	if len(trees) == 0 {
 		fmt.Fprintln(w, "  (empty)")
 	} else {
@@ -86,7 +88,7 @@ func Message(w io.Writer, msg *message.Message, ro *spec.Router) error {
 	// BODY
 	fmt.Fprintln(w, "\n[BODY]")
 
-	trees, pos = buildTrees(msg, sp, &context, pos)
+	trees, pos = buildTrees(ro, msg, bsp, &context, pos)
 	if len(trees) == 0 {
 		fmt.Fprintln(w, "  (empty)")
 	} else {
@@ -95,7 +97,7 @@ func Message(w io.Writer, msg *message.Message, ro *spec.Router) error {
 
 	// TRAILER
 	fmt.Fprintln(w, "\n[TRAILER]")
-	trees, pos = buildTrees(msg, sp, &sp.Trailer, pos)
+	trees, pos = buildTrees(ro, msg, ssp, &ssp.Trailer, pos)
 	if len(trees) == 0 {
 		fmt.Fprintln(w, "  (empty)")
 	} else {
@@ -186,7 +188,7 @@ type treeNode struct {
 }
 
 // Build structured tree from FIX message
-func buildTrees(msg *message.Message, sp *spec.Spec, ctx *spec.Entry, pos int) ([]treeNode, int) {
+func buildTrees(ro *spec.Router, msg *message.Message, sp *spec.Spec, ctx *spec.Entry, pos int) ([]treeNode, int) {
 	// We have to clean up after we have processed one entry from group
 	// to ensure we dont inadvertently consume entries belonging to another group
 	localLookup := maps.Clone(ctx.Lookup)
@@ -199,7 +201,7 @@ func buildTrees(msg *message.Message, sp *spec.Spec, ctx *spec.Entry, pos int) (
 		// Unknown to context
 		if !inCtx {
 			// Completely unknown field → print anyway
-			if _, ok := sp.Fields[field.Tag]; !ok {
+			if _, ok := ro.Field(field.Tag); !ok {
 				result = append(result, treeNode{
 					tag:     field.Tag,
 					value:   field.Value,
@@ -246,7 +248,7 @@ func buildTrees(msg *message.Message, sp *spec.Spec, ctx *spec.Entry, pos int) (
 			}
 
 			for i := 0; i < repeat; i++ {
-				children, newPos := buildTrees(msg, sp, &nCtx, pos)
+				children, newPos := buildTrees(ro, msg, sp, &nCtx, pos)
 				pos = newPos
 
 				node.children = append(node.children, children)

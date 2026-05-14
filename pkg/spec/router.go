@@ -137,3 +137,16 @@ func (r *Router) SpecForMsgType(msgType string) *Spec {
 	}
 	return r.ApplSpec()
 }
+
+// Checks if field is available in SessionSpec, if not checks in ApplSpec
+func (r *Router) Field(tag uint16) (FieldDef, bool) {
+	if fDef, ok := r.SessionSpec().Fields[tag]; ok {
+		return fDef, true
+	}
+
+	if fDef, ok := r.ApplSpec().Fields[tag]; ok {
+		return fDef, true
+	}
+
+	return FieldDef{}, false
+}

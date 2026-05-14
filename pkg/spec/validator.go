@@ -58,8 +58,8 @@ const (
 )
 
 // Returns index just after processing the message for that context
-func walkSpec(msg *message.Message, context Entry, idx int, obs *[]string,
-	fields map[uint16]FieldDef, mode ValidationMode) (int, error) {
+func walkSpec(ro *Router, msg *message.Message, mode ValidationMode, context Entry,
+	fields map[uint16]FieldDef, idx int, obs *[]string) (int, error) {
 
 	// Clone the original so we don't end up modifying it
 	localLookup := maps.Clone(context.Lookup)
@@ -70,8 +70,8 @@ func walkSpec(msg *message.Message, context Entry, idx int, obs *[]string,
 		pos, exists := localLookup[field.Tag]
 
 		if !exists {
-			// If unknown field we can skip processing it
-			if _, knownField := fields[field.Tag]; !knownField {
+			// If unknown field we can skip processing it - check in sess + appl
+			if _, knownField := ro.Field(field.Tag); !knownField {
 				if mode == ValidationStrict {
 					*obs = append(*obs, fmt.Sprintf("Unknown tag [%v]", field.Tag))
 				}
@@ -111,7 +111,7 @@ func walkSpec(msg *message.Message, context Entry, idx int, obs *[]string,
 
 			for gi := range repeat {
 				// Recurse for that repeating group
-				idx, err = walkSpec(msg, entry, idx+1, obs, fields, mode)
+				idx, err = walkSpec(ro, msg, mode, entry, fields, idx+1, obs)
 				if err != nil {
 					return idx, err
 				}
@@ -230,19 +230,19 @@ func (router *Router) Validate(msg *message.Message, mode ValidationMode) ([]str
 	}
 
 	// Validate the header
-	pos, err := walkSpec(msg, router.SessionSpec().Header, 0, &observations, router.SessionSpec().Fields, mode)
+	pos, err := walkSpec(router, msg, mode, router.SessionSpec().Header, router.SessionSpec().Fields, 0, &observations)
 	if err != nil {
 		return observations, false
 	}
 
 	// Validate the message body following header, we start off where header finished
-	pos, err = walkSpec(msg, msgEntry, pos, &observations, msgSpec.Fields, mode)
+	pos, err = walkSpec(router, msg, mode, msgEntry, msgSpec.Fields, pos, &observations)
 	if err != nil {
 		return observations, false
 	}
 
 	// Validate the trailer, start off where body validation left us
-	pos, err = walkSpec(msg, router.SessionSpec().Trailer, pos, &observations, router.SessionSpec().Fields, mode)
+	pos, err = walkSpec(router, msg, mode, router.SessionSpec().Trailer, router.SessionSpec().Fields, pos, &observations)
 	if err != nil {
 		return observations, false
 	}

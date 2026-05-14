@@ -145,3 +145,31 @@ func TestPrettyMessage_MultipleGroups(t *testing.T) {
 		t.Errorf("GOOG should belong to Group 2:\n%s", out)
 	}
 }
+
+func TestPrettyMessage_FIXTMultiplexing(t *testing.T) {
+	ro, err := spec.NewRouter("FIXT11.xml", []string{"FIX44.xml"})
+	if err != nil {
+		t.Fatalf("Failed to load router: %v", err)
+	}
+
+	msg, err := ro.Sample("AE", spec.SampleOptions{})
+	if err != nil {
+		t.Fatalf("Failed to sample message [AE]: %v", err)
+	}
+
+	var buf bytes.Buffer
+	err = Message(&buf, &msg, ro)
+	if err != nil {
+		t.Fatalf("Pretty print failed: %v", err)
+	}
+
+	out := buf.String()
+
+	// Every tag should be accounted for and no section should be empty
+	if strings.Contains(out, "(empty)") {
+		t.Errorf("Output message contains empty sections: %v", out)
+	}
+	if strings.Contains(out, "UNKNOWN") {
+		t.Errorf("Output message contains unresolved tags: %v", out)
+	}
+}

@@ -300,3 +300,20 @@ func TestValidate_GroupOrdering(t *testing.T) {
 		}
 	})
 }
+
+func TestValidate_FIXTMultiplexing(t *testing.T) {
+	ro, err := NewRouter("FIXT11.xml", []string{"FIX44.xml"})
+	if err != nil {
+		t.Fatalf("Failed to load router: %v", err)
+	}
+
+	msg, err := ro.Sample("AE", SampleOptions{})
+	if err != nil {
+		t.Fatalf("Failed to sample message [AE]: %v", err)
+	}
+
+	if obs, ok := ro.Validate(&msg, ValidationStrict); !ok {
+		t.Errorf("Expected round trip sampling and validation to "+
+			"pass, but failed with observations: %v", obs)
+	}
+}
