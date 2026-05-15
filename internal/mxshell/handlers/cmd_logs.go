@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 
 	"github.com/infinage/microfix/pkg/ringbuf"
@@ -32,6 +33,42 @@ func streamLogs(cb *ringbuf.CircularBuffer) {
 			fmt.Println(logLine)
 		}
 	}
+}
+
+func tailLogs(cb *ringbuf.CircularBuffer, n int) {
+	if n <= 0 {
+		fmt.Println("tail count must be > 0")
+		return
+	}
+
+	fmt.Println("\n─── Log Tail ───────────────────────────────────")
+
+	logs := cb.Tail(n)
+	for _, line := range logs {
+		fmt.Println(line)
+	}
+
+	fmt.Println("──────────────────────────────────────────────────")
+	fmt.Printf("  Count : %d\n", len(logs))
+	fmt.Println("──────────────────────────────────────────────────")
+}
+
+func headLogs(cb *ringbuf.CircularBuffer, n int) {
+	if n <= 0 {
+		fmt.Println("head count must be > 0")
+		return
+	}
+
+	fmt.Println("\n─── Log Head ───────────────────────────────────")
+
+	logs := cb.Head(n)
+	for _, line := range logs {
+		fmt.Println(line)
+	}
+
+	fmt.Println("──────────────────────────────────────────────────")
+	fmt.Printf("  Count : %d\n", len(logs))
+	fmt.Println("──────────────────────────────────────────────────")
 }
 
 func clearLogs(cb *ringbuf.CircularBuffer) {
@@ -72,7 +109,9 @@ func saveLogs(cb *ringbuf.CircularBuffer, filepath string) {
 	}
 	defer f.Close()
 
-	cb.Dump(f)
+	for _, line := range cb.Dump() {
+		fmt.Fprintln(f, line)
+	}
 
 	fmt.Printf("  Status : OK\n")
 	fmt.Printf("  Path   : %s\n", filepath)
@@ -83,17 +122,29 @@ func saveLogs(cb *ringbuf.CircularBuffer, filepath string) {
 func handleLogs(ctx *AppContext, args []string) {
 	if len(args) < 2 {
 		fmt.Println("\n─── Session Logs ─────────────────────────────────")
-		ctx.Logs.Dump(os.Stdout)
+		for _, line := range ctx.Logs.Dump() {
+			fmt.Fprintln(os.Stdout, line)
+		}
 		fmt.Println("──────────────────────────────────────────────────")
 		return
 	}
 
 	sub := strings.ToLower(args[1])
 	switch sub {
-	case "-f":
+	case "stream":
 		streamLogs(ctx.Logs)
 	case "clear":
 		clearLogs(ctx.Logs)
+	case "head", "tail":
+		if len(args) != 3 {
+			fmt.Println("Usage: logs [head | tail] <n>")
+		} else if n, err := strconv.Atoi(args[2]); err != nil {
+			fmt.Printf("Not a valid integer: %v\n", args[2])
+		} else if args[1] == "head" {
+			headLogs(ctx.Logs, n)
+		} else {
+			tailLogs(ctx.Logs, n)
+		}
 	case "search":
 		if len(args) < 3 {
 			fmt.Println("Usage: logs search <regex>")
@@ -116,6 +167,6 @@ func init() {
 		"logs",
 		handleLogs,
 		"View, stream, search, or save session logs",
-		"logs [-f | search <regex> | save <path> | clear]",
+		"logs [stream | search <regex> | save <path> | clear | head <n> | tail <n>]",
 	)
 }

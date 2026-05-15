@@ -38,7 +38,7 @@ func NewRouter(sessionSpecPath string, applSpecPaths []string) (*Router, error) 
 	}
 
 	// Store the mapping to translate ApplVerID / DefaultApplVerID
-	if applVerID, err := sessSpec.Field(1128); err == nil {
+	if applVerID, ok := sessSpec.Fields[1128]; ok {
 		for _, enum := range applVerID.Enums {
 			router.applVerIDMap[enum.Enum] = enum.Description
 		}

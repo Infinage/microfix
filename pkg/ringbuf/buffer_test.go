@@ -1,8 +1,8 @@
 package ringbuf
 
 import (
-	"bytes"
-	"strings"
+	"fmt"
+	"slices"
 	"sync"
 	"testing"
 )
@@ -15,27 +15,82 @@ func TestCircularBuffer_BasicOps(t *testing.T) {
 	cb.Write("line 2")
 	cb.Write("line 3")
 
-	// Overwrite the first element (it's circular)
+	// Overwrite the first element
 	cb.Write("line 4")
 
-	var buf bytes.Buffer
-	cb.Dump(&buf)
-
-	output := strings.TrimSpace(buf.String())
-	expected := "line 2\nline 3\nline 4"
-
-	if output != expected {
-		t.Errorf("expected:\n%s\n\ngot:\n%s", expected, output)
+	// Dump returns all logs - check for circular nature
+	output := cb.Dump()
+	expected := []string{"line 2", "line 3", "line 4"}
+	if !slices.Equal(output, expected) {
+		t.Errorf("expected:\n%v\n\ngot:\n%v", expected, output)
 	}
 
-	// Clear the logs and ensure that dump yeilds empty
-	buf.Reset()
+	// Clear the logs and ensure that dump yields empty
 	cb.Clear()
-	cb.Dump(&buf)
-
-	if output := buf.String(); output != "" {
+	output = cb.Dump()
+	if len(output) != 0 {
 		t.Errorf("Expected buffer to be empty post clear, got:\n%v", output)
 	}
+}
+
+func TestCircularBuffer_HeadTail(t *testing.T) {
+	t.Run("Head and Tail - Not Wrapped", func(t *testing.T) {
+		cb := NewCircularBuffer(5)
+		cb.Write("msg1")
+		cb.Write("msg2")
+		cb.Write("msg3")
+
+		headRes := cb.Head(2)
+		if !slices.Equal(headRes, []string{"msg1", "msg2"}) {
+			t.Errorf("Head 2 failed, got: %v", headRes)
+		}
+
+		tailRes := cb.Tail(2)
+		if !slices.Equal(tailRes, []string{"msg2", "msg3"}) {
+			t.Errorf("Tail 2 failed, got: %v", tailRes)
+		}
+
+		// Exceeding bounds (should clamp to all available)
+		if exceed := cb.Head(10); !slices.Equal(exceed, []string{"msg1", "msg2", "msg3"}) {
+			t.Errorf("Exceeding bound failed, got: %v", exceed)
+		}
+		if exceed := cb.Tail(10); !slices.Equal(exceed, []string{"msg1", "msg2", "msg3"}) {
+			t.Errorf("Exceeding bound failed, got: %v", exceed)
+		}
+
+		// Zero count
+		if len(cb.Head(0)) != 0 || len(cb.Tail(0)) != 0 {
+			t.Errorf("Head/Tail 0 should return empty slice")
+		}
+	})
+
+	t.Run("Head and Tail - Wrapped", func(t *testing.T) {
+		cb := NewCircularBuffer(5)
+		for i := 1; i <= 7; i++ {
+			cb.Write(fmt.Sprintf("msg%d", i))
+		}
+
+		// Buffer holds: msg3, msg4, msg5, msg6, msg7
+		expectedAll := []string{"msg3", "msg4", "msg5", "msg6", "msg7"}
+
+		headRes := cb.Head(2)
+		if !slices.Equal(headRes, []string{"msg3", "msg4"}) {
+			t.Errorf("Head 2 failed, got: %v", headRes)
+		}
+
+		tailRes := cb.Tail(2)
+		if !slices.Equal(tailRes, []string{"msg6", "msg7"}) {
+			t.Errorf("Tail 2 failed, got: %v", tailRes)
+		}
+
+		// Exceeding bounds (should clamp to all)
+		if exceed := cb.Head(10); !slices.Equal(exceed, expectedAll) {
+			t.Errorf("Head exceeding bounds failed, got: %v", exceed)
+		}
+		if exceed := cb.Tail(10); !slices.Equal(exceed, expectedAll) {
+			t.Errorf("Tail exceeding bounds failed, got: %v", exceed)
+		}
+	})
 }
 
 func TestCircularBuffer_Filter(t *testing.T) {
@@ -92,6 +147,32 @@ func TestCircularBuffer_Concurrency(t *testing.T) {
 		wg.Wait()
 	})
 
+	t.Run("HeadTailAPI", func(t *testing.T) {
+		cb := NewCircularBuffer(10)
+		var wg sync.WaitGroup
+		wg.Add(2)
+
+		// Spin up a writer
+		go func() {
+			defer wg.Done()
+			for range 100 {
+				cb.Write("data")
+			}
+		}()
+
+		// Spin up a reader hitting boundaries
+		go func() {
+			defer wg.Done()
+			for range 100 {
+				_ = cb.Head(5)
+				_ = cb.Tail(15)
+				_ = cb.Dump()
+			}
+		}()
+
+		wg.Wait()
+	})
+
 	t.Run("SubscribeAPI", func(t *testing.T) {
 		cb := NewCircularBuffer(10)
 
@@ -110,7 +191,7 @@ func TestCircularBuffer_Concurrency(t *testing.T) {
 			}
 		}()
 
-		// Listen for logs on subscribed channel 1
+		// Listen for logs on subscribed channels
 		for _, ch := range []<-chan string{ch1, ch2} {
 			go func(ch <-chan string) {
 				defer wg.Done()
@@ -143,8 +224,7 @@ func TestCircularBuffer_Concurrency(t *testing.T) {
 		defer cancel()
 
 		// The subscriber channel buffer is size 256.
-		// We are going to write 300 messages WITHOUT reading them.
-		// If the non-blocking `select` in cb.Write is broken, this test will deadlock/freeze.
+		// We write 300 messages WITHOUT reading to verify the non blocking drop logic.
 		for range 300 {
 			cb.Write("data")
 		}

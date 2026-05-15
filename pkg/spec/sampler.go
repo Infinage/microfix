@@ -53,15 +53,6 @@ func defaultString(dtype string) string {
 	}
 }
 
-func (spec *Spec) Field(tag uint16) (FieldDef, error) {
-	res, ok := spec.Fields[tag]
-	if !ok {
-		return FieldDef{}, fmt.Errorf("Tag [%v] not found in the spec", tag)
-	}
-
-	return res, nil
-}
-
 // Configuration for generating a template message
 type SampleOptions struct {
 	// IncludeOptional toggles the generation of non-required fields

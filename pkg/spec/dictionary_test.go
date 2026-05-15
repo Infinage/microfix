@@ -79,8 +79,7 @@ func TestLoadSpecDeepValidation(t *testing.T) {
 	}
 
 	// Test for non-existent fields
-	_, err = spec.Field(9999)
-	if err == nil {
+	if _, ok := spec.Fields[9999]; ok {
 		t.Error("Expected error for non-existent tag 9999")
 	}
 
@@ -128,8 +127,8 @@ func TestLoadSpecDeepValidation(t *testing.T) {
 	}
 
 	// Verify Enums are preserved
-	msgTypeField, err := spec.Field(35)
-	if err != nil {
+	msgTypeField, ok := spec.Fields[35]
+	if !ok {
 		t.Fatal("Field 35 (MsgType) definition missing")
 	}
 	if msgTypeField.Name != "MsgType" || msgTypeField.Type != "STRING" {
