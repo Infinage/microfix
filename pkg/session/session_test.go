@@ -146,6 +146,40 @@ func TestSession_Lifecycle(t *testing.T) {
 			t.Fatal("expected resend request on wire")
 		}
 	})
+
+	t.Run("Verify LastIn and LastOut messages recorded", func(t *testing.T) {
+		expect := []struct {
+			msgType     string
+			isIncoming  bool
+			shouldExist bool
+		}{
+			{"A", false, true},  // Outgoing Logon (from start)
+			{"A", true, true},   // Incoming Logon (from transition active)
+			{"D", true, true},   // Incoming NewOrderSingle (the gap message)
+			{"2", false, true},  // Outgoing ResendRequest (triggered by gap)
+			{"D", false, false}, // Never sent an outgoing NewOrderSingle
+			{"0", true, false},  // Never received an incoming Heartbeat
+		}
+
+		for _, scenario := range expect {
+			mapName := "LastOut"
+			if scenario.isIncoming {
+				mapName = "LastIn"
+			}
+
+			msg := sess.LastMessage(scenario.msgType, scenario.isIncoming)
+
+			if scenario.shouldExist && msg == nil {
+				t.Errorf("expected to find message of type '%v' in '%v'", scenario.msgType, mapName)
+			} else if !scenario.shouldExist && msg != nil {
+				t.Errorf("did not expect to find message of type '%v' in '%v', but found one", scenario.msgType, mapName)
+			} else if scenario.shouldExist && msg != nil {
+				if mt, _ := msg.Get(35); mt != scenario.msgType {
+					t.Errorf("expected retrieved msg type to be '%v', got: '%v'", scenario.msgType, mt)
+				}
+			}
+		}
+	})
 }
 
 func TestSession_DeliverAppMessage(t *testing.T) {
@@ -187,6 +221,14 @@ func TestSession_DeliverAppMessage(t *testing.T) {
 		}
 	case <-time.After(100 * time.Millisecond):
 		t.Fatal("Timeout waiting for application message to be delivered")
+	}
+
+	// Verify LastIn tracked the app message successfully
+	lastD := sess.LastMessage("D", true)
+	if lastD == nil {
+		t.Errorf("Expected LastMessage('D', true) to be recorded, got nil")
+	} else if mt, _ := lastD.Get(35); mt != "D" {
+		t.Errorf("Expected LastMessage type D, got %v", mt)
 	}
 }
 

@@ -32,6 +32,10 @@ type Session struct {
 	tombstone      atomic.Value
 	closeRequested atomic.Bool
 	closed         atomic.Bool
+
+	// Store latest messages by MsgType (Tag 35)
+	lastIn  map[string]message.Message
+	lastOut map[string]message.Message
 }
 
 func (sess *Session) Incoming() <-chan message.Message {
@@ -71,12 +75,14 @@ func NewSession(specPath string, senderCompID string, targetCompID string, heart
 		incoming: make(chan message.Message, 1024),
 		logs:     make(chan Log, 1024),
 		requests: make(chan userRequest, 128),
+		lastIn:   make(map[string]message.Message),
+		lastOut:  make(map[string]message.Message),
 	}
 
 	return sess, nil
 }
 
-// Close the session (gaurd to ensure we dont try to close a non active session)
+// Close the session (guard to ensure we dont try to close a non active session)
 func (sess *Session) Close() {
 	if sess.base != nil && sess.closeRequested.CompareAndSwap(false, true) {
 		select {
@@ -176,7 +182,40 @@ func (sess *Session) ResetSequence(inSeqNum int64, outSeqNum int64) {
 	if sess.base == nil || sess.closeRequested.Load() {
 		return
 	}
-	sess.requests <- resetSequence{inSeqNum: inSeqNum, outSeqNum: outSeqNum}
+	sess.requests <- resetSequenceRequest{inSeqNum: inSeqNum, outSeqNum: outSeqNum}
+}
+
+// Query the last incoming / outgoing message
+func (sess *Session) LastMessage(msgType string, isIncoming bool) *message.Message {
+	if msgType == "" || sess.base == nil {
+		return nil
+	}
+
+	// Once run loop has ended, we can safely touch LastIn / LastOut
+	if sess.closed.Load() {
+		if isIncoming {
+			if msg, ok := sess.lastIn[msgType]; ok {
+				return &msg
+			}
+		} else {
+			if msg, ok := sess.lastOut[msgType]; ok {
+				return &msg
+			}
+		}
+		return nil
+	}
+
+	// Create a reply channel for session to respond back on
+	reply := make(chan *message.Message)
+	sess.requests <- lastMessageRequest{isIncoming: isIncoming, msgType: msgType, reply: reply}
+
+	// Wait until request is fullfilled or done is fired
+	select {
+	case msg := <-reply:
+		return msg
+	case <-sess.Done():
+		return nil
+	}
 }
 
 // -------------- INTERNAL FUNCTIONS -------------- //
@@ -223,6 +262,9 @@ func (sess *Session) handleSend(msg message.Message, passthrough bool) {
 	case sess.base.Outgoing() <- msg:
 		now := time.Now()
 		sess.engine.recordWrite(&msg, now)
+		if msgType, ok := msg.Get(35); ok {
+			sess.lastOut[msgType] = msg
+		}
 		sess.writeLog(newMessageLog(now, msg, false))
 	case <-sess.Done():
 		sess.writeLog(newErrorLog(time.Now(), fmt.Errorf("Send failed, session closed: %v", msg.String("|"))))
@@ -299,6 +341,9 @@ func (sess *Session) run(isClient bool) {
 				return
 			}
 			now := time.Now()
+			if msgType, ok := msg.Get(35); ok {
+				sess.lastIn[msgType] = msg
+			}
 			sess.writeLog(newMessageLog(now, msg, true))
 			actions := sess.engine.OnMessage(&msg, now)
 			sess.execute(actions)
