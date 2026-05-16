@@ -375,7 +375,7 @@ func TestEngine_StrictInboundValidation(t *testing.T) {
 		// Engine is FIX.4.4, but msg is FIX.4.2
 		msg, _ := message.MessageFromString("8=FIX.4.2|9=00|35=0|49=T|56=S|34=1|52=20260510-12:00:00.000|10=000|", "|")
 		err := engine.validate(&msg, time.Now())
-		if err == nil || !strings.Contains(err.Error(), "BeginString mistmatch") {
+		if err == nil || !strings.Contains(err.Error(), "BeginString mismatch") {
 			t.Fatalf("expected BeginString mismatch error, got %v", err)
 		}
 	})

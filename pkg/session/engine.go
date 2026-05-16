@@ -209,7 +209,7 @@ func (engine *Engine) validate(msg *message.Message, now time.Time) error {
 	// Validate BeginString [8]
 	beginStr, ok := msg.Get(8)
 	if want := engine.Router.SessionSpec().BeginString(); !ok || beginStr != want {
-		return fmt.Errorf("BeginString mistmatch, expected %v, found %v", want, beginStr)
+		return fmt.Errorf("BeginString mismatch, expected %v, found %v", want, beginStr)
 	}
 
 	// Validate MsgType [35]

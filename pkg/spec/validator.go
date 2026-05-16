@@ -201,7 +201,7 @@ func (router *Router) Validate(msg *message.Message, mode ValidationMode) ([]str
 	// Validate BeginString [8]
 	beginStr, _ := msg.Get(8)
 	if want := router.SessionSpec().BeginString(); beginStr != want {
-		observations = append(observations, fmt.Sprintf("BeginString mistmatch, expected %v, found %v", want, beginStr))
+		observations = append(observations, fmt.Sprintf("BeginString mismatch, expected %v, found %v", want, beginStr))
 		return observations, false
 	}
 

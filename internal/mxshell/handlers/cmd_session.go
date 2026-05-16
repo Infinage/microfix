@@ -19,8 +19,8 @@ func startLogger(sess *session.Session, cb *ringbuf.CircularBuffer) {
 	// Session closes logs on run loop exit
 	for log := range sess.Log() {
 		hint := ""
-		if msg := log.Msg; msg != nil {
-			msgType, _ := msg.Get(35)
+		if log.Type == session.LogSend || log.Type == session.LogRecv {
+			msgType, _ := log.Msg.Get(35)
 			entry, ok := sess.Router().SpecForMsgType(msgType).Messages[msgType]
 			if ok {
 				hint = entry.Name
