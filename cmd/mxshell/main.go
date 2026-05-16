@@ -7,9 +7,9 @@ import (
 	"path"
 	"strings"
 
-	"github.com/infinage/microfix/internal/mxshell/config"
 	"github.com/infinage/microfix/internal/mxshell/handlers"
 	"github.com/infinage/microfix/pkg/ringbuf"
+	"github.com/infinage/microfix/pkg/store"
 
 	"github.com/peterh/liner"
 )
@@ -66,16 +66,14 @@ func main() {
  \$$      \$$ \$$   \$$        \$$$$$$  \$$   \$$  \$$$$$$$ \$$ \$$
 	`)
 
-	cfg := config.InitConfig()
-	alias := config.InitAlias()
+	st := store.InitStore()
 
 	ctx := &handlers.AppContext{
-		Alias:  &alias,
-		Config: &cfg,
-		Logs:   ringbuf.NewCircularBuffer(1000),
+		Store: &st,
+		Logs:  ringbuf.NewCircularBuffer(1000),
 	}
 
-	sess, err := handlers.NewSession(&cfg)
+	sess, err := handlers.NewSession(ctx.Store)
 	if err != nil {
 		fmt.Printf("Critical Error: %v\n", err)
 		os.Exit(1)

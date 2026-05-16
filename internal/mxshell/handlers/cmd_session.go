@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/infinage/microfix/internal/mxshell/config"
 	"github.com/infinage/microfix/pkg/message"
 	"github.com/infinage/microfix/pkg/ringbuf"
 	"github.com/infinage/microfix/pkg/session"
+	"github.com/infinage/microfix/pkg/store"
 )
 
 // Read from session and write into circular buffer
@@ -30,8 +30,9 @@ func startLogger(sess *session.Session, cb *ringbuf.CircularBuffer) {
 	}
 }
 
-func NewSession(cfg *config.Config) (*session.Session, error) {
+func NewSession(store *store.Store) (*session.Session, error) {
 	// Create new session
+	cfg := store.Config()
 	return session.NewSession(
 		cfg.SpecPath,
 		cfg.SenderCompID,
@@ -100,7 +101,7 @@ func handleSend(ctx *AppContext, args []string) {
 	// Resolve from Alias registry
 	raw := args[len(args)-1]
 	if isAlias {
-		if rawMsg, ok := (*ctx.Alias)[raw]; ok {
+		if rawMsg, ok, _ := ctx.Store.Get("ALIAS." + raw); ok {
 			raw = rawMsg
 		} else {
 			err = fmt.Errorf("Alias %v not found", raw)
@@ -145,7 +146,8 @@ func handleConnect(ctx *AppContext, args []string) {
 	}
 
 	// Even if user passes an invalid data, will fail at net.Dial
-	addr := fmt.Sprintf("%s:%d", ctx.Config.IpAddr, ctx.Config.Port)
+	cfg := ctx.Store.Config()
+	addr := fmt.Sprintf("%s:%d", cfg.IpAddr, cfg.Port)
 	if len(args) == 2 {
 		addr = args[1]
 	}
@@ -171,7 +173,8 @@ func handleListen(ctx *AppContext, args []string) {
 	}
 
 	// Even if user passes an invalid data, will fail at net.Dial
-	addr := fmt.Sprintf("%s:%d", ctx.Config.IpAddr, ctx.Config.Port)
+	cfg := ctx.Store.Config()
+	addr := fmt.Sprintf("%s:%d", cfg.IpAddr, cfg.Port)
 	if len(args) == 2 {
 		addr = args[1]
 	}
@@ -196,7 +199,7 @@ func handleReset(ctx *AppContext, _ []string) {
 
 	ctx.Session.Close()
 
-	s, err := NewSession(ctx.Config)
+	s, err := NewSession(ctx.Store)
 	if err != nil {
 		fmt.Printf("  Status : FAILED\n")
 		fmt.Printf("  Error  : %v\n", err)

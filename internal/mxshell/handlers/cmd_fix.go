@@ -83,6 +83,7 @@ func searchFixSpec(s *session.Session, pattern string) {
 
 func queryFixSpec(ctx *AppContext, sub, id string) {
 	ro := ctx.Session.Router()
+	cfg := ctx.Store.Config()
 
 	switch sub {
 	case "field":
@@ -107,7 +108,7 @@ func queryFixSpec(ctx *AppContext, sub, id string) {
 		msgSpec := ro.SpecForMsgType(id)
 		if m, ok := msgSpec.Messages[id]; ok {
 			fmt.Println("\n─── Message Definition ────────────────────────────")
-			pretty.SpecEntry(os.Stdout, m, msgSpec.FieldNames, ctx.Config.SpecDisplayOptFields, 0)
+			pretty.SpecEntry(os.Stdout, m, msgSpec.FieldNames, cfg.SpecDisplayOptFields, 0)
 			fmt.Println("────────────────────────────────────────────────────")
 		} else {
 			fmt.Printf("Message %s not found\n", id)
@@ -115,7 +116,7 @@ func queryFixSpec(ctx *AppContext, sub, id string) {
 
 	case "sample":
 		includeOptional := false
-		if ctx.Config.FixSampleOptional {
+		if cfg.FixSampleOptional {
 			includeOptional = true
 		}
 
@@ -179,7 +180,7 @@ func validateMessage(ctx *AppContext, rawMsg string) {
 	}
 
 	validationMode := spec.ValidationStrict
-	if !ctx.Config.FixValidateStrict {
+	if !ctx.Store.Config().FixValidateStrict {
 		validationMode = spec.ValidationBasic
 	}
 
@@ -220,7 +221,7 @@ func displayMeta(ctx *AppContext, meta string) {
 	}
 
 	fmt.Printf("\n──── %s Definition ────────────────────────────\n", strings.ToUpper(meta))
-	pretty.SpecEntry(os.Stdout, entry, sp.FieldNames, ctx.Config.SpecDisplayOptFields, 0)
+	pretty.SpecEntry(os.Stdout, entry, sp.FieldNames, ctx.Store.Config().SpecDisplayOptFields, 0)
 	fmt.Println("────────────────────────────────────────────────────")
 }
 func handleFix(ctx *AppContext, args []string) {

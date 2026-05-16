@@ -1,16 +1,15 @@
 package handlers
 
 import (
-	"github.com/infinage/microfix/internal/mxshell/config"
 	"github.com/infinage/microfix/pkg/ringbuf"
 	"github.com/infinage/microfix/pkg/session"
+	"github.com/infinage/microfix/pkg/store"
 )
 
 // Every handler takes in the context along with args
 type AppContext struct {
 	Session *session.Session
-	Alias   *config.Alias
-	Config  *config.Config
+	Store   *store.Store
 	Logs    *ringbuf.CircularBuffer
 }
 

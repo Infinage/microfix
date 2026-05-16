@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/infinage/microfix/internal/mxshell/config"
+	"github.com/infinage/microfix/pkg/store"
 )
 
-func listAliases(aliases config.Alias) {
+func listAliases(st *store.Store) {
 	fmt.Println("\n─── Aliases ─────────────────────────────────────")
+
+	// Retreive read only copy of aliases
+	aliases := st.Config().Alias
 
 	if len(aliases) == 0 {
 		fmt.Println("  (no aliases defined)")
@@ -31,38 +34,23 @@ func listAliases(aliases config.Alias) {
 	fmt.Println("──────────────────────────────────────────────────")
 }
 
-func addAlias(aliases config.Alias, key, value string) {
+func addAlias(key, value string, st *store.Store) {
 	fmt.Println("\n─── Alias Update ────────────────────────────────")
 
-	old, exists := aliases[key]
-	aliases[key] = value
+	// Call store API
+	oldVal, exists, _ := st.Set("ALIAS."+key, value)
 
 	fmt.Printf("  Status : OK\n")
 	fmt.Printf("  Alias  : %s\n", key)
-
 	if exists {
-		fmt.Printf("  Old    : %s\n", old)
+		fmt.Printf("  Old    : %s\n", oldVal)
 	}
 	fmt.Printf("  New    : %s\n", value)
 
 	fmt.Println("──────────────────────────────────────────────────")
 }
 
-func dumpAliases(aliases config.Alias, filepath string) {
-	fmt.Println("\n─── Alias Save ──────────────────────────────────")
-
-	if err := aliases.Dump(filepath); err != nil {
-		fmt.Printf("  Status : FAILED\n")
-		fmt.Printf("  Error  : %v\n", err)
-	} else {
-		fmt.Printf("  Status : OK\n")
-		fmt.Printf("  File   : %s\n", filepath)
-	}
-
-	fmt.Println("──────────────────────────────────────────────────")
-}
-
-func deleteAlias(aliases config.Alias, keys []string) {
+func deleteAlias(keys []string, st *store.Store) {
 	fmt.Println("\n─── Alias Delete ────────────────────────────────")
 
 	if len(keys) == 0 {
@@ -75,8 +63,7 @@ func deleteAlias(aliases config.Alias, keys []string) {
 	var deleted int
 
 	for _, key := range keys {
-		if old, exists := aliases[key]; exists {
-			delete(aliases, key)
+		if old, exists, _ := st.Unset("ALIAS." + key); exists {
 			fmt.Printf("  Removed: %-15s → %s\n", key, old)
 			deleted++
 		} else {
@@ -95,11 +82,9 @@ func deleteAlias(aliases config.Alias, keys []string) {
 }
 
 func handleAlias(ctx *AppContext, args []string) {
-	aliases := *ctx.Alias
-
 	// default → list
 	if len(args) == 1 {
-		listAliases(aliases)
+		listAliases(ctx.Store)
 		return
 	}
 
@@ -108,7 +93,7 @@ func handleAlias(ctx *AppContext, args []string) {
 	switch sub {
 
 	case "list":
-		listAliases(aliases)
+		listAliases(ctx.Store)
 
 	case "add":
 		if len(args) < 4 {
@@ -118,21 +103,14 @@ func handleAlias(ctx *AppContext, args []string) {
 
 		key := args[2]
 		value := args[3]
-		addAlias(aliases, key, value)
-
-	case "save":
-		path := ".mxalias"
-		if len(args) > 2 {
-			path = args[2]
-		}
-		dumpAliases(aliases, path)
+		addAlias(key, value, ctx.Store)
 
 	case "del":
 		if len(args) < 2 {
 			fmt.Println("Usage: alias del <name1> [<name2> ...]")
 			return
 		}
-		deleteAlias(aliases, args[2:])
+		deleteAlias(args[2:], ctx.Store)
 
 	default:
 		fmt.Printf("Unknown alias subcommand: %s\n", sub)
@@ -143,7 +121,7 @@ func init() {
 	RegisterCommand(
 		"alias",
 		handleAlias,
-		"View, update or save FIX message shortcuts",
-		"alias [list | save <path> | add <alias> <fixMessage> | del <alias>]",
+		"View or update FIX message shortcuts",
+		"alias [list | add <alias> <fixMessage> | del <alias>]",
 	)
 }
