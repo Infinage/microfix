@@ -293,7 +293,7 @@ func handleHelp(_ *ShellContext, args []string) {
 	fmt.Println("Available Commands:")
 	fmt.Println("────────────────────────────────────────────")
 
-	fmt.Println("\nMXShell - Minimal FIX Client")
+	fmt.Println("\nMXShell - CLI FIX Client")
 	fmt.Println("Version :", version)
 	fmt.Println("Author  : nj.deesa@gmail.com")
 	fmt.Println("")

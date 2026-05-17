@@ -112,14 +112,6 @@ func main() {
 			ctx.Session.Close()
 			return
 
-		// REPL stays alive
-		case "disconnect":
-			ctx.Session.Close()
-
-		// Clear screen
-		case "clear":
-			fmt.Print("\033[H\033[2J")
-
 		// Dispatch to handler
 		default:
 			if handler, ok := handlers.ShellCommandRegistry[cmdName]; ok {
