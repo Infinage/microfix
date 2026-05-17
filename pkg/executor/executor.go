@@ -1,11 +1,77 @@
 package executor
 
 import (
+	"bufio"
+	"context"
+	"encoding/csv"
+	"fmt"
+	"io"
+	"strings"
+
 	"github.com/infinage/microfix/pkg/session"
 	"github.com/infinage/microfix/pkg/store"
 )
 
-type Context struct {
-	sess *session.Session
-	st   *store.Store
+func NewScriptContext(sess *session.Session, st *store.Store) (ScriptContext, context.CancelFunc) {
+	ctx, cancel := context.WithCancel(context.Background())
+	return ScriptContext{GoCtx: ctx, Session: sess, Store: st}, cancel
+}
+
+// Evaluate a single line with provided context
+func Eval(line string, ctx *ScriptContext) error {
+	expandedLine, err := Substitute(line, ctx)
+	if err != nil {
+		return fmt.Errorf("substitution failed: %w", err)
+	}
+
+	creader := csv.NewReader(strings.NewReader(expandedLine))
+	creader.Comma = ' '
+
+	args, err := creader.Read()
+	if err != nil || len(args) == 0 {
+		return fmt.Errorf("not a valid input: %w\n", err)
+	}
+
+	cmdName := strings.ToLower(strings.TrimSpace(args[0]))
+	cmdHandler, ok := ScriptRegistry[cmdName]
+	if !ok {
+		return fmt.Errorf("unknown command: %v", cmdName)
+	}
+
+	if err := cmdHandler(ctx, args); err != nil {
+		return fmt.Errorf("execute failed: %w", err)
+	}
+
+	return nil
+}
+
+// Evaluate from input source line by line, passing each result to callback provided
+func EvalBatch(r io.Reader, ctx *ScriptContext) error {
+	lineNo, reader := 0, bufio.NewReader(r)
+	for {
+		// Read a single line
+		line, err := reader.ReadString('\n')
+		lineNo++ // Starts at #1
+
+		// Break on EOF, return on error
+		if err != nil {
+			if err != io.EOF {
+				return err
+			}
+			break
+		}
+
+		// Ignore empty lines and comments
+		line = strings.TrimSpace(line)
+		if line == "" || line[0] == '#' {
+			continue
+		}
+
+		// Evaluate the line and exit early on error
+		if err := Eval(line, ctx); err != nil {
+			return fmt.Errorf("line %d: %w", lineNo, err)
+		}
+	}
+
+	return nil
 }

@@ -99,13 +99,13 @@ func TestSubstitute_Variables(t *testing.T) {
 	_, _, _ = st.Set("ALIAS.Logon", "35=A|98=0|108=30")
 
 	// Set up the execution context
-	ctx := &Context{st: &st, sess: nil}
+	ctx := &ScriptContext{Store: &st, Session: nil}
 
 	t.Run("Standard Variables", func(t *testing.T) {
 		input := "35=D|55=$VARS.Symbol|38=$VARS.Qty|"
 		expected := "35=D|55=AAPL|38=100|"
 
-		res, err := Substitute(ctx, input)
+		res, err := Substitute(input, ctx)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -118,7 +118,7 @@ func TestSubstitute_Variables(t *testing.T) {
 		input := "send $ALIAS.Logon"
 		expected := "send 35=A|98=0|108=30"
 
-		res, err := Substitute(ctx, input)
+		res, err := Substitute(input, ctx)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -129,7 +129,7 @@ func TestSubstitute_Variables(t *testing.T) {
 
 	t.Run("Magics: Unique and Timestamp", func(t *testing.T) {
 		input := "11=$UNIQUE|52=$TIMESTAMP|"
-		res, err := Substitute(ctx, input)
+		res, err := Substitute(input, ctx)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -141,15 +141,15 @@ func TestSubstitute_Variables(t *testing.T) {
 
 	t.Run("Missing Variable (Strict Failure)", func(t *testing.T) {
 		input := "35=D|55=$VARS.DoesNotExist|"
-		_, err := Substitute(ctx, input)
+		_, err := Substitute(input, ctx)
 		if err == nil {
 			t.Error("Expected an error for a missing variable, got nil")
 		}
 	})
-	
+
 	t.Run("Missing Namespace (Strict Failure)", func(t *testing.T) {
 		input := "35=D|55=$UNKNOWN.Symbol|"
-		_, err := Substitute(ctx, input)
+		_, err := Substitute(input, ctx)
 		if err == nil {
 			t.Error("Expected an error for an unknown prefix, got nil")
 		}

@@ -86,7 +86,7 @@ func setConfig(key string, value string, st *store.Store) {
 // config - list all configs
 // config [load|dump] <filepath>
 // config set <field> <value>
-func handleConfig(ctx *AppContext, args []string) {
+func handleConfig(ctx *ShellContext, args []string) {
 	if len(args) == 1 {
 		printConfig(ctx.Store)
 		return

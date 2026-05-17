@@ -13,18 +13,18 @@ import (
 
 // Regex to find $SOMETHING or $PREFIX.SOMETHING
 var varRegex = regexp.MustCompile(
-    `\$([A-Z_]+)(?:\.([A-Za-z0-9_.]+))?(?:\[([^\]]*)\])?`,
+	`\$([A-Z_]+)(?:\.([A-Za-z0-9_.]+))?(?:\[([^\]]*)\])?`,
 )
 
 // Helper to generate a random UUID
 func uuid() string {
-    b := make([]byte, 16)
-    _, err := rand.Read(b)
-    if err != nil {
-        return ""
-    }
+	b := make([]byte, 16)
+	_, err := rand.Read(b)
+	if err != nil {
+		return ""
+	}
 
-    return fmt.Sprintf("%X-%X-%X-%X-%X", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
+	return fmt.Sprintf("%X-%X-%X-%X-%X", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
 }
 
 func extractSBrackets(raw string) (string, error) {
@@ -36,10 +36,10 @@ func extractSBrackets(raw string) (string, error) {
 		return "", synErr
 	}
 
-	return raw[start + 1: end], nil
+	return raw[start+1 : end], nil
 }
 
-func substituteMessageTag(raw string, isIncoming bool, ctx *Context) (string, error) {
+func substituteMessageTag(raw string, isIncoming bool, ctx *ScriptContext) (string, error) {
 	contents, err := extractSBrackets(raw)
 	if err != nil {
 		return "", err
@@ -47,7 +47,7 @@ func substituteMessageTag(raw string, isIncoming bool, ctx *Context) (string, er
 
 	splits := strings.SplitN(contents, ",", 2)
 	if len(splits) != 2 {
-		return  "", fmt.Errorf("Invalid syntax, must be of form: `$*[MsgType,Tag]`")
+		return "", fmt.Errorf("Invalid syntax, must be of form: `$*[MsgType,Tag]`")
 	}
 
 	tag, err := strconv.ParseUint(strings.TrimSpace(splits[1]), 10, 16)
@@ -58,14 +58,16 @@ func substituteMessageTag(raw string, isIncoming bool, ctx *Context) (string, er
 	msgType := strings.TrimSpace(splits[0])
 	var msg *message.Message
 	if isIncoming {
-		msg = ctx.sess.LastMessage(msgType, true)
+		msg = ctx.Session.LastMessage(msgType, true)
 	} else {
-		msg = ctx.sess.LastMessage(msgType, false)
+		msg = ctx.Session.LastMessage(msgType, false)
 	}
 
 	if msg == nil {
 		dir := "incoming"
-		if !isIncoming { dir = "outgoing" }
+		if !isIncoming {
+			dir = "outgoing"
+		}
 		return "", fmt.Errorf("No %s message of type [%v] found", dir, msgType)
 	}
 
@@ -99,7 +101,7 @@ func substituteDate(raw string) (string, error) {
 // Expand takes a string like "35=D|11=$UNIQUE|55=$VAR.Symbol" and fills it in.
 // Magic vars: $UNIQUE, $TIMESTAMP, $DATE, $DATE[+days], $LASTIN[MsgType, tag], $LASTOUT[MsgType,tag]
 // Store vars: $CFG.*, $ALIAS.*, $VARS.*, $ENV.*
-func Substitute(ctx *Context, input string) (string, error) {
+func Substitute(input string, ctx *ScriptContext) (string, error) {
 	var expandErr error
 
 	// match is the full string: "$VAR.Symbol" or "$UNIQUE" or "$LASTIN[35]"
@@ -131,7 +133,7 @@ func Substitute(ctx *Context, input string) (string, error) {
 		// Handle State (CFG, ALIAS, VARS, ENV)
 		// Strip the '$' and ask the store
 		storeKey := strings.TrimPrefix(match, "$")
-		val, ok, err := ctx.st.Get(storeKey)
+		val, ok, err := ctx.Store.Get(storeKey)
 		if !ok || err != nil {
 			expandErr = fmt.Errorf("variable resolution failed for '%s': %w", match, err)
 			return match

@@ -45,7 +45,7 @@ func NewSession(store *store.Store) (*session.Session, error) {
 	)
 }
 
-func handleStatus(ctx *AppContext, _ []string) {
+func handleStatus(ctx *ShellContext, _ []string) {
 	snapshot := ctx.Session.Status()
 
 	var stateColor string
@@ -77,7 +77,7 @@ func handleStatus(ctx *AppContext, _ []string) {
 	fmt.Println("──────────────────────────────────────────────────")
 }
 
-func handleSend(ctx *AppContext, args []string) {
+func handleSend(ctx *ShellContext, args []string) {
 	if len(args) < 1 {
 		fmt.Println("Usage: send [-r] [-a] <FixString>")
 		return
@@ -139,7 +139,7 @@ func handleSend(ctx *AppContext, args []string) {
 	fmt.Println("──────────────────────────────────────────────────")
 }
 
-func handleConnect(ctx *AppContext, args []string) {
+func handleConnect(ctx *ShellContext, args []string) {
 	if len(args) > 2 {
 		fmt.Println("Usage: connect [<host:port>]")
 		return
@@ -166,7 +166,7 @@ func handleConnect(ctx *AppContext, args []string) {
 	fmt.Println("──────────────────────────────────────────────────")
 }
 
-func handleListen(ctx *AppContext, args []string) {
+func handleListen(ctx *ShellContext, args []string) {
 	if len(args) > 2 {
 		fmt.Println("Usage: listen [<host:port>]")
 		return
@@ -194,7 +194,7 @@ func handleListen(ctx *AppContext, args []string) {
 	fmt.Println("──────────────────────────────────────────────────")
 }
 
-func handleReset(ctx *AppContext, _ []string) {
+func handleReset(ctx *ShellContext, _ []string) {
 	fmt.Println("\n─── Session Reset ───────────────────────────────")
 
 	ctx.Session.Close()
@@ -215,7 +215,7 @@ func handleReset(ctx *AppContext, _ []string) {
 	fmt.Println("──────────────────────────────────────────────────")
 }
 
-func handleSeq(ctx *AppContext, args []string) {
+func handleSeq(ctx *ShellContext, args []string) {
 	sess := ctx.Session
 
 	// View current sequence numbers
@@ -271,13 +271,13 @@ func handleSeq(ctx *AppContext, args []string) {
 	}
 }
 
-func handleHelp(_ *AppContext, args []string) {
+func handleHelp(_ *ShellContext, args []string) {
 	const version = "v0.1.0"
 
 	// If user asks: help <command>
 	if len(args) > 1 {
 		cmdName := args[1]
-		cmd, ok := CommandRegistry[cmdName]
+		cmd, ok := ShellCommandRegistry[cmdName]
 		if !ok {
 			fmt.Printf("Unknown command: %s\n", cmdName)
 			return
@@ -299,8 +299,8 @@ func handleHelp(_ *AppContext, args []string) {
 	fmt.Println("")
 
 	// Sort commands for stable output
-	names := make([]string, 0, len(CommandRegistry))
-	for name := range CommandRegistry {
+	names := make([]string, 0, len(ShellCommandRegistry))
+	for name := range ShellCommandRegistry {
 		names = append(names, name)
 	}
 	sort.Strings(names)
@@ -315,7 +315,7 @@ func handleHelp(_ *AppContext, args []string) {
 
 	// Print nicely aligned
 	for _, name := range names {
-		cmd := CommandRegistry[name]
+		cmd := ShellCommandRegistry[name]
 		fmt.Printf("  %-*s  │ %s\n", maxLen, name, cmd.Description)
 	}
 

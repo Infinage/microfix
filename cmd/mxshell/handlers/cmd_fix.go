@@ -81,7 +81,7 @@ func searchFixSpec(s *session.Session, pattern string) {
 	fmt.Println("────────────────────────────────────────────────────")
 }
 
-func queryFixSpec(ctx *AppContext, sub, id string) {
+func queryFixSpec(ctx *ShellContext, sub, id string) {
 	ro := ctx.Session.Router()
 	cfg := ctx.Store.Config()
 
@@ -134,7 +134,7 @@ func queryFixSpec(ctx *AppContext, sub, id string) {
 }
 
 // Prettify and print the output matching against fix spec
-func decodeMessage(ctx *AppContext, rawMsg string) {
+func decodeMessage(ctx *ShellContext, rawMsg string) {
 	delim := rawMsg[len(rawMsg)-1:]
 	msg, err := message.MessageFromString(rawMsg, delim)
 	if err != nil {
@@ -151,7 +151,7 @@ func decodeMessage(ctx *AppContext, rawMsg string) {
 }
 
 // Recomputes the checksum and bodylen - inserts if missing
-func finalizeRawMessage(_ *AppContext, rawMsg string) {
+func finalizeRawMessage(_ *ShellContext, rawMsg string) {
 	delim := rawMsg[len(rawMsg)-1:]
 	msg, err := message.MessageFromString(rawMsg, delim)
 	if err != nil {
@@ -167,7 +167,7 @@ func finalizeRawMessage(_ *AppContext, rawMsg string) {
 	fmt.Println("────────────────────────────────────────────────────")
 }
 
-func validateMessage(ctx *AppContext, rawMsg string) {
+func validateMessage(ctx *ShellContext, rawMsg string) {
 	fmt.Println("\n─── FIX Validation ────────────────────────────────")
 
 	delim := rawMsg[len(rawMsg)-1:]
@@ -205,7 +205,7 @@ func validateMessage(ctx *AppContext, rawMsg string) {
 	fmt.Println("────────────────────────────────────────────────────")
 }
 
-func displayMeta(ctx *AppContext, meta string) {
+func displayMeta(ctx *ShellContext, meta string) {
 	// Headers and Trailers ALWAYS belong to the Session Spec
 	sp := ctx.Session.Router().SessionSpec()
 
@@ -224,7 +224,7 @@ func displayMeta(ctx *AppContext, meta string) {
 	pretty.SpecEntry(os.Stdout, entry, sp.FieldNames, ctx.Store.Config().SpecDisplayOptFields, 0)
 	fmt.Println("────────────────────────────────────────────────────")
 }
-func handleFix(ctx *AppContext, args []string) {
+func handleFix(ctx *ShellContext, args []string) {
 	if len(args) < 3 || len(args[2]) == 0 {
 		fmt.Println("Usage: \n" +
 			"fix meta [header|trailer]\n" +

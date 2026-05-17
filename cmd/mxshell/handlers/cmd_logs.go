@@ -119,7 +119,7 @@ func saveLogs(cb *ringbuf.CircularBuffer, filepath string) {
 }
 
 // Main log handler
-func handleLogs(ctx *AppContext, args []string) {
+func handleLogs(ctx *ShellContext, args []string) {
 	if len(args) < 2 {
 		fmt.Println("\n─── Session Logs ─────────────────────────────────")
 		for _, line := range ctx.Logs.Dump() {

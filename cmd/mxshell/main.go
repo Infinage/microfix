@@ -7,7 +7,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/infinage/microfix/internal/mxshell/handlers"
+	"github.com/infinage/microfix/cmd/mxshell/handlers"
 	"github.com/infinage/microfix/pkg/ringbuf"
 	"github.com/infinage/microfix/pkg/store"
 
@@ -68,7 +68,7 @@ func main() {
 
 	st := store.InitStore()
 
-	ctx := &handlers.AppContext{
+	ctx := &handlers.ShellContext{
 		Store: &st,
 		Logs:  ringbuf.NewCircularBuffer(1000),
 	}
@@ -122,7 +122,7 @@ func main() {
 
 		// Dispatch to handler
 		default:
-			if handler, ok := handlers.CommandRegistry[cmdName]; ok {
+			if handler, ok := handlers.ShellCommandRegistry[cmdName]; ok {
 				handler.Handler(ctx, args)
 			} else {
 				fmt.Printf("Unknown command: %s\n", cmdName)

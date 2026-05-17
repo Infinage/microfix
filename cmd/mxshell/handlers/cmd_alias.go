@@ -81,7 +81,7 @@ func deleteAlias(keys []string, st *store.Store) {
 	fmt.Println("──────────────────────────────────────────────────")
 }
 
-func handleAlias(ctx *AppContext, args []string) {
+func handleAlias(ctx *ShellContext, args []string) {
 	// default → list
 	if len(args) == 1 {
 		listAliases(ctx.Store)
