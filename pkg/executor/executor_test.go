@@ -69,13 +69,26 @@ func TestEval_Substitution(t *testing.T) {
 	ctx, buf := setupTestContext(t)
 	ctx.Store.Set("VARS.Target", "MOCK_EXCHANGE")
 
-	err := Eval("print Connecting to $VARS.Target", ctx)
-	if err != nil {
+	if err := Eval("print Connecting to $VARS.Target", ctx); err != nil {
 		t.Fatalf("Eval failed: %v", err)
 	}
 
-	expected := "Connecting to MOCK_EXCHANGE\n"
-	if buf.String() != expected {
+	if expected := "Connecting to MOCK_EXCHANGE\n"; buf.String() != expected {
 		t.Errorf("Expected %q, got %q", expected, buf.String())
 	}
+
+	t.Run("Testing assert command", func(t *testing.T) {
+		ctx.Store.Set("VARS.Target", "MOCK_EXCHANGE")
+		if err := Eval("assert $VARS.Target MOCK_EXCHANGE", ctx); err != nil {
+			t.Errorf("Expected assertion to pass, failed: %v", err)
+		}
+		if err := Eval("assert MOCK_EXCHANGE $VARS.Target", ctx); err != nil {
+			t.Errorf("Expected assertion to pass, but failed: %v", err)
+		}
+
+		ctx.Store.Set("VARS.Target", "0")
+		if err := Eval("assert MOCK_EXCHANGE $VARS.Target", ctx); err == nil {
+			t.Error("Expected assertion to fail, but passed")
+		}
+	})
 }

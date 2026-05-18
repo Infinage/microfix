@@ -47,8 +47,22 @@ func handleSleep(ctx *ScriptContext, args []string) error {
 	}
 }
 
+// Just compare, already substituted before call
+func handleAssert(_ *ScriptContext, args []string) error {
+	if len(args) != 3 {
+		return fmt.Errorf("syntax error, expected: `assert <expr1> <expr2>`")
+	}
+
+	if expr1, expr2 := strings.TrimSpace(args[1]), strings.TrimSpace(args[2]); expr1 != expr2 {
+		return fmt.Errorf("assert failed, expected '%v' but got '%v'", expr1, expr2)
+	}
+
+	return nil
+}
+
 func init() {
-	RegisterCommand("set", handleSet)     // set <key> <value>
-	RegisterCommand("print", handlePrint) // print [<value1>, [<value2> [...]]]
-	RegisterCommand("sleep", handleSleep) // sleep <millis>
+	RegisterCommand("set", handleSet)       // set <key> <value>
+	RegisterCommand("print", handlePrint)   // print [<value1>, [<value2> [...]]]
+	RegisterCommand("sleep", handleSleep)   // sleep <millis>
+	RegisterCommand("assert", handleAssert) // assert <expr1> <expr2>
 }
