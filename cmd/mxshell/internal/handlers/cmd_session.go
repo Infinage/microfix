@@ -347,11 +347,22 @@ func handleHelp(_ *ShellContext, args []string) {
 }
 
 func init() {
-	RegisterCommand("status", handleStatus, "Display current session state and sequence numbers", "status")
-	RegisterCommand("send", handleSend, "Send a FIX message to the remote target", "send [-r] [-a] <msg>")
-	RegisterCommand("connect", handleConnect, "Initiate a TCP connection to the target", "connect [<host:port>]")
-	RegisterCommand("listen", handleListen, "Listen on a local port for an incoming connection", "listen [<host:port>]")
-	RegisterCommand("reset", handleReset, "Close current session and initialize a new one", "reset")
-	RegisterCommand("seq", handleSeq, "View or manually override FIX sequence numbers", "seq [in|out] <SeqNum>")
-	RegisterCommand("help", handleHelp, "Display help", "help")
+	RegisterCommand("status", handleStatus, "Display current session state and sequence numbers", "status", nil)
+	RegisterCommand("connect", handleConnect, "Initiate a TCP connection to the target", "connect [<host:port>]", nil)
+	RegisterCommand("listen", handleListen, "Listen on a local port for an incoming connection", "listen [<host:port>]", nil)
+	RegisterCommand("reset", handleReset, "Close current session and initialize a new one", "reset", nil)
+	RegisterCommand("seq", handleSeq, "View or manually override FIX sequence numbers", "seq [in|out] <SeqNum>", nil)
+
+	RegisterCommand(
+		"send", handleSend,
+		"Send a FIX message to the remote target",
+		"send [-r] [-a] <msg>",
+		[]string{"-a", "-r"},
+	)
+
+	RegisterCommand(
+		"help", handleHelp, "Display help", "help",
+		[]string{"alias", "clear", "config", "connect", "disconnect", "fix",
+			"help", "listen", "logs", "reset", "run", "send", "seq", "status"},
+	)
 }

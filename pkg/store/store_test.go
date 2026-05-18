@@ -1,7 +1,6 @@
 package store
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 )
@@ -110,7 +109,7 @@ func TestStore_Set(t *testing.T) {
 		}
 	})
 
-	t.Run("Set CFG (Triggers Auto-Save)", func(t *testing.T) {
+	t.Run("Set CFG", func(t *testing.T) {
 		oldVal, existed, err := s.Set("CFG.Port", "9999")
 		if err != nil {
 			t.Fatalf("Unexpected error setting CFG: %v", err)
@@ -120,11 +119,6 @@ func TestStore_Set(t *testing.T) {
 		}
 		if oldVal != "1234" {
 			t.Errorf("Expected old value '1234', got %q", oldVal)
-		}
-
-		// Verify it actually dumped to disk!
-		if _, err := os.Stat(s.configPath); os.IsNotExist(err) {
-			t.Errorf("Expected config to be auto-saved to %s, but file is missing", s.configPath)
 		}
 	})
 

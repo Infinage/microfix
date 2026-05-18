@@ -123,5 +123,6 @@ func init() {
 		handleAlias,
 		"View or update FIX message shortcuts",
 		"alias [list | add <alias> <fixMessage> | del <alias>]",
+		[]string{"list", "add", "del"}, // For autocompletion
 	)
 }

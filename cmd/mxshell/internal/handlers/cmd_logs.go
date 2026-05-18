@@ -175,5 +175,6 @@ func init() {
 		handleLogs,
 		"View, stream, search, or save session logs",
 		"logs [stream | search <regex> | save <path> | clear | head <n> | tail <n>]",
+		[]string{"stream", "search", "save", "clear", "head", "tail"}, // For autocompletion
 	)
 }

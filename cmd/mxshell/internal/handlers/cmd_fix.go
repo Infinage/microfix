@@ -257,5 +257,6 @@ func init() {
 		handleFix,
 		"Query FIX dictionary, generate samples, and validate messages",
 		"fix [search <regex> | meta <header|trailer> | <decode|validate|finalize> <msg> | <field|message|sample> <id>]",
+		[]string{"search", "meta", "decode", "validate", "finalize", "field", "message", "sample"}, // For autocompletion
 	)
 }

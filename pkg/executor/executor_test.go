@@ -11,7 +11,9 @@ import (
 )
 
 // setupTestContext creates a dummy context for testing isolated commands
-func setupTestContext() (*script.ScriptContext, *bytes.Buffer) {
+func setupTestContext(t *testing.T) (*script.ScriptContext, *bytes.Buffer) {
+	t.Helper()
+
 	st := store.InitStore()
 	buf := new(bytes.Buffer)
 
@@ -26,7 +28,7 @@ func setupTestContext() (*script.ScriptContext, *bytes.Buffer) {
 }
 
 func TestEval_BasicCommand(t *testing.T) {
-	ctx, buf := setupTestContext()
+	ctx, buf := setupTestContext(t)
 
 	// Register a dummy command just for this test
 	script.RegisterCommand("testcmd", func(c *script.ScriptContext, args []string) error {
@@ -45,7 +47,7 @@ func TestEval_BasicCommand(t *testing.T) {
 }
 
 func TestEvalBatch_CommentsAndEmptyLines(t *testing.T) {
-	ctx, _ := setupTestContext()
+	ctx, _ := setupTestContext(t)
 
 	script := `
 # This is a comment
@@ -64,7 +66,7 @@ print $VARS.Symbol
 }
 
 func TestEval_Substitution(t *testing.T) {
-	ctx, buf := setupTestContext()
+	ctx, buf := setupTestContext(t)
 	ctx.Store.Set("VARS.Target", "MOCK_EXCHANGE")
 
 	err := Eval("print Connecting to $VARS.Target", ctx)

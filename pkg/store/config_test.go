@@ -201,9 +201,9 @@ func TestConfig_InitConfig(t *testing.T) {
 			t.Errorf("Expected default SenderCompID 'SENDER', got %s", cfg.SenderCompID)
 		}
 
-		// Verify the file was actually written to disk
-		if _, err := os.Stat(expectedPath); os.IsNotExist(err) {
-			t.Error("Expected .mxrc to be physically created in CWD, but it was not")
+		// Verify that file was not actually written, requires a manual save
+		if _, err := os.Stat(expectedPath); !os.IsNotExist(err) {
+			t.Error("Expected .mxrc to be absent in CWD, but it was present")
 		}
 	})
 

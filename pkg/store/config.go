@@ -27,6 +27,8 @@ type Config struct {
 	Port   uint16 `json:"Port"`
 
 	Alias map[string]string `json:"Alias"`
+
+	DefaultTimeoutSec uint32 `json:"DefaultTimeoutSec"`
 }
 
 func (cfg *Config) dump(filepath string) error {
@@ -84,10 +86,9 @@ func initConfig() (Config, string) {
 		IpAddr:               "0.0.0.0",
 		Port:                 1234,
 		Alias:                make(map[string]string),
+		DefaultTimeoutSec:    5,
 	}
 
-	// Write default template to CWD
-	cfg.dump(filepath_cwd)
 	return *cfg, filepath_cwd
 }
 

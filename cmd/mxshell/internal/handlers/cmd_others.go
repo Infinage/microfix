@@ -9,6 +9,22 @@ import (
 	"github.com/infinage/microfix/pkg/executor"
 )
 
+// Helper to translate ShellContext to ScriptContext context and execute a file
+func RunFile(ctx *ShellContext, fpath string, out io.Writer) error {
+	f, err := os.Open(fpath)
+	if err != nil {
+		return fmt.Errorf("failed to read: %w", err)
+	}
+	defer f.Close()
+
+	// Trigger context close on interupt
+	scriptCtx, stop := executor.NewScriptContext(ctx.Session, ctx.Store, out)
+	defer stop()
+
+	// Evaluate the file
+	return executor.EvalBatch(f, &scriptCtx)
+}
+
 func handleDisconnect(ctx *ShellContext, args []string) {
 	if len(args) != 1 {
 		fmt.Println("Usage: disconnect")
@@ -39,23 +55,14 @@ func handleScript(ctx *ShellContext, args []string) {
 		out = io.Discard
 	}
 
-	f, err := os.Open(fpath)
-	if err != nil {
-		fmt.Println("failed to read: %w", err)
-	}
-
-	// Trigger context close on interupt
-	scriptCtx, stop := executor.NewScriptContext(ctx.Session, ctx.Store, out)
-	defer stop()
-
 	// Evaluate the file
-	if err = executor.EvalBatch(f, &scriptCtx); err != nil {
+	if err := RunFile(ctx, fpath, out); err != nil {
 		fmt.Printf("run command failed: %v\n", err)
 	}
 }
 
 func init() {
-	RegisterCommand("disconnect", handleDisconnect, "Disconnect session", "disconnect")
-	RegisterCommand("clear", handleClear, "Clear screen", "clear")
-	RegisterCommand("run", handleScript, "Run an external script", "run [-q] <filepath>")
+	RegisterCommand("clear", handleClear, "Clear screen", "clear", nil)
+	RegisterCommand("run", handleScript, "Run an external script", "run [-q] <filepath>", nil)
+	RegisterCommand("disconnect", handleDisconnect, "Disconnect session", "disconnect", nil)
 }

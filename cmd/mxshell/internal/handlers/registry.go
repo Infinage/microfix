@@ -21,16 +21,18 @@ type CommandDef struct {
 	Handler     Command
 	Description string
 	Usage       string
+	SubCommands []string
 }
 
 // Map containing commands and corresponding handlers
 var ShellCommandRegistry = make(map[string]CommandDef)
 
 // Global func to register new handlers
-func RegisterCommand(command string, handler Command, desc, usage string) {
+func RegisterCommand(command string, handler Command, desc, usage string, subCmds []string) {
 	ShellCommandRegistry[command] = CommandDef{
 		Handler:     handler,
 		Description: desc,
 		Usage:       usage,
+		SubCommands: subCmds,
 	}
 }

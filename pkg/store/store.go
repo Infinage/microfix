@@ -56,9 +56,14 @@ func (c *Store) LoadConfig(filepath string) error {
 	return err
 }
 
-// DumpConfig explicitly writes the current configuration state to the specified path.
+// Writes the current configuration state to the specified path.
 func (c *Store) DumpConfig(filepath string) error {
 	return c.cfg.dump(filepath)
+}
+
+// Read only copy of path config was loaded from
+func (c *Store) ConfigPath() string {
+	return c.configPath
 }
 
 // Get retrieves a value based on its namespace prefix.
@@ -92,8 +97,8 @@ func (c *Store) Get(key string) (string, bool, error) {
 	}
 }
 
-// Set updates a value in the store and triggers an auto-save for persistent namespaces (CFG, ALIAS).
-// It returns the previous value, a boolean indicating if it was an update to an existing key, and an error.
+// Set updates a value in the store and returns the previous value, a boolean
+// indicating if it was an update to an existing key, and an error.
 func (c *Store) Set(key, value string) (string, bool, error) {
 	prefix, name, err := splitKeyPrefix(key)
 	if err != nil {
@@ -106,13 +111,11 @@ func (c *Store) Set(key, value string) (string, bool, error) {
 		if err != nil {
 			return "", false, err
 		}
-		err = c.cfg.dump(c.configPath)
-		return oldVal, true, err
+		return oldVal, true, nil
 
 	case "ALIAS":
 		val, ok := c.cfg.setAlias(name, value)
-		err := c.cfg.dump(c.configPath)
-		return val, ok, err
+		return val, ok, nil
 
 	case "VARS":
 		oldVal, ok := c.vars[name]
@@ -141,8 +144,7 @@ func (c *Store) Unset(key string) (string, bool, error) {
 
 	case "ALIAS":
 		val, ok := c.cfg.deleteAlias(name)
-		err := c.cfg.dump(c.configPath)
-		return val, ok, err
+		return val, ok, nil
 
 	case "VARS":
 		oldVal, ok := c.vars[name]

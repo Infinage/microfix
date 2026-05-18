@@ -84,7 +84,8 @@ func setConfig(key string, value string, st *store.Store) {
 }
 
 // config - list all configs
-// config [load|dump] <filepath>
+// config save [<filepath>]
+// config load <filepath>
 // config set <field> <value>
 func handleConfig(ctx *ShellContext, args []string) {
 	if len(args) == 1 {
@@ -101,12 +102,19 @@ func handleConfig(ctx *ShellContext, args []string) {
 		}
 		loadConfig(args[2], ctx.Store)
 
-	case "dump":
-		if len(args) < 3 {
-			fmt.Println("Usage: config dump <path>")
+	case "save":
+		if nargs := len(args); nargs < 2 || nargs > 3 {
+			fmt.Println("Usage: config save [<path>]")
 			return
 		}
-		dumpConfig(args[2], ctx.Store)
+
+		// If no save path mentioned, save to load path
+		fpath := ctx.Store.ConfigPath()
+		if len(args) == 3 {
+			fpath = args[2]
+		}
+
+		dumpConfig(fpath, ctx.Store)
 
 	case "set":
 		if len(args) != 4 {
@@ -124,7 +132,8 @@ func init() {
 	RegisterCommand(
 		"config",
 		handleConfig,
-		"View or modify the current session configuration, config updates are auto saved.",
-		"config [load <path> | dump <path> | set <key> <val>]",
+		"View, modify or save the current session configuration.",
+		"config [save [<path>] | load <path> | set <key> <val>]",
+		[]string{"save", "load", "set"}, // For autocompletion
 	)
 }
