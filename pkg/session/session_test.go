@@ -25,6 +25,16 @@ func (m *MockConnection) Errors() <-chan error             { return m.errors }
 func (m *MockConnection) Done() <-chan struct{}            { return m.done }
 func (m *MockConnection) Close()                           { close(m.done) }
 
+func (con *MockConnection) drain() {
+	for {
+		select {
+		case <-con.outgoing:
+		case <-con.done:
+			return
+		}
+	}
+}
+
 func TestSession_Lifecycle(t *testing.T) {
 	mockConn := &MockConnection{
 		incoming: make(chan message.Message, 10),
@@ -42,7 +52,10 @@ func TestSession_Lifecycle(t *testing.T) {
 	sess.start(mockConn, true)
 
 	// Subscribe to logs channel
-	logCh, unsubscribe := sess.SubscribeLog()
+	logCh, unsubscribe, err := sess.SubscribeLog()
+	if err != nil {
+		t.Fatal("Log subscription failed")
+	}
 	defer unsubscribe()
 
 	// Drain out the "Starting session as sys log"
@@ -302,12 +315,15 @@ func TestSession_LogConcurrency(t *testing.T) {
 	workers := 50
 	iterations := 100
 
+	// Start a goroutine to drain out any outgoing messages
+	go mockConn.drain()
+
 	// Spammer Goroutines: Constantly Subscribe and Unsubscribe
 	for range workers {
 		wg.Go(func() {
 			for range iterations {
-				ch, unsub := sess.SubscribeLog()
-				if unsub != nil {
+				ch, unsub, err := sess.SubscribeLog()
+				if err == nil {
 					// Drain any immediate logs to prevent blocking if buffer fills
 					select {
 					case <-ch:
@@ -352,8 +368,8 @@ func TestSession_PreStartLogging(t *testing.T) {
 
 	// Subscribe BEFORE the session connects/starts
 	// Proves that log registration isn't dependent on the run() loop.
-	logCh, unsub := sess.SubscribeLog()
-	if unsub == nil {
+	logCh, unsub, err := sess.SubscribeLog()
+	if err != nil {
 		t.Fatal("Failed to subscribe to logs pre-start")
 	}
 	defer unsub()
@@ -372,7 +388,7 @@ func TestSession_PreStartLogging(t *testing.T) {
 	// Since we subscribed before starting, we should catch this log perfectly.
 	select {
 	case l := <-logCh:
-		if l.Type != LogSys || !strings.Contains(fmt.Sprint(l.Type), "Starting session") {
+		if l.Type != LogSys || !strings.Contains(fmt.Sprint(l.Text), "Starting session") {
 			t.Errorf("Expected startup log, got: %v", l)
 		}
 	case <-time.After(500 * time.Millisecond):
@@ -392,12 +408,18 @@ func TestSession_SlowConsumerDoesNotBlock(t *testing.T) {
 	sess.start(mockConn, true)
 
 	// Subscribe but purposefully NEVER read from this channel
-	_, unsub := sess.SubscribeLog()
+	_, unsub, err := sess.SubscribeLog()
+	if err != nil {
+		t.Fatal("Failed to subscribe logs")
+	}
 	defer unsub()
 
+	// Start a goroutine to drain out any outgoing messages
+	go mockConn.drain()
+
 	// Try to overwhelm the session with log-generating actions
+	msg, _ := sess.Router().Sample("0", spec.SampleOptions{})
 	for range 300 {
-		msg, _ := sess.Router().Sample("0", spec.SampleOptions{})
 		_ = sess.Send(msg, false)
 	}
 

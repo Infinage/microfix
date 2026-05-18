@@ -12,7 +12,14 @@ import (
 
 // Show logs to screen until user interupts
 func streamLogs(ctx *ShellContext) {
-	ch, unsubscribe := ctx.Session.SubscribeLog()
+	ch, unsubscribe, err := ctx.Session.SubscribeLog()
+	if err != nil {
+		fmt.Println("\n─── Log Stream ────────────────────────────────")
+		fmt.Printf("  Status : FAILED\n")
+		fmt.Printf("  Error  : %v\n", err)
+		fmt.Println("──────────────────────────────────────────────────")
+		return
+	}
 	defer unsubscribe()
 
 	fmt.Println("\n─── Log Stream (Ctrl+C to exit) ────────────────")

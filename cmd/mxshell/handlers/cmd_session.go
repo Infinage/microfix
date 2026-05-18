@@ -17,7 +17,14 @@ import (
 // Read from session and write into circular buffer
 func startLogger(sess *session.Session, cb *ringbuf.CircularBuffer) {
 	// Subscribe to the session logs
-	logCh, unsubscribe := sess.SubscribeLog()
+	logCh, unsubscribe, err := sess.SubscribeLog()
+	if err != nil {
+		fmt.Println("\n─── Log Stream ────────────────────────────────")
+		fmt.Printf("  Status : FAILED\n")
+		fmt.Printf("  Error  : %v\n", err)
+		fmt.Println("──────────────────────────────────────────────────")
+		return
+	}
 	defer unsubscribe()
 
 	// Session closes logs on run loop exit

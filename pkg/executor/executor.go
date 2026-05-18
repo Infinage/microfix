@@ -53,23 +53,24 @@ func EvalBatch(r io.Reader, ctx *ScriptContext) error {
 		line, err := reader.ReadString('\n')
 		lineNo++ // Starts at #1
 
-		// Break on EOF, return on error
-		if err != nil {
-			if err != io.EOF {
-				return err
-			}
-			break
+		// Return on error, if we hit on EOF, it maybe that file ended
+		// without '\n', we want to process line and exit after processing it
+		if err != nil && err != io.EOF {
+			return err
 		}
 
 		// Ignore empty lines and comments
 		line = strings.TrimSpace(line)
-		if line == "" || line[0] == '#' {
-			continue
+		if line != "" && line[0] != '#' {
+			// Evaluate the line and exit early on error
+			if err := Eval(line, ctx); err != nil {
+				return fmt.Errorf("line %d: %w", lineNo, err)
+			}
 		}
 
-		// Evaluate the line and exit early on error
-		if err := Eval(line, ctx); err != nil {
-			return fmt.Errorf("line %d: %w", lineNo, err)
+		// Break on EOF
+		if err == io.EOF {
+			break
 		}
 	}
 

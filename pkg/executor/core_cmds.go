@@ -37,7 +37,7 @@ func parseStartSession(args []string) (string, uint16, error) {
 // send [-r] <msg>
 func parseSend(args []string) (string, bool, error) {
 	nargs := len(args)
-	if nargs < 2 || nargs > 3 || (nargs == 3 && strings.TrimSpace(args[2]) != "-r") {
+	if nargs < 2 || nargs > 3 || (nargs == 3 && strings.TrimSpace(args[1]) != "-r") {
 		return "", false, fmt.Errorf("Usage: send [-r] <FixString>")
 	}
 
@@ -85,6 +85,13 @@ func handleConnect(ctx *ScriptContext, args []string) error {
 	host, port, err := parseStartSession(args)
 	if err != nil {
 		return fmt.Errorf("connect parse failed: %w", err)
+	}
+
+	// If missing, fill in from configs
+	cfg := ctx.Store.Config()
+	if host == "" || port == 0 {
+		host = cfg.IpAddr
+		port = cfg.Port
 	}
 
 	addr := fmt.Sprintf("%s:%d", host, port)
@@ -150,8 +157,7 @@ func handleSend(ctx *ScriptContext, args []string) error {
 		return fmt.Errorf("invalid fix string: %w", err)
 	}
 
-	ctx.Session.Send(msg, isRaw)
-	return nil
+	return ctx.Session.Send(msg, isRaw)
 }
 
 func handleResetSequence(ctx *ScriptContext, args []string) error {

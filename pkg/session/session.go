@@ -218,9 +218,9 @@ func (sess *Session) LastMessage(msgType string, isIncoming bool) *message.Messa
 
 // Returns a channel that receives all Incoming + Outgoing + Error + Sys events
 // DO NOT close the channel and remember to unsubscribe after use
-func (sess *Session) SubscribeLog() (<-chan Log, func()) {
+func (sess *Session) SubscribeLog() (<-chan Log, func(), error) {
 	if sess.closeRequested.Load() {
-		return nil, nil
+		return nil, nil, fmt.Errorf("Session is closed")
 	}
 
 	// Closure manages the scope
@@ -238,15 +238,15 @@ func (sess *Session) SubscribeLog() (<-chan Log, func()) {
 	sess.logSubs[ch] = nil
 	sess.logMu.Unlock()
 
-	return ch, unsubscribe
+	return ch, unsubscribe, nil
 }
 
 // -------------- INTERNAL FUNCTIONS -------------- //
 
 // Start the session loop as a goroutine, entry point for Unit tests
 func (sess *Session) start(conn transport.Connection, isClient bool) {
-	sess.started.Store(true)
 	sess.base = conn
+	sess.started.Store(true)
 	go sess.run(isClient)
 }
 
@@ -338,6 +338,7 @@ func (sess *Session) run(isClient bool) {
 	defer func() {
 		sess.writeLog(newSysEventLog(time.Now(), "Session loop Ended"))
 		sess.tombstone.Store(sess.engine.Snapshot())
+		sess.closeRequested.Store(true)
 		sess.closed.Store(true)
 		close(sess.incoming)
 		sess.closeAllLogs()

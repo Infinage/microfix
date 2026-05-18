@@ -12,14 +12,12 @@ type CircularBuffer struct {
 	mu     sync.Mutex
 	ptr    int
 	isFull bool
-	subs   map[chan string]any
 }
 
 func NewCircularBuffer(size int) *CircularBuffer {
 	return &CircularBuffer{
 		lines: make([]string, size),
 		size:  size,
-		subs:  make(map[chan string]any),
 	}
 }
 
@@ -33,13 +31,6 @@ func (cb *CircularBuffer) Write(msg string) {
 	if cb.ptr == cb.size {
 		cb.isFull = true
 		cb.ptr = 0
-	}
-
-	for ch := range cb.subs {
-		select {
-		case ch <- msg: // Delivered sucessfully
-		default: // Drop if channel is full
-		}
 	}
 }
 
