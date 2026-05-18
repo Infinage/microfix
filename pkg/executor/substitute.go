@@ -99,6 +99,20 @@ func substituteDate(raw string) (string, error) {
 	return today.AddDate(0, 0, daysOffset).Format("20060102"), nil
 }
 
+func substituteSnapshot(raw string, ctx *script.ScriptContext) string {
+	snap := ctx.Session.Status()
+	switch raw[1:] {
+	case "SEQ_IN":
+		return fmt.Sprint(snap.InSeqNum)
+	case "SEQ_OUT":
+		return fmt.Sprint(snap.OutSeqNum)
+	case "STATUS":
+		return snap.State.String()
+	default:
+		return raw
+	}
+}
+
 // Expand takes a string like "35=D|11=$UNIQUE|55=$VAR.Symbol" and fills it in.
 // Magic vars: $UNIQUE, $TIMESTAMP, $DATE, $DATE[+days], $LASTIN[MsgType, tag], $LASTOUT[MsgType,tag]
 // Store vars: $CFG.*, $ALIAS.*, $VARS.*, $ENV.*
@@ -113,6 +127,9 @@ func Substitute(input string, ctx *script.ScriptContext) (string, error) {
 		}
 		if match == "$TIMESTAMP" {
 			return time.Now().UTC().Format("20060102-15:04:05.000")
+		}
+		if match == "$SEQ_OUT" || match == "$SEQ_IN" || match == "$STATUS" {
+			return substituteSnapshot(match, ctx)
 		}
 		if strings.HasPrefix(match, "$DATE") {
 			res, err := substituteDate(match)

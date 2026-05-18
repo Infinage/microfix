@@ -7,6 +7,7 @@ import (
 	"time"
 
 	script "github.com/infinage/microfix/pkg/executor/handlers"
+	"github.com/infinage/microfix/pkg/session"
 	"github.com/infinage/microfix/pkg/store"
 )
 
@@ -153,6 +154,27 @@ func TestSubstitute_Variables(t *testing.T) {
 		_, err := Substitute(input, ctx)
 		if err == nil {
 			t.Error("Expected an error for an unknown prefix, got nil")
+		}
+	})
+
+	t.Run("Snapshot Variables", func(t *testing.T) {
+		sess, err := session.NewSession("FIX44.xml", "SENDER", "TARGET", 30, session.EngineOptions{})
+		if err != nil {
+			t.Fatalf("Failed to initialize session for test: %v", err)
+		}
+
+		// Create a separate context containing the active session
+		snapCtx := &script.ScriptContext{Store: &st, Session: sess}
+
+		input := "Status: $STATUS | In: $SEQ_IN | Out: $SEQ_OUT"
+		res, err := Substitute(input, snapCtx)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		// A fresh session should evaluate to state "New" and sequence numbers
+		if res != "Status: New | In: 0 | Out: 0" {
+			t.Errorf("Expected snapshot to resolve to 'New', got: %s", res)
 		}
 	})
 }
