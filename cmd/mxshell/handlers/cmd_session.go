@@ -16,8 +16,12 @@ import (
 
 // Read from session and write into circular buffer
 func startLogger(sess *session.Session, cb *ringbuf.CircularBuffer) {
+	// Subscribe to the session logs
+	logCh, unsubscribe := sess.SubscribeLog()
+	defer unsubscribe()
+
 	// Session closes logs on run loop exit
-	for log := range sess.Log() {
+	for log := range logCh {
 		hint := ""
 		if log.Type == session.LogSend || log.Type == session.LogRecv {
 			msgType, _ := log.Msg.Get(35)

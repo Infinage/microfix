@@ -2,6 +2,7 @@ package session
 
 import (
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -12,43 +13,41 @@ import (
 
 type Session struct {
 	// Underlying fix aware socket connection
-	// We use base == nil to detect if session is fresh
 	// Donot reset this value at anywhere except on NewSession
 	base transport.Connection
 
 	// Engine contains and handles the logic
 	engine *Engine
 
-	// Communication channels
+	// Communication channel - delivers message post engine processing
 	incoming chan message.Message
 
-	// Channel to monitor all incoming + outgoing
-	logs chan Log
+	// Pub/Sub model - monitor all incoming + outgoing + err + sys events
+	logSubs map[chan<- Log]any
+	logMu   sync.RWMutex
 
 	// To queue requests from public APIs - Send, ResetSeq, Snapshot, etc
 	requests chan userRequest
 
-	// Track if the session has been closed, also store the last snapshot "tomstone"
-	tombstone      atomic.Value
-	closeRequested atomic.Bool
-	closed         atomic.Bool
+	// Thread safe flags
+	tombstone      atomic.Value // Last snapshot just before run loop ends
+	started        atomic.Bool  // start() has been invoked?
+	closeRequested atomic.Bool  // Close() method has been called
+	closed         atomic.Bool  // run loop has ended
 
 	// Store latest messages by MsgType (Tag 35)
 	lastIn  map[string]message.Message
 	lastOut map[string]message.Message
 }
 
+// Receives appl message post engine processing, DO NOT close the channel
 func (sess *Session) Incoming() <-chan message.Message {
 	return sess.incoming
 }
 
-func (sess *Session) Log() <-chan Log {
-	return sess.logs
-}
-
 // Is session's underlying transport channel closed
 func (sess *Session) Done() <-chan struct{} {
-	if sess.base == nil {
+	if !sess.started.Load() {
 		ch := make(chan struct{})
 		close(ch)
 		return ch
@@ -73,7 +72,7 @@ func NewSession(specPath string, senderCompID string, targetCompID string, heart
 		base:     nil,
 		engine:   engine,
 		incoming: make(chan message.Message, 1024),
-		logs:     make(chan Log, 1024),
+		logSubs:  make(map[chan<- Log]any),
 		requests: make(chan userRequest, 128),
 		lastIn:   make(map[string]message.Message),
 		lastOut:  make(map[string]message.Message),
@@ -84,7 +83,7 @@ func NewSession(specPath string, senderCompID string, targetCompID string, heart
 
 // Close the session (guard to ensure we dont try to close a non active session)
 func (sess *Session) Close() {
-	if sess.base != nil && sess.closeRequested.CompareAndSwap(false, true) {
+	if sess.started.Load() && sess.closeRequested.CompareAndSwap(false, true) {
 		select {
 		case sess.requests <- closeRequest{}:
 		case <-sess.Done():
@@ -95,10 +94,10 @@ func (sess *Session) Close() {
 }
 
 // Listen for a client connection, call blocks until accepted
-// On session being closed, base will still be not nil and we err out
+// Prevent multiple erraneous starts with atomic checks
 func (sess *Session) Listen(addr string) error {
-	if sess.base != nil {
-		return fmt.Errorf("Session has already started and cannot be reused")
+	if sess.started.Load() {
+		return fmt.Errorf("Session has already started, please reinitialize a new session")
 	}
 
 	conn, err := transport.Listen1(addr)
@@ -112,10 +111,10 @@ func (sess *Session) Listen(addr string) error {
 }
 
 // Connect to a server, call blocks until connected
-// On session being closed, base will still be not nil and we err out
+// Prevent multiple erraneous starts with atomic checks
 func (sess *Session) Connect(addr string) error {
-	if sess.base != nil {
-		return fmt.Errorf("Session has already started and cannot be reused")
+	if sess.started.Load() {
+		return fmt.Errorf("Session has already started, please reinitialize a new session")
 	}
 
 	conn, err := transport.Dial(addr)
@@ -135,21 +134,19 @@ func (sess *Session) Router() *spec.Router {
 
 // Send to the connected client, if passthrough is true fields are sent as is
 // Otherwise fields such as MsgType, Checksum are calculated fresh and set
-func (sess *Session) Send(msg message.Message, passthrough bool) {
-	if sess.base == nil {
-		sess.writeLog(newErrorLog(time.Now(), fmt.Errorf("Send failed, session not started: %v", msg.String("|"))))
-		return
+func (sess *Session) Send(msg message.Message, passthrough bool) error {
+	if !sess.started.Load() || sess.closeRequested.Load() {
+		return fmt.Errorf("Send failed, session not active: %v", msg.String("|"))
 	}
 
-	if !sess.closeRequested.Load() {
-		sess.requests <- messageSendRequest{message: msg, passthrough: passthrough}
-	}
+	sess.requests <- messageSendRequest{message: msg, passthrough: passthrough}
+	return nil
 }
 
 // Query the session status
 func (sess *Session) Status() Snapshot {
 	// Fresh session
-	if sess.base == nil {
+	if !sess.started.Load() {
 		return Snapshot{State: SessionNew}
 	}
 
@@ -178,16 +175,17 @@ func (sess *Session) Status() Snapshot {
 }
 
 // Reset the session number (queue to run loop)
-func (sess *Session) ResetSequence(inSeqNum int64, outSeqNum int64) {
-	if sess.base == nil || sess.closeRequested.Load() {
-		return
+func (sess *Session) ResetSequence(inSeqNum int64, outSeqNum int64) error {
+	if !sess.started.Load() || sess.closeRequested.Load() {
+		return fmt.Errorf("Session is not active")
 	}
 	sess.requests <- resetSequenceRequest{inSeqNum: inSeqNum, outSeqNum: outSeqNum}
+	return nil
 }
 
 // Query the last incoming / outgoing message
 func (sess *Session) LastMessage(msgType string, isIncoming bool) *message.Message {
-	if msgType == "" || sess.base == nil {
+	if msgType == "" || !sess.started.Load() {
 		return nil
 	}
 
@@ -218,19 +216,49 @@ func (sess *Session) LastMessage(msgType string, isIncoming bool) *message.Messa
 	}
 }
 
+// Returns a channel that receives all Incoming + Outgoing + Error + Sys events
+// DO NOT close the channel and remember to unsubscribe after use
+func (sess *Session) SubscribeLog() (<-chan Log, func()) {
+	if sess.closeRequested.Load() {
+		return nil, nil
+	}
+
+	// Closure manages the scope
+	ch := make(chan Log, 256)
+	unsubscribe := func() {
+		sess.logMu.Lock()
+		defer sess.logMu.Unlock()
+		if _, ok := sess.logSubs[ch]; ok {
+			delete(sess.logSubs, ch)
+			close(ch)
+		}
+	}
+
+	sess.logMu.Lock()
+	sess.logSubs[ch] = nil
+	sess.logMu.Unlock()
+
+	return ch, unsubscribe
+}
+
 // -------------- INTERNAL FUNCTIONS -------------- //
 
 // Start the session loop as a goroutine, entry point for Unit tests
 func (sess *Session) start(conn transport.Connection, isClient bool) {
+	sess.started.Store(true)
 	sess.base = conn
 	go sess.run(isClient)
 }
 
-// Non blocking write to logs channel
+// Non blocking write to all subscribers
 func (sess *Session) writeLog(log Log) {
-	select {
-	case sess.logs <- log:
-	default: // Drop if channel if full
+	sess.logMu.RLock()
+	defer sess.logMu.RUnlock()
+	for ch := range sess.logSubs {
+		select {
+		case ch <- log:
+		default: // Drop if channel if full
+		}
 	}
 }
 
@@ -293,6 +321,16 @@ func (sess *Session) execute(actions []Action) {
 	}
 }
 
+// Users need to subscribed logs
+func (sess *Session) closeAllLogs() {
+	sess.logMu.Lock()
+	defer sess.logMu.Unlock()
+	for ch := range sess.logSubs {
+		close(ch)
+	}
+	sess.logSubs = make(map[chan<- Log]any)
+}
+
 // Handle Admin type messages: Login, Logout, Heartbeat, TestMessage
 // Other input message types are pass into the Incoming channel
 func (sess *Session) run(isClient bool) {
@@ -302,7 +340,7 @@ func (sess *Session) run(isClient bool) {
 		sess.tombstone.Store(sess.engine.Snapshot())
 		sess.closed.Store(true)
 		close(sess.incoming)
-		close(sess.logs)
+		sess.closeAllLogs()
 	}()
 
 	// Ticker to monitor for heartbeats, timeouts

@@ -11,9 +11,9 @@ import (
 )
 
 // Show logs to screen until user interupts
-func streamLogs(cb *ringbuf.CircularBuffer) {
-	ch, cancel := cb.Subscribe()
-	defer cancel()
+func streamLogs(ctx *ShellContext) {
+	ch, unsubscribe := ctx.Session.SubscribeLog()
+	defer unsubscribe()
 
 	fmt.Println("\n─── Log Stream (Ctrl+C to exit) ────────────────")
 	sigChan := make(chan os.Signal, 1)
@@ -132,7 +132,7 @@ func handleLogs(ctx *ShellContext, args []string) {
 	sub := strings.ToLower(args[1])
 	switch sub {
 	case "stream":
-		streamLogs(ctx.Logs)
+		streamLogs(ctx)
 	case "clear":
 		clearLogs(ctx.Logs)
 	case "head", "tail":

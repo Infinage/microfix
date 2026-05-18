@@ -23,28 +23,6 @@ func NewCircularBuffer(size int) *CircularBuffer {
 	}
 }
 
-// Returns a read only channel and a cancel function
-func (cb *CircularBuffer) Subscribe() (<-chan string, func()) {
-	cb.mu.Lock()
-	defer cb.mu.Unlock()
-
-	// Create a listen only channel for subscriber
-	ch := make(chan string, 256)
-	cb.subs[ch] = nil
-
-	// Closure manages the scope
-	unsubscribe := func() {
-		cb.mu.Lock()
-		defer cb.mu.Unlock()
-		if _, exists := cb.subs[ch]; exists {
-			delete(cb.subs, ch)
-			close(ch)
-		}
-	}
-
-	return ch, unsubscribe
-}
-
 func (cb *CircularBuffer) Write(msg string) {
 	cb.mu.Lock()
 	defer cb.mu.Unlock()

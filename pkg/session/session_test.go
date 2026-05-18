@@ -1,7 +1,9 @@
 package session
 
 import (
+	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -39,9 +41,12 @@ func TestSession_Lifecycle(t *testing.T) {
 	// Start the session loop
 	sess.start(mockConn, true)
 
+	// Subscribe to logs channel
+	logCh, unsubscribe := sess.SubscribeLog()
+	defer unsubscribe()
+
 	// Drain out the "Starting session as sys log"
-	sysLog := <-sess.Log()
-	if sysLog.Type != LogSys {
+	if sysLog := <-logCh; sysLog.Type != LogSys {
 		t.Errorf("Expected a %s log type, got %v: %v", LogSys, sysLog.Type, sysLog)
 	}
 
@@ -58,7 +63,7 @@ func TestSession_Lifecycle(t *testing.T) {
 
 		// Check Internal Logs
 		select {
-		case l := <-sess.Log():
+		case l := <-logCh:
 			if l.Type != LogSend {
 				t.Errorf("expected LogType %v for Logon, got %v: %v", LogSend, l.Type, l)
 			}
@@ -80,7 +85,7 @@ func TestSession_Lifecycle(t *testing.T) {
 
 		// We expect a LogRecv and NO LogErr
 		select {
-		case l := <-sess.Log():
+		case l := <-logCh:
 			if l.Type == LogErr {
 				t.Fatalf("unexpected error during logon: %v", l.Err)
 			}
@@ -117,7 +122,7 @@ func TestSession_Lifecycle(t *testing.T) {
 
 		// Should see the RECV log for the gap message
 		select {
-		case l := <-sess.Log():
+		case l := <-logCh:
 			if l.Type != LogRecv {
 				t.Errorf("expected Recv log, got %v", l.Type)
 			}
@@ -127,7 +132,7 @@ func TestSession_Lifecycle(t *testing.T) {
 
 		// Should see a Err log for InSeqNum mismatch
 		select {
-		case l := <-sess.Log():
+		case l := <-logCh:
 			if l.Type != LogErr || !strings.Contains(l.Err.Error(), "Expected InSeqNum [34]") {
 				t.Errorf("expected ERR for InSeqNum, got %v", l.Type)
 			}
@@ -280,4 +285,128 @@ func TestSession_DoubleCloseSafety(t *testing.T) {
 	case <-time.After(100 * time.Millisecond):
 		t.Fatal("Session deadlock on Double Close")
 	}
+}
+
+func TestSession_LogConcurrency(t *testing.T) {
+	mockConn := &MockConnection{
+		incoming: make(chan message.Message, 100),
+		outgoing: make(chan message.Message, 100),
+		errors:   make(chan error, 100),
+		done:     make(chan struct{}),
+	}
+
+	sess, _ := NewSession("FIX44.xml", "S", "T", 30, EngineOptions{})
+	sess.start(mockConn, true)
+
+	var wg sync.WaitGroup
+	workers := 50
+	iterations := 100
+
+	// Spammer Goroutines: Constantly Subscribe and Unsubscribe
+	for range workers {
+		wg.Go(func() {
+			for range iterations {
+				ch, unsub := sess.SubscribeLog()
+				if unsub != nil {
+					// Drain any immediate logs to prevent blocking if buffer fills
+					select {
+					case <-ch:
+					default:
+					}
+					unsub()
+				}
+				// Micro-sleep to force context switching and interleaved operations
+				time.Sleep(time.Microsecond)
+			}
+		})
+	}
+
+	// Writer Goroutines: Constantly trigger internal writeLog calls
+	for range workers {
+		wg.Go(func() {
+			for range iterations {
+				// Sending regular messages will trigger the run loop to call writeLog
+				msg, _ := sess.Router().Sample("0", spec.SampleOptions{})
+				_ = sess.Send(msg, false)
+				time.Sleep(time.Microsecond)
+			}
+		})
+	}
+
+	// Wait for all concurrent readers and writers to finish
+	wg.Wait()
+
+	// Shut down the session while it's still potentially processing queued sends
+	sess.Close()
+
+	select {
+	case <-sess.Done():
+		// Success! If we reach here, it means no concurrent map read/write panics
+	case <-time.After(2 * time.Second):
+		t.Fatal("Session deadlock during concurrent shutdown")
+	}
+}
+
+func TestSession_PreStartLogging(t *testing.T) {
+	sess, _ := NewSession("FIX44.xml", "S", "T", 30, EngineOptions{})
+
+	// Subscribe BEFORE the session connects/starts
+	// Proves that log registration isn't dependent on the run() loop.
+	logCh, unsub := sess.SubscribeLog()
+	if unsub == nil {
+		t.Fatal("Failed to subscribe to logs pre-start")
+	}
+	defer unsub()
+
+	mockConn := &MockConnection{
+		incoming: make(chan message.Message, 10),
+		outgoing: make(chan message.Message, 10),
+		errors:   make(chan error, 10),
+		done:     make(chan struct{}),
+	}
+
+	// Start the session
+	sess.start(mockConn, false)
+
+	// The very first thing start()->run() does is emit a SysEvent log.
+	// Since we subscribed before starting, we should catch this log perfectly.
+	select {
+	case l := <-logCh:
+		if l.Type != LogSys || !strings.Contains(fmt.Sprint(l.Type), "Starting session") {
+			t.Errorf("Expected startup log, got: %v", l)
+		}
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("Timeout waiting for pre-subscribed startup log")
+	}
+}
+
+func TestSession_SlowConsumerDoesNotBlock(t *testing.T) {
+	mockConn := &MockConnection{
+		incoming: make(chan message.Message, 100),
+		outgoing: make(chan message.Message, 100),
+		errors:   make(chan error, 100),
+		done:     make(chan struct{}),
+	}
+
+	sess, _ := NewSession("FIX44.xml", "S", "T", 30, EngineOptions{})
+	sess.start(mockConn, true)
+
+	// Subscribe but purposefully NEVER read from this channel
+	_, unsub := sess.SubscribeLog()
+	defer unsub()
+
+	// Try to overwhelm the session with log-generating actions
+	for range 300 {
+		msg, _ := sess.Router().Sample("0", spec.SampleOptions{})
+		_ = sess.Send(msg, false)
+	}
+
+	// If the session handles the unread channel properly via the `default:` drop case,
+	// the Status() request will succeed immediately. If it blocks, it means the `run()` loop is frozen.
+	status := sess.Status()
+	if status.State == SessionClosed {
+		t.Fatal("Session crashed due to slow consumer")
+	}
+
+	sess.Close()
 }
