@@ -6,15 +6,16 @@ import (
 	"strings"
 	"testing"
 
+	script "github.com/infinage/microfix/pkg/executor/handlers"
 	"github.com/infinage/microfix/pkg/store"
 )
 
 // setupTestContext creates a dummy context for testing isolated commands
-func setupTestContext() (*ScriptContext, *bytes.Buffer) {
+func setupTestContext() (*script.ScriptContext, *bytes.Buffer) {
 	st := store.InitStore()
 	buf := new(bytes.Buffer)
 
-	ctx := &ScriptContext{
+	ctx := &script.ScriptContext{
 		GoCtx:   context.Background(),
 		Session: nil,
 		Store:   &st,
@@ -28,7 +29,7 @@ func TestEval_BasicCommand(t *testing.T) {
 	ctx, buf := setupTestContext()
 
 	// Register a dummy command just for this test
-	RegisterCommand("testcmd", func(c *ScriptContext, args []string) error {
+	script.RegisterCommand("testcmd", func(c *script.ScriptContext, args []string) error {
 		c.Writer.Write([]byte("executed " + args[1]))
 		return nil
 	})
@@ -59,26 +60,6 @@ print $VARS.Symbol
 
 	if val, ok, _ := ctx.Store.Get("VARS.Symbol"); !ok || val != "AAPL" {
 		t.Errorf("Expected store to have AAPL, got %v", val)
-	}
-}
-
-func TestUtilCmds_SetAndPrint(t *testing.T) {
-	ctx, buf := setupTestContext()
-
-	// Test Set
-	if err := handleSet(ctx, []string{"set", "VARS.Price", "100.50"}); err != nil {
-		t.Fatalf("handleSet failed: %v", err)
-	}
-	if val, ok, _ := ctx.Store.Get("VARS.Price"); !ok || val != "100.50" {
-		t.Errorf("Store did not save value correctly, got: %v", val)
-	}
-
-	// Test Print (with variable substitution simulating Eval behavior)
-	if err := handlePrint(ctx, []string{"print", "Price", "is", "100.50"}); err != nil {
-		t.Fatalf("handlePrint failed: %v", err)
-	}
-	if expected := "Price is 100.50\n"; buf.String() != expected {
-		t.Errorf("Expected %q, got %q", expected, buf.String())
 	}
 }
 

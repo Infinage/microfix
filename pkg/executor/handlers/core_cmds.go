@@ -1,4 +1,4 @@
-package executor
+package script
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 )
 
 // <connect|listen> [<host:port>]
-func parseStartSession(args []string) (string, uint16, error) {
+func parseStartSession(args []string, cfg *store.Config) (string, uint16, error) {
 	// Connect from Config defaults
 	if len(args) == 1 {
 		return "", 0, nil
@@ -26,12 +26,23 @@ func parseStartSession(args []string) (string, uint16, error) {
 		return "", 0, fmt.Errorf("invalid format, expected: `host:port` as second arg")
 	}
 
-	port, err := strconv.ParseUint(strings.TrimSpace(splits[1]), 10, 16)
+	port64, err := strconv.ParseUint(strings.TrimSpace(splits[1]), 10, 16)
 	if err != nil {
 		return "", 0, fmt.Errorf("invalid port: %w", err)
 	}
 
-	return strings.TrimSpace(splits[0]), uint16(port), nil
+	// Final variables from input passed
+	host, port := strings.TrimSpace(splits[0]), uint16(port64)
+
+	// If missing, fill in from configs
+	if host == "" {
+		host = cfg.IpAddr
+	}
+	if port == 0 {
+		port = cfg.Port
+	}
+
+	return host, port, nil
 }
 
 // send [-r] <msg>
@@ -82,16 +93,10 @@ func newSession(st *store.Store) (*session.Session, error) {
 }
 
 func handleConnect(ctx *ScriptContext, args []string) error {
-	host, port, err := parseStartSession(args)
+	cfg := ctx.Store.Config()
+	host, port, err := parseStartSession(args, &cfg)
 	if err != nil {
 		return fmt.Errorf("connect parse failed: %w", err)
-	}
-
-	// If missing, fill in from configs
-	cfg := ctx.Store.Config()
-	if host == "" || port == 0 {
-		host = cfg.IpAddr
-		port = cfg.Port
 	}
 
 	addr := fmt.Sprintf("%s:%d", host, port)
@@ -104,7 +109,8 @@ func handleConnect(ctx *ScriptContext, args []string) error {
 
 // listen [<host:port>]
 func handleListen(ctx *ScriptContext, args []string) error {
-	host, port, err := parseStartSession(args)
+	cfg := ctx.Store.Config()
+	host, port, err := parseStartSession(args, &cfg)
 	if err != nil {
 		return fmt.Errorf("listen parse failed: %w", err)
 	}
@@ -179,8 +185,7 @@ func handleResetSequence(ctx *ScriptContext, args []string) error {
 	}
 
 	// Engine handles the state changes and emit the appropriate logs
-	ctx.Session.ResetSequence(inSeq, outSeq)
-	return nil
+	return ctx.Session.ResetSequence(inSeq, outSeq)
 }
 
 func init() {

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	script "github.com/infinage/microfix/pkg/executor/handlers"
 	"github.com/infinage/microfix/pkg/message"
 )
 
@@ -39,7 +40,7 @@ func extractSBrackets(raw string) (string, error) {
 	return raw[start+1 : end], nil
 }
 
-func substituteMessageTag(raw string, isIncoming bool, ctx *ScriptContext) (string, error) {
+func substituteMessageTag(raw string, isIncoming bool, ctx *script.ScriptContext) (string, error) {
 	contents, err := extractSBrackets(raw)
 	if err != nil {
 		return "", err
@@ -101,7 +102,7 @@ func substituteDate(raw string) (string, error) {
 // Expand takes a string like "35=D|11=$UNIQUE|55=$VAR.Symbol" and fills it in.
 // Magic vars: $UNIQUE, $TIMESTAMP, $DATE, $DATE[+days], $LASTIN[MsgType, tag], $LASTOUT[MsgType,tag]
 // Store vars: $CFG.*, $ALIAS.*, $VARS.*, $ENV.*
-func Substitute(input string, ctx *ScriptContext) (string, error) {
+func Substitute(input string, ctx *script.ScriptContext) (string, error) {
 	var expandErr error
 
 	// match is the full string: "$VAR.Symbol" or "$UNIQUE" or "$LASTIN[35]"

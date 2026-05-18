@@ -1,11 +1,9 @@
-package handlers
+package shell
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"os"
-	"os/signal"
 	"strings"
 
 	"github.com/infinage/microfix/pkg/executor"
@@ -47,19 +45,12 @@ func handleScript(ctx *ShellContext, args []string) {
 	}
 
 	// Trigger context close on interupt
-	goCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	scriptCtx, stop := executor.NewScriptContext(ctx.Session, ctx.Store, out)
 	defer stop()
 
 	// Evaluate the file
-	err = executor.EvalBatch(f, &executor.ScriptContext{
-		GoCtx:   goCtx,
-		Session: ctx.Session,
-		Store:   ctx.Store,
-		Writer:  out,
-	})
-
-	if err != nil {
-		fmt.Println("run command failed: %w", err)
+	if err = executor.EvalBatch(f, &scriptCtx); err != nil {
+		fmt.Printf("run command failed: %v\n", err)
 	}
 }
 

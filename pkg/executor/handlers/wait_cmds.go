@@ -1,9 +1,13 @@
-package executor
+package script
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/infinage/microfix/pkg/ast"
+)
 
 func handleExpect(ctx *ScriptContext, args []string) error {
-	matcher, err := NewMatcher(args[1:])
+	matcher, err := ast.NewMatcher(args[1:])
 	if err != nil {
 		return fmt.Errorf("failed to build AST tree: %w", err)
 	}
@@ -25,7 +29,7 @@ func handleExpect(ctx *ScriptContext, args []string) error {
 }
 
 func handleWait(ctx *ScriptContext, args []string) error {
-	matcher, err := NewMatcher(args[1:])
+	matcher, err := ast.NewMatcher(args[1:])
 	if err != nil {
 		return fmt.Errorf("failed to build AST tree: %w", err)
 	}

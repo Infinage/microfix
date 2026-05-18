@@ -1,8 +1,7 @@
-package executor
+package script
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -24,20 +23,6 @@ func handleSet(ctx *ScriptContext, args []string) error {
 func handlePrint(ctx *ScriptContext, args []string) error {
 	fmt.Fprintln(ctx.Writer, strings.Join(args[1:], " "))
 	return nil
-}
-
-func handleInclude(ctx *ScriptContext, args []string) error {
-	if len(args) != 2 {
-		return fmt.Errorf("syntax error, usage: `include <filepath>`")
-	}
-
-	f, err := os.Open(strings.TrimSpace(args[1]))
-	if err != nil {
-		return fmt.Errorf("failed to read: %w", err)
-	}
-
-	defer f.Close()
-	return EvalBatch(f, ctx)
 }
 
 func handleSleep(ctx *ScriptContext, args []string) error {
@@ -63,8 +48,7 @@ func handleSleep(ctx *ScriptContext, args []string) error {
 }
 
 func init() {
-	RegisterCommand("set", handleSet)         // set <key> <value>
-	RegisterCommand("print", handlePrint)     // print [<value1>, [<value2> [...]]]
-	RegisterCommand("include", handleInclude) // include <file>
-	RegisterCommand("sleep", handleSleep)     // sleep <millis>
+	RegisterCommand("set", handleSet)     // set <key> <value>
+	RegisterCommand("print", handlePrint) // print [<value1>, [<value2> [...]]]
+	RegisterCommand("sleep", handleSleep) // sleep <millis>
 }

@@ -7,11 +7,12 @@ import (
 	"path"
 	"strings"
 
-	"github.com/infinage/microfix/cmd/mxshell/handlers"
+	"github.com/peterh/liner"
+
 	"github.com/infinage/microfix/pkg/ringbuf"
 	"github.com/infinage/microfix/pkg/store"
 
-	"github.com/peterh/liner"
+	shell "github.com/infinage/microfix/cmd/mxshell/internal/handlers"
 )
 
 func historyPath() (string, error) {
@@ -68,12 +69,12 @@ func main() {
 
 	st := store.InitStore()
 
-	ctx := &handlers.ShellContext{
+	ctx := &shell.ShellContext{
 		Store: &st,
 		Logs:  ringbuf.NewCircularBuffer(1000),
 	}
 
-	sess, err := handlers.NewSession(ctx.Store)
+	sess, err := shell.NewSession(ctx.Store)
 	if err != nil {
 		fmt.Printf("Critical Error: %v\n", err)
 		os.Exit(1)
@@ -114,7 +115,7 @@ func main() {
 
 		// Dispatch to handler
 		default:
-			if handler, ok := handlers.ShellCommandRegistry[cmdName]; ok {
+			if handler, ok := shell.ShellCommandRegistry[cmdName]; ok {
 				handler.Handler(ctx, args)
 			} else {
 				fmt.Printf("Unknown command: %s\n", cmdName)

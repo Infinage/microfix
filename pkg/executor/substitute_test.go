@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	script "github.com/infinage/microfix/pkg/executor/handlers"
 	"github.com/infinage/microfix/pkg/store"
 )
 
@@ -99,7 +100,7 @@ func TestSubstitute_Variables(t *testing.T) {
 	_, _, _ = st.Set("ALIAS.Logon", "35=A|98=0|108=30")
 
 	// Set up the execution context
-	ctx := &ScriptContext{Store: &st, Session: nil}
+	ctx := &script.ScriptContext{Store: &st, Session: nil}
 
 	t.Run("Standard Variables", func(t *testing.T) {
 		input := "35=D|55=$VARS.Symbol|38=$VARS.Qty|"

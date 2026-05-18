@@ -1,4 +1,4 @@
-package handlers
+package shell
 
 import (
 	"fmt"
@@ -15,30 +15,32 @@ import (
 )
 
 // Read from session and write into circular buffer
-func startLogger(sess *session.Session, cb *ringbuf.CircularBuffer) {
+func startLogger(sess *session.Session, cb *ringbuf.CircularBuffer) error {
 	// Subscribe to the session logs
 	logCh, unsubscribe, err := sess.SubscribeLog()
 	if err != nil {
-		fmt.Println("\n─── Log Stream ────────────────────────────────")
-		fmt.Printf("  Status : FAILED\n")
-		fmt.Printf("  Error  : %v\n", err)
-		fmt.Println("──────────────────────────────────────────────────")
-		return
+		return err
 	}
-	defer unsubscribe()
 
 	// Session closes logs on run loop exit
-	for log := range logCh {
-		hint := ""
-		if log.Type == session.LogSend || log.Type == session.LogRecv {
-			msgType, _ := log.Msg.Get(35)
-			entry, ok := sess.Router().SpecForMsgType(msgType).Messages[msgType]
-			if ok {
-				hint = entry.Name
+	go func() {
+		// not required since closeAllLogs already cleans this up
+		defer unsubscribe()
+
+		for log := range logCh {
+			hint := ""
+			if log.Type == session.LogSend || log.Type == session.LogRecv {
+				msgType, _ := log.Msg.Get(35)
+				entry, ok := sess.Router().SpecForMsgType(msgType).Messages[msgType]
+				if ok {
+					hint = entry.Name
+				}
 			}
+			cb.Write(log.String(hint))
 		}
-		cb.Write(log.String(hint))
-	}
+	}()
+
+	return nil
 }
 
 func NewSession(store *store.Store) (*session.Session, error) {
@@ -133,7 +135,12 @@ func handleSend(ctx *ShellContext, args []string) {
 		return
 	}
 
-	ctx.Session.Send(msg, isRaw)
+	if err := ctx.Session.Send(msg, isRaw); err != nil {
+		fmt.Printf("  Status : FAILED\n")
+		fmt.Printf("  Error  : %v\n", err)
+		fmt.Println("──────────────────────────────────────────────────")
+		return
+	}
 
 	fmt.Printf("  Status : OK\n")
 
@@ -169,9 +176,9 @@ func handleConnect(ctx *ShellContext, args []string) {
 		fmt.Printf("  Status : FAILED\n")
 		fmt.Printf("  Error  : %v\n", err)
 	} else {
+		startLogger(ctx.Session, ctx.Logs)
 		fmt.Printf("  Status : OK\n")
 		fmt.Printf("  Remote : %s\n", addr)
-		go startLogger(ctx.Session, ctx.Logs)
 	}
 
 	fmt.Println("──────────────────────────────────────────────────")
@@ -196,10 +203,9 @@ func handleListen(ctx *ShellContext, args []string) {
 		fmt.Printf("  Status : FAILED\n")
 		fmt.Printf("  Error  : %v\n", err)
 	} else {
+		startLogger(ctx.Session, ctx.Logs)
 		fmt.Printf("  Status : OK\n")
-		fmt.Printf("  Bound  : %s\n", addr)
-		fmt.Println("  Info   : Waiting for client connection...")
-		go startLogger(ctx.Session, ctx.Logs)
+		fmt.Printf("  Remote : %s\n", addr)
 	}
 
 	fmt.Println("──────────────────────────────────────────────────")
@@ -268,10 +274,16 @@ func handleSeq(ctx *ShellContext, args []string) {
 			field = "OutSeqNum"
 		}
 
-		// Engine handles the state changes and emit the appropriate logs
-		sess.ResetSequence(inSeq, outSeq)
-
 		fmt.Println("\n─── Sequence Update ────────────────────────────")
+
+		// Engine handles the state changes and emit the appropriate logs
+		if err := sess.ResetSequence(inSeq, outSeq); err != nil {
+			fmt.Printf("  Status : FAILED\n")
+			fmt.Printf("  Error  : %v\n", err)
+			fmt.Println("────────────────────────────────────────────────")
+			return
+		}
+
 		fmt.Printf("  Status : OK\n")
 		fmt.Printf("  Field  : %s\n", field)
 		fmt.Printf("  Value  : %d\n", seqNo)

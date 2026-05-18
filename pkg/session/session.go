@@ -223,6 +223,10 @@ func (sess *Session) SubscribeLog() (<-chan Log, func(), error) {
 		return nil, nil, fmt.Errorf("Session is closed")
 	}
 
+	// Lock the mutex before creating a new channel
+	sess.logMu.Lock()
+	defer sess.logMu.Unlock()
+
 	// Closure manages the scope
 	ch := make(chan Log, 256)
 	unsubscribe := func() {
@@ -234,10 +238,7 @@ func (sess *Session) SubscribeLog() (<-chan Log, func(), error) {
 		}
 	}
 
-	sess.logMu.Lock()
 	sess.logSubs[ch] = nil
-	sess.logMu.Unlock()
-
 	return ch, unsubscribe, nil
 }
 
