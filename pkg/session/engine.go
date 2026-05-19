@@ -235,11 +235,14 @@ func (engine *Engine) validate(msg *message.Message, now time.Time) error {
 	}
 
 	// Skip sequence number check if:
-	// 1. It's a logon with resetSeqNumFlag set
-	// 2. It's a retransmitted message (PossDup)
+	// 1. It's a reset sequence with gapFillFlag set to 'N'
+	// 2. It's a logon with resetSeqNumFlag set
+	// 3. It's a retransmitted message (PossDup)
 	possDup, _ := msg.Get(43)
 	resetSeqNum, _ := msg.Get(141)
-	skipSeqCheck := (msgType == "A" && resetSeqNum == "Y") || possDup == "Y"
+	gapFillFlag, _ := msg.Get(123)
+	skipSeqCheck := (msgType == "4" && gapFillFlag == "N") ||
+		(msgType == "A" && resetSeqNum == "Y") || possDup == "Y"
 
 	// For values greater than we will trigger resend on `handleAppMessage`
 	if !skipSeqCheck && received < engine.inSeqNum {

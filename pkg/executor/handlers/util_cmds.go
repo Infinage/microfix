@@ -54,7 +54,7 @@ func handleAssert(_ *ScriptContext, args []string) error {
 	}
 
 	if expr1, expr2 := strings.TrimSpace(args[1]), strings.TrimSpace(args[2]); expr1 != expr2 {
-		return fmt.Errorf("assert failed, expected '%v' but got '%v'", expr1, expr2)
+		return fmt.Errorf("assert failed, expected '%v' but got '%v'", expr2, expr1)
 	}
 
 	return nil

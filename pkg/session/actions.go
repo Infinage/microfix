@@ -321,7 +321,8 @@ func (engine *Engine) handleResend(msg *message.Message) []Action {
 	}
 
 	// Build seq reset msg once and reuse whenever needed
-	seqResetTemplate, _ := engine.Router.Sample("4", spec.SampleOptions{OptionalFields: map[uint16]any{123: nil}})
+	optFields := map[uint16]any{43: nil, 123: nil}
+	seqResetTemplate, _ := engine.Router.Sample("4", spec.SampleOptions{OptionalFields: optFields})
 	seqResetTemplate.Set(123, "Y") // GapFillFlag
 
 	// Tracking last seq that was sent out
@@ -332,12 +333,15 @@ func (engine *Engine) handleResend(msg *message.Message) []Action {
 			seqReset := slices.Clone(seqResetTemplate)
 			seqReset.Set(34, fmt.Sprint(prevSeqNo+1)) // outSeqNum field update is bypassed on finalize for reset requests
 			seqReset.Set(36, fmt.Sprint(replayEntry.seqNo))
+			seqReset.Set(43, "Y")
 			actions = append(actions, Action{Type: ActionSend, Msg: seqReset})
 		}
 
-		// Insert after MsgSeqNo and before SendingTime (> 3 should be okay)
+		// Insert PossDupFlag, OrigSendingTime after MsgSeqNo (> 3 should be okay)
 		replay := slices.Clone(replayEntry.Msg)
+		origSendingTime, _ := replay.Get(52)
 		replay.Insert(6, message.Field{Tag: 43, Value: "Y"})
+		replay.Insert(7, message.Field{Tag: 122, Value: origSendingTime})
 		actions = append(actions, Action{Type: ActionSend, Msg: replay})
 		prevSeqNo = replayEntry.seqNo
 	}
@@ -347,6 +351,7 @@ func (engine *Engine) handleResend(msg *message.Message) []Action {
 		seqReset := seqResetTemplate
 		seqReset.Set(34, fmt.Sprint(prevSeqNo+1))
 		seqReset.Set(36, fmt.Sprint(endSeq+1))
+		seqReset.Set(43, "Y")
 		actions = append(actions, Action{Type: ActionSend, Msg: seqReset})
 	}
 
@@ -359,7 +364,9 @@ func (engine *Engine) handleAppMessage(msg *message.Message) (bool, []Action) {
 
 	// Trigger a resend request (replay), if inSeqNum greater what we are expecting
 	inSeqNumTag, _ := msg.FindFrom(34, 0)
-	if inSeqNum, _ := inSeqNumTag.AsInt(); inSeqNum > engine.inSeqNum {
+	gapFillFlag, _ := msg.Get(123)
+	isHardReset := msgType == "4" && gapFillFlag == "N"
+	if inSeqNum, _ := inSeqNumTag.AsInt(); !isHardReset && inSeqNum > engine.inSeqNum {
 		resend, _ := engine.Router.Sample("2", spec.SampleOptions{})
 		resend.Set(7, fmt.Sprint(engine.inSeqNum))
 		resend.Set(16, "0") // 0 means infinity in FIX Resend requests
@@ -401,6 +408,8 @@ func (engine *Engine) handleAppMessage(msg *message.Message) (bool, []Action) {
 			actions = append(actions, Action{Type: ActionError, Err: err}, engine.reject(err))
 		} else {
 			engine.inSeqNum = val
+			eventLog := fmt.Sprintf("InSeqNum has been reset to %v", seqNoTag.Value)
+			actions = append(actions, Action{Type: ActionLog, Event: eventLog})
 		}
 		return false, actions
 

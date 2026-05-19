@@ -7,11 +7,12 @@ import (
 	"testing"
 
 	script "github.com/infinage/microfix/pkg/executor/handlers"
+	"github.com/infinage/microfix/pkg/session"
 	"github.com/infinage/microfix/pkg/store"
 )
 
 // setupTestContext creates a dummy context for testing isolated commands
-func setupTestContext(t *testing.T) (*script.ScriptContext, *bytes.Buffer) {
+func setupTestContext(t *testing.T, sess *session.Session) (*script.ScriptContext, *bytes.Buffer) {
 	t.Helper()
 
 	st := store.InitStore()
@@ -19,7 +20,7 @@ func setupTestContext(t *testing.T) (*script.ScriptContext, *bytes.Buffer) {
 
 	ctx := &script.ScriptContext{
 		GoCtx:   context.Background(),
-		Session: nil,
+		Session: sess,
 		Store:   &st,
 		Writer:  buf,
 	}
@@ -28,7 +29,7 @@ func setupTestContext(t *testing.T) (*script.ScriptContext, *bytes.Buffer) {
 }
 
 func TestEval_BasicCommand(t *testing.T) {
-	ctx, buf := setupTestContext(t)
+	ctx, buf := setupTestContext(t, nil)
 
 	// Register a dummy command just for this test
 	script.RegisterCommand("testcmd", func(c *script.ScriptContext, args []string) error {
@@ -47,7 +48,7 @@ func TestEval_BasicCommand(t *testing.T) {
 }
 
 func TestEvalBatch_CommentsAndEmptyLines(t *testing.T) {
-	ctx, _ := setupTestContext(t)
+	ctx, _ := setupTestContext(t, nil)
 
 	script := `
 # This is a comment
@@ -66,7 +67,7 @@ print $VARS.Symbol
 }
 
 func TestEval_Substitution(t *testing.T) {
-	ctx, buf := setupTestContext(t)
+	ctx, buf := setupTestContext(t, nil)
 	ctx.Store.Set("VARS.Target", "MOCK_EXCHANGE")
 
 	if err := Eval("print Connecting to $VARS.Target", ctx); err != nil {

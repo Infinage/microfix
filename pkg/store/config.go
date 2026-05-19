@@ -162,8 +162,8 @@ func (cfg *Config) setField(key, value string) (string, error) {
 			return oldVal, fmt.Errorf("Invalid integer '%s'", value)
 		}
 
-	case reflect.Uint16:
-		if u, err := strconv.ParseUint(value, 10, 16); err == nil {
+	case reflect.Uint16, reflect.Uint32:
+		if u, err := strconv.ParseUint(value, 10, 64); err == nil {
 			field.SetUint(u)
 		} else {
 			return oldVal, fmt.Errorf("Invalid unsigned integer '%s'", value)
