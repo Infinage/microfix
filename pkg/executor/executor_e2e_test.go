@@ -152,14 +152,8 @@ func TestEvalBatch_LogonAndPing(t *testing.T) {
 set CFG.DefaultTimeoutSec 3
 
 listen 127.0.0.1:5005
-print Connected to Client, Session: $STATUS!
-
-# Wait for client logon
-wait 35=A
-print Server received Logon
-
-# Validate engine status as Active
-assert $STATUS Connected
+waitstatus Connected
+print Connected to Client
 
 # Wait for client to send a test request
 wait 35=1
@@ -183,11 +177,12 @@ sleep 10
 set CFG.DefaultTimeoutSec 3
 
 connect 127.0.0.1:5005
-print Connected to server, Session: $STATUS!
+waitstatus Connected
+print Connected to Server
 
-# Wait for server logon ack
-wait 35=A
-print Client received Logon
+# Some more sleep for lesser flaky tests
+# One to send the message should pause before sending
+sleep 10
 
 # Send a TestRequest and wait for Heartbeat
 send 8=FIX.4.4|9=68|35=1|49=STRING|56=STRING|34=704|52=20260519-11:13:39.976|112=PING|10=173|
@@ -214,7 +209,7 @@ sleep 10
 set CFG.DefaultTimeoutSec 5
 
 connect ` + addr + `
-wait 35=A
+waitstatus Connected
 
 # Force a sequence gap (Jumping our outbound to MsgSeqNum 5)
 seq out 5
@@ -250,7 +245,7 @@ sleep 10
 set CFG.DefaultTimeoutSec 3
 
 connect ` + addr + `
-wait 35=A
+waitstatus Connected
 
 # Artificially lower our outbound sequence number back to 1 (Fatal Error)
 seq out 1

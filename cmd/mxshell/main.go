@@ -193,6 +193,8 @@ SCRIPT FLOW & UTILITY
   sleep <millis>          Pause execution for N milliseconds
   assert <exp1> <exp2>    Fail the script if exp1 != exp2
   include <filepath>      Include and execute another script file
+  waitstatus <state>      Block until session enters state (New, Listening, 
+                          LoggingIn, Active, Stale, Closed)
 
 VARIABLES & SUBSTITUTION
   Variables can be injected into any command using the '$' prefix.

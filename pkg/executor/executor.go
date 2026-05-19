@@ -41,7 +41,7 @@ func Eval(line string, ctx *script.ScriptContext) error {
 	}
 
 	if err := cmdHandler(ctx, args); err != nil {
-		return fmt.Errorf("execute failed: %w", err)
+		return fmt.Errorf("execute failed for '%v': %w", strings.Join(args, " "), err)
 	}
 
 	return nil
