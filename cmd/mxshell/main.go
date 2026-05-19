@@ -221,21 +221,26 @@ func main() {
 	}
 
 	if args := os.Args; len(args) == 1 {
+		// REPL mode
 		replLoop(ctx)
 	} else if len(args) == 3 && args[1] == "-f" {
-		shell.RunFile(ctx, strings.TrimSpace(args[2]), os.Stdout)
+		// Headless script mode
+		if err := shell.RunFile(ctx, strings.TrimSpace(args[2]), os.Stdout); err != nil {
+			fmt.Printf("run failed: %v\n", err)
+			os.Exit(1)
+		}
 	} else {
 		// Print general help
 		fmt.Print(
 			"MXShell — FIX CLI Client\n\n" +
-			"Usage:\n" +
-			"  mxshell                  Start interactive shell\n" +
-			"  mxshell -f <file>        Execute script in headless mode\n" +
-			"  mxshell -h               Display help\n\n")
+				"Usage:\n" +
+				"  mxshell                  Start interactive shell\n" +
+				"  mxshell -f <file>        Execute script in headless mode\n" +
+				"  mxshell -h               Display help\n\n")
 
 		// Detailed help with script syntax document
 		if len(args) == 2 && (args[1] == "-h" || args[1] == "--help") {
 			fmt.Print("----------------------------------------------------------\n\n" + scriptHelpText)
 		}
-	} 
+	}
 }

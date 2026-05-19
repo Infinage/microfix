@@ -7,41 +7,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/infinage/microfix/pkg/message"
 	"github.com/infinage/microfix/pkg/spec"
+	"github.com/infinage/microfix/pkg/transport"
 )
 
-// MockConnection simulates the underlying transport
-type MockConnection struct {
-	incoming chan message.Message
-	outgoing chan message.Message
-	errors   chan error
-	done     chan struct{}
-}
-
-func (m *MockConnection) Incoming() <-chan message.Message { return m.incoming }
-func (m *MockConnection) Outgoing() chan<- message.Message { return m.outgoing }
-func (m *MockConnection) Errors() <-chan error             { return m.errors }
-func (m *MockConnection) Done() <-chan struct{}            { return m.done }
-func (m *MockConnection) Close()                           { close(m.done) }
-
-func (con *MockConnection) drain() {
-	for {
-		select {
-		case <-con.outgoing:
-		case <-con.done:
-			return
-		}
-	}
-}
-
 func TestSession_Lifecycle(t *testing.T) {
-	mockConn := &MockConnection{
-		incoming: make(chan message.Message, 10),
-		outgoing: make(chan message.Message, 10),
-		errors:   make(chan error, 10),
-		done:     make(chan struct{}),
-	}
+	mockConn := transport.NewMockConnection(10)
 
 	sess, err := NewSession("FIX44.xml", "SENDER", "TARGET", 30, EngineOptions{})
 	if err != nil {
@@ -49,7 +20,7 @@ func TestSession_Lifecycle(t *testing.T) {
 	}
 
 	// Start the session loop
-	sess.start(mockConn, true)
+	sess.Start(mockConn, true)
 
 	// Subscribe to logs channel
 	logCh, unsubscribe, err := sess.SubscribeLog()
@@ -66,7 +37,7 @@ func TestSession_Lifecycle(t *testing.T) {
 	t.Run("SendsLogonOnStart", func(t *testing.T) {
 		// Check Outgoing Wire
 		select {
-		case msg := <-mockConn.outgoing:
+		case msg := <-mockConn.OutgoingCh:
 			if mt, _ := msg.Get(35); mt != "A" {
 				t.Fatalf("expected Logon (A), got %s", mt)
 			}
@@ -94,7 +65,7 @@ func TestSession_Lifecycle(t *testing.T) {
 		resp.Set(108, "30")
 		resp.Finalize()
 
-		mockConn.incoming <- resp
+		mockConn.IncomingCh <- resp
 
 		// We expect a LogRecv and NO LogErr
 		select {
@@ -131,7 +102,7 @@ func TestSession_Lifecycle(t *testing.T) {
 		msg.Set(34, "10")
 		msg.Finalize()
 
-		mockConn.incoming <- msg
+		mockConn.IncomingCh <- msg
 
 		// Should see the RECV log for the gap message
 		select {
@@ -155,7 +126,7 @@ func TestSession_Lifecycle(t *testing.T) {
 
 		// Should see a ResendRequest (35=2) on the wire
 		select {
-		case out := <-mockConn.outgoing:
+		case out := <-mockConn.OutgoingCh:
 			mt, _ := out.Get(35)
 			if mt != "2" {
 				t.Fatalf("expected ResendRequest (2), got %s", mt)
@@ -201,15 +172,9 @@ func TestSession_Lifecycle(t *testing.T) {
 }
 
 func TestSession_DeliverAppMessage(t *testing.T) {
-	mockConn := &MockConnection{
-		incoming: make(chan message.Message, 10),
-		outgoing: make(chan message.Message, 10),
-		errors:   make(chan error, 10),
-		done:     make(chan struct{}),
-	}
-
 	sess, _ := NewSession("FIX44.xml", "S", "T", 30, EngineOptions{})
-	sess.start(mockConn, false) // Start as acceptor
+	mockConn := transport.NewMockConnection(10)
+	sess.Start(mockConn, false) // Start as acceptor
 
 	// Send a logon to drive state to active
 	logon, _ := sess.Router().Sample("A", spec.SampleOptions{})
@@ -218,7 +183,7 @@ func TestSession_DeliverAppMessage(t *testing.T) {
 	logon.Set(34, "1")
 	logon.Set(108, "30")
 	logon.Finalize()
-	mockConn.incoming <- logon
+	mockConn.IncomingCh <- logon
 
 	// Send an Application Message (New Order Single)
 	msg, _ := sess.Router().Sample("D", spec.SampleOptions{})
@@ -226,7 +191,7 @@ func TestSession_DeliverAppMessage(t *testing.T) {
 	msg.Set(56, "S")
 	msg.Set(34, "2") // If set to 1 we will get a logout
 	msg.Finalize()
-	mockConn.incoming <- msg
+	mockConn.IncomingCh <- msg
 
 	// Wait for the message to hit the public Incoming() channel
 	select {
@@ -251,16 +216,10 @@ func TestSession_DeliverAppMessage(t *testing.T) {
 }
 
 func TestSession_AbruptDisconnect(t *testing.T) {
-	mockConn := &MockConnection{
-		incoming: make(chan message.Message, 3),
-		outgoing: make(chan message.Message, 3),
-		errors:   make(chan error, 3),
-		done:     make(chan struct{}),
-	}
-
 	// Simulate a suddenly dropped TCP connection
 	sess, _ := NewSession("FIX44.xml", "S", "T", 30, EngineOptions{})
-	sess.start(mockConn, false)
+	mockConn := transport.NewMockConnection(3)
+	sess.Start(mockConn, false)
 	mockConn.Close()
 
 	// Wait for the session to process the Done signal and clean itself up
@@ -278,15 +237,9 @@ func TestSession_AbruptDisconnect(t *testing.T) {
 }
 
 func TestSession_DoubleCloseSafety(t *testing.T) {
-	mockConn := &MockConnection{
-		incoming: make(chan message.Message, 10),
-		outgoing: make(chan message.Message, 10),
-		errors:   make(chan error, 10),
-		done:     make(chan struct{}),
-	}
-
 	sess, _ := NewSession("FIX44.xml", "S", "T", 30, EngineOptions{})
-	sess.start(mockConn, false)
+	mockConn := transport.NewMockConnection(10)
+	sess.Start(mockConn, false)
 
 	// Attempting to close simultaneously or consecutively should not panic or block
 	sess.Close()
@@ -301,22 +254,16 @@ func TestSession_DoubleCloseSafety(t *testing.T) {
 }
 
 func TestSession_LogConcurrency(t *testing.T) {
-	mockConn := &MockConnection{
-		incoming: make(chan message.Message, 100),
-		outgoing: make(chan message.Message, 100),
-		errors:   make(chan error, 100),
-		done:     make(chan struct{}),
-	}
-
 	sess, _ := NewSession("FIX44.xml", "S", "T", 30, EngineOptions{})
-	sess.start(mockConn, true)
+	mockConn := transport.NewMockConnection(100)
+	sess.Start(mockConn, true)
 
 	var wg sync.WaitGroup
 	workers := 50
 	iterations := 100
 
 	// Start a goroutine to drain out any outgoing messages
-	go mockConn.drain()
+	go mockConn.Drain()
 
 	// Spammer Goroutines: Constantly Subscribe and Unsubscribe
 	for range workers {
@@ -374,15 +321,9 @@ func TestSession_PreStartLogging(t *testing.T) {
 	}
 	defer unsub()
 
-	mockConn := &MockConnection{
-		incoming: make(chan message.Message, 10),
-		outgoing: make(chan message.Message, 10),
-		errors:   make(chan error, 10),
-		done:     make(chan struct{}),
-	}
-
-	// Start the session
-	sess.start(mockConn, false)
+	// Create a mock connection and start the session
+	mockConn := transport.NewMockConnection(10)
+	sess.Start(mockConn, false)
 
 	// The very first thing start()->run() does is emit a SysEvent log.
 	// Since we subscribed before starting, we should catch this log perfectly.
@@ -397,15 +338,9 @@ func TestSession_PreStartLogging(t *testing.T) {
 }
 
 func TestSession_SlowConsumerDoesNotBlock(t *testing.T) {
-	mockConn := &MockConnection{
-		incoming: make(chan message.Message, 100),
-		outgoing: make(chan message.Message, 100),
-		errors:   make(chan error, 100),
-		done:     make(chan struct{}),
-	}
-
 	sess, _ := NewSession("FIX44.xml", "S", "T", 30, EngineOptions{})
-	sess.start(mockConn, true)
+	mockConn := transport.NewMockConnection(100)
+	sess.Start(mockConn, true)
 
 	// Subscribe but purposefully NEVER read from this channel
 	_, unsub, err := sess.SubscribeLog()
@@ -415,7 +350,7 @@ func TestSession_SlowConsumerDoesNotBlock(t *testing.T) {
 	defer unsub()
 
 	// Start a goroutine to drain out any outgoing messages
-	go mockConn.drain()
+	go mockConn.Drain()
 
 	// Try to overwhelm the session with log-generating actions
 	msg, _ := sess.Router().Sample("0", spec.SampleOptions{})

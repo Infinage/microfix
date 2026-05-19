@@ -94,7 +94,6 @@ func (sess *Session) Close() {
 }
 
 // Listen for a client connection, call blocks until accepted
-// Prevent multiple erraneous starts with atomic checks
 func (sess *Session) Listen(addr string) error {
 	if sess.started.Load() {
 		return fmt.Errorf("Session has already started, please reinitialize a new session")
@@ -106,12 +105,10 @@ func (sess *Session) Listen(addr string) error {
 	}
 
 	// Start session as a server
-	sess.start(conn, false)
-	return nil
+	return sess.Start(conn, false)
 }
 
 // Connect to a server, call blocks until connected
-// Prevent multiple erraneous starts with atomic checks
 func (sess *Session) Connect(addr string) error {
 	if sess.started.Load() {
 		return fmt.Errorf("Session has already started, please reinitialize a new session")
@@ -123,7 +120,24 @@ func (sess *Session) Connect(addr string) error {
 	}
 
 	// Start session as a client
-	sess.start(conn, true)
+	return sess.Start(conn, true)
+}
+
+// Start begins the session actor loop using the provided connection interface.
+//
+// For standard TCP networking, users should prefer [Session.Connect] or [Session.Listen].
+// Start is exposed specifically for dependency injection.
+//
+// Returns an error if session has already been started
+func (sess *Session) Start(conn transport.Connection, isClient bool) error {
+	// If already started, return an error
+	if !sess.started.CompareAndSwap(false, true) {
+		return fmt.Errorf("Session has already started, please reinitialize a new session")
+	}
+
+	sess.base = conn
+	go sess.run(isClient)
+
 	return nil
 }
 
@@ -243,13 +257,6 @@ func (sess *Session) SubscribeLog() (<-chan Log, func(), error) {
 }
 
 // -------------- INTERNAL FUNCTIONS -------------- //
-
-// Start the session loop as a goroutine, entry point for Unit tests
-func (sess *Session) start(conn transport.Connection, isClient bool) {
-	sess.base = conn
-	sess.started.Store(true)
-	go sess.run(isClient)
-}
 
 // Non blocking write to all subscribers
 func (sess *Session) writeLog(log Log) {
