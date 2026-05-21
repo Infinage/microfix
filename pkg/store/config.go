@@ -9,6 +9,10 @@ import (
 	"strconv"
 )
 
+// Reflect and store the config fields
+// This will be used for auto completion
+var configFields []string
+
 type Config struct {
 	SenderCompID string `json:"SenderCompID"`
 	TargetCompID string `json:"TargetCompID"`
@@ -181,4 +185,15 @@ func (cfg *Config) setField(key, value string) (string, error) {
 	}
 
 	return oldVal, nil
+}
+
+// Returns a copy of the reflected field struct
+func ConfigFields() []string {
+	return append([]string{}, configFields...)
+}
+
+func init() {
+	for _, field := range reflect.VisibleFields(reflect.TypeFor[Config]()) {
+		configFields = append(configFields, field.Name)
+	}
 }
