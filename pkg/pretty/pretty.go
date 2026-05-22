@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/infinage/microfix/pkg/message"
+	"github.com/infinage/microfix/pkg/session"
 	"github.com/infinage/microfix/pkg/spec"
 )
 
@@ -259,4 +260,16 @@ func buildTrees(ro *spec.Router, msg *message.Message, sp *spec.Spec, ctx *spec.
 	}
 
 	return result, pos
+}
+
+func Log(w io.Writer, log session.Log, router *spec.Router) {
+	hint := ""
+	if log.Type == session.LogSend || log.Type == session.LogRecv {
+		msgType, _ := log.Msg.Get(35)
+		entry, ok := router.SpecForMsgType(msgType).Messages[msgType]
+		if ok {
+			hint = entry.Name
+		}
+	}
+	fmt.Fprintln(w, log.String(hint))
 }

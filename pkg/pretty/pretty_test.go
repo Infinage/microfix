@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/infinage/microfix/pkg/message"
+	"github.com/infinage/microfix/pkg/session"
 	"github.com/infinage/microfix/pkg/spec"
 )
 
@@ -171,5 +173,81 @@ func TestPrettyMessage_FIXTMultiplexing(t *testing.T) {
 	}
 	if strings.Contains(out, "UNKNOWN") {
 		t.Errorf("Output message contains unresolved tags: %v", out)
+	}
+}
+
+func TestLog(t *testing.T) {
+	ro, err := spec.NewDefaultRouter("FIX44.xml")
+	if err != nil {
+		t.Fatalf("Failed to load router: %v", err)
+	}
+
+	// Use a fixed timestamp so output is deterministic
+	now := time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		name     string
+		log      session.Log
+		expected string
+	}{
+		{
+			name: "Send log with known MsgType",
+			log: session.Log{
+				Type:      session.LogSend,
+				Timestamp: now,
+				Msg: message.Message{
+					{Tag: 35, Value: "A"},
+					{Tag: 108, Value: "30"},
+				},
+			},
+			expected: "[Logon]", // Should have successfully resolved MsgType "A"
+		},
+		{
+			name: "Recv log with unknown MsgType",
+			log: session.Log{
+				Type:      session.LogRecv,
+				Timestamp: now,
+				Msg: message.Message{
+					{Tag: 35, Value: "ZZZ"}, // Invalid/Unknown MsgType
+				},
+			},
+			expected: "<< 35=ZZZ|", // Should format without a hint block
+		},
+		{
+			name: "System Log event",
+			log: session.Log{
+				Type:      session.LogSys,
+				Timestamp: now,
+				Text:      "Session connected successfully",
+			},
+			expected: "SYS  .. Session connected successfully",
+		},
+		{
+			name: "Error Log event",
+			log: session.Log{
+				Type:      session.LogErr,
+				Timestamp: now,
+				Err:       bytes.ErrTooLarge, // arbitrary error for testing
+			},
+			expected: "ERR  !! bytes.Buffer: too large",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			Log(&buf, tt.log, ro)
+
+			output := buf.String()
+
+			if !strings.Contains(output, tt.expected) {
+				t.Errorf("Expected output to contain %q\nGot: %q", tt.expected, output)
+			}
+
+			// Ensure it always prints the timestamp correctly formatted
+			if !strings.Contains(output, "2026-05-22 12:00:00.000") {
+				t.Errorf("Timestamp not formatted properly. Got: %q", output)
+			}
+		})
 	}
 }

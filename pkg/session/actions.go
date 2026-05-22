@@ -70,9 +70,10 @@ func (engine *Engine) OnStart(isClient bool) []Action {
 
 	if isClient {
 		engine.state = SessionLoggingIn
-		logon, _ := engine.Router.Sample("A", spec.SampleOptions{})
+		logon, _ := engine.Router.Sample("A", spec.SampleOptions{OptionalFields: map[uint16]any{141: nil}})
 		logon.Set(108, fmt.Sprint(engine.heartbeatInt))
 		logon.Set(1137, engine.Router.GetDefaultApplVerID())
+		logon.Set(141, "Y") // Set ResetSeqNumFlag
 		return []Action{{Type: ActionSend, Msg: logon}}
 	}
 
@@ -260,7 +261,7 @@ func (engine *Engine) handleLogon(msg *message.Message) (bool, []Action) {
 
 	// If flag set, reset sequence numbers
 	if resetSeqNumFlag, _ := msg.Get(141); resetSeqNumFlag == "Y" {
-		engine.inSeqNum, engine.outSeqNum = 1, 1
+		engine.inSeqNum, engine.outSeqNum = 1, 2
 		engine.store.Reset() // Remove all message from store
 	}
 

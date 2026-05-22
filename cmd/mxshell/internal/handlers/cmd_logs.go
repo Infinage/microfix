@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/infinage/microfix/pkg/pretty"
 	"github.com/infinage/microfix/pkg/ringbuf"
 )
 
@@ -33,11 +34,11 @@ func streamLogs(ctx *ShellContext) {
 			fmt.Println("\n─── Exiting Stream ─────────────────────────────")
 			return
 
-		case logLine, ok := <-ch:
+		case log, ok := <-ch:
 			if !ok {
 				return
 			}
-			fmt.Println(logLine)
+			pretty.Log(os.Stdout, log, ctx.Session.Router())
 		}
 	}
 }

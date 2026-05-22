@@ -227,9 +227,9 @@ func displayMeta(ctx *ShellContext, meta string) {
 func handleFix(ctx *ShellContext, args []string) {
 	if len(args) < 3 || len(args[2]) == 0 {
 		fmt.Println("Usage: \n" +
-			"fix meta [header|trailer]\n" +
-			"fix [field|message|sample] <id>\n" +
-			"fix [decode|validate|finalize] <fixMessage>\n" +
+			"fix meta <header|trailer>\n" +
+			"fix <field|message|sample> <id>\n" +
+			"fix <decode|validate|finalize> <fixMessage>\n" +
 			"fix search <pattern>")
 		return
 	}

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/infinage/microfix/pkg/message"
+	"github.com/infinage/microfix/pkg/pretty"
 	"github.com/infinage/microfix/pkg/ringbuf"
 	"github.com/infinage/microfix/pkg/session"
 	"github.com/infinage/microfix/pkg/store"
@@ -26,17 +27,12 @@ func startLogger(sess *session.Session, cb *ringbuf.CircularBuffer) error {
 	go func() {
 		// not required since closeAllLogs already cleans this up
 		defer unsubscribe()
+		var sb strings.Builder
 
 		for log := range logCh {
-			hint := ""
-			if log.Type == session.LogSend || log.Type == session.LogRecv {
-				msgType, _ := log.Msg.Get(35)
-				entry, ok := sess.Router().SpecForMsgType(msgType).Messages[msgType]
-				if ok {
-					hint = entry.Name
-				}
-			}
-			cb.Write(log.String(hint))
+			sb.Reset()
+			pretty.Log(&sb, log, sess.Router())
+			cb.Write(strings.TrimSpace(sb.String()))
 		}
 	}()
 
