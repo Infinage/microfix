@@ -245,6 +245,27 @@ func TestValidate_FromString(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("OutOfContextTag", func(t *testing.T) {
+		raw := "8=FIX.4.4|9=129|35=V|49=S|56=T|34=14|52=20260522-14:33:26.614|262=ABC|263=1|264=0|265=0|146=1|55=USD/INR|460=4|167=SPOT|15=INR|267=2|269=0|269=1|10=102|"
+		msg, err := message.MessageFromString(raw, "|")
+		if err != nil {
+			t.Fatalf("Parse error: %v", err)
+		}
+
+		obs, ok := router.Validate(&msg, ValidationStrict)
+		if ok {
+			t.Fatal("Expected validation to fail")
+		}
+
+		found := slices.ContainsFunc(obs, func(ob string) bool {
+			return strings.Contains(ob, "Context prematurely terminated by unexpected tag [15]")
+		})
+
+		if !found {
+			t.Errorf("Expected out of context tag error in observations, got: %v", strings.Join(obs, "; "))
+		}
+	})
 }
 
 func TestValidate_GroupOrdering(t *testing.T) {

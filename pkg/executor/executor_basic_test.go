@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	script "github.com/infinage/microfix/pkg/executor/handlers"
+	script "github.com/infinage/microfix/pkg/executor/internal/handlers"
 	"github.com/infinage/microfix/pkg/session"
 	"github.com/infinage/microfix/pkg/store"
 )

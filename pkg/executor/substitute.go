@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	script "github.com/infinage/microfix/pkg/executor/handlers"
+	script "github.com/infinage/microfix/pkg/executor/internal/handlers"
 	"github.com/infinage/microfix/pkg/message"
 )
 

@@ -57,20 +57,26 @@ const (
 	ValidationStrict                       // type check, unknown fields check
 )
 
-// Returns index just after processing the message for that context
+// walkSpec validates a FIX message against its specification at a specific hierarchical level (context).
+// It returns the index of the next unprocessed field, or an error if validation fails.
 func walkSpec(ro *Router, msg *message.Message, mode ValidationMode, context Entry,
 	fields map[uint16]FieldDef, idx int, obs *[]string) (int, error) {
 
-	// Clone the original so we don't end up modifying it
+	// localLookup tracks expected tags in the current context.
+	// As we process tags, we remove them from this map to track missing required tags.
 	localLookup := maps.Clone(context.Lookup)
 
+	// Store any out of context tags and if we have pending mandatory tags in context
+	// it means that we have encountered an out of context tag that we need to report
+	oocTagIdx := -1
+
 	for idx < len(*msg) {
-		// Get the field and look it up from spec
 		field := (*msg)[idx]
 		pos, exists := localLookup[field.Tag]
 
+		// --- Context Boundary & Unknown Tag Handling ---
 		if !exists {
-			// If unknown field we can skip processing it - check in sess + appl
+			// Tag is completely unknown to the global dictionary.
 			if _, knownField := ro.Field(field.Tag); !knownField {
 				if mode == ValidationStrict {
 					*obs = append(*obs, fmt.Sprintf("Unknown tag [%v]", field.Tag))
@@ -79,16 +85,16 @@ func walkSpec(ro *Router, msg *message.Message, mode ValidationMode, context Ent
 				continue
 			}
 
-			// If known field, either we are in the wrong context (group has ended)
-			// or message is malformed and we have to stop short
-			// We would assert that we have processed all entries and would fail
-			// validation in this scenario in 'Validate()'
+			// Tag is known globally, but doesn't belong in this specific group/message.
+			// This signals that the current context (e.g., repeating group) has ended.
+			// We break out and let the parent context handle this tag.
+			oocTagIdx = idx
 			break
 		}
 
-		// Get a copy of the entry from spec and mark as visited
+		// --- Process Valid Field ---
 		entry := context.Entries[pos]
-		delete(localLookup, field.Tag)
+		delete(localLookup, field.Tag) // Marking as visited
 
 		// Validate data type
 		if mode == ValidationStrict {
@@ -97,7 +103,7 @@ func walkSpec(ro *Router, msg *message.Message, mode ValidationMode, context Ent
 			}
 		}
 
-		// If group, recurse into it specified no of times
+		// --- Handle Repeating Groups ---
 		if entry.IsGroup {
 			repeat, err := field.AsUint()
 			if err != nil {
@@ -116,7 +122,7 @@ func walkSpec(ro *Router, msg *message.Message, mode ValidationMode, context Ent
 					return idx, err
 				}
 
-				// For the first repeating group
+				// For the first grp repetition, establish the blueprint (size and anchor tag)
 				if groupSize == -1 {
 					// Store the begin and end indices of a group
 					groupSize = idx - group1Start
@@ -148,9 +154,15 @@ func walkSpec(ro *Router, msg *message.Message, mode ValidationMode, context Ent
 		idx++
 	}
 
-	// Check for required tags still pending processing
+	// --- Post-Processing Checks (Missing Required Tags) ---
 	for tag, pos := range localLookup {
 		if context.Entries[pos].Required {
+			// If a required tag is missing, AND we broke out early due to an out-of-context tag,
+			// it is highly likely the out-of-context tag prematurely terminated the group.
+			if oocTagIdx != -1 {
+				*obs = append(*obs, fmt.Sprintf("Context prematurely terminated by unexpected tag [%v]", (*msg)[oocTagIdx].Tag))
+				oocTagIdx = -1
+			}
 			*obs = append(*obs, fmt.Sprintf("Missing required field tag [%v]", tag))
 		}
 	}

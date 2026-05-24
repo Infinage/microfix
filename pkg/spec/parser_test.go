@@ -63,6 +63,15 @@ func TestLoadRawSpecs(t *testing.T) {
 	}
 }
 
+func TestLoadRawSpecWithoutExt(t *testing.T) {
+	validDefaultSpecs := []string{"FIX44", "FIXT11"}
+	for _, specName := range validDefaultSpecs {
+		if _, err := loadRawSpec(specName); err != nil {
+			t.Errorf("Failed to load %v without extension: %v", specName, err)
+		}
+	}
+}
+
 func TestFIXT11DeepValidation(t *testing.T) {
 	raw, err := loadRawSpec("FIXT11.xml")
 	if err != nil {

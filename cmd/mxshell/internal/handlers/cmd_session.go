@@ -43,12 +43,12 @@ func NewSession(store *store.Store) (*session.Session, error) {
 	// Create new session
 	cfg := store.Config()
 	return session.NewSession(
-		cfg.SpecPath,
+		cfg.SessionSpec,
 		cfg.SenderCompID,
 		cfg.TargetCompID,
 		cfg.HeartbeatInt,
 		session.EngineOptions{
-			DefaultApplVer:   cfg.DefaultApplVer,
+			DefaultApplVer:   cfg.ApplicationSpec,
 			SkipLatencyCheck: cfg.SkipLatencyCheckInValidate,
 		},
 	)
@@ -291,7 +291,7 @@ func handleSeq(ctx *ShellContext, args []string) {
 }
 
 func handleHelp(_ *ShellContext, args []string) {
-	const version = "v0.1.0"
+	const version = "v0.2.1"
 
 	// If user asks: help <command>
 	if len(args) > 1 {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 )
 
 // BoolYN handles the FIX 'Y'/'N' attribute mapping
@@ -76,7 +77,12 @@ var defaultSpecs embed.FS
 func loadRawSpec(fpath string) (rawSpec, error) {
 	raw, err := os.ReadFile(fpath)
 	if err != nil {
-		raw, err = defaultSpecs.ReadFile(path.Join("xml", fpath))
+		ext := ""
+		if !strings.HasSuffix(fpath, ".xml") {
+			ext = ".xml"
+		}
+
+		raw, err = defaultSpecs.ReadFile(path.Join("xml", fpath) + ext)
 		if err != nil {
 			return rawSpec{}, fmt.Errorf("Could not find spec %s in local or embedded path", fpath)
 		}

@@ -18,8 +18,8 @@ type Config struct {
 	TargetCompID string `json:"TargetCompID"`
 	HeartbeatInt int64  `json:"HeartbeatInt"`
 
-	SpecPath             string `json:"SpecPath"`
-	DefaultApplVer       string `json:"DefaultApplVer"`
+	SessionSpec          string `json:"SessionSpec"`
+	ApplicationSpec      string `json:"ApplicationSpec"`
 	SpecDisplayOptFields bool   `json:"SpecDisplayOptFields"`
 
 	SkipLatencyCheckInValidate bool `json:"SkipLatencyCheckInValidate"`
@@ -83,7 +83,7 @@ func initConfig() (Config, string) {
 		SenderCompID:         "SENDER",
 		TargetCompID:         "TARGET",
 		HeartbeatInt:         30,
-		SpecPath:             "FIX44.xml",
+		SessionSpec:          "FIX44",
 		SpecDisplayOptFields: false,
 		FixValidateStrict:    true,
 		FixSampleOptional:    false,

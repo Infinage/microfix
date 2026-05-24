@@ -81,12 +81,12 @@ func parseResetSequence(args []string) (int64, bool, error) {
 func newSession(st *store.Store) (*session.Session, error) {
 	cfg := st.Config()
 	return session.NewSession(
-		cfg.SpecPath,
+		cfg.SessionSpec,
 		cfg.SenderCompID,
 		cfg.TargetCompID,
 		cfg.HeartbeatInt,
 		session.EngineOptions{
-			DefaultApplVer:   cfg.DefaultApplVer,
+			DefaultApplVer:   cfg.ApplicationSpec,
 			SkipLatencyCheck: cfg.SkipLatencyCheckInValidate,
 		},
 	)
