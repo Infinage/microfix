@@ -152,10 +152,10 @@ Microfix includes a headless scripting engine designed for testing deterministic
 ```bash
 # Connect and wait for the engine to handle logon
 connect 127.0.0.1:4000
-waitstatus Active
+waitstatus Connected
 
 # Send a New Order Single using dynamic variables
-send 35=D|11=$UNIQUE|55=AAPL|54=1|38=100|40=1|59=0|
+send -r 35=D|11=$UNIQUE|34=$SEQ_OUT|55=AAPL|54=1|38=100|40=1|59=0|
 
 # Wait for the Execution Report
 wait 35=8

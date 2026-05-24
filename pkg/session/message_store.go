@@ -23,7 +23,11 @@ func NewMessageStore() MessageStore {
 }
 
 func (store *MessageStore) Append(msgClone message.Message) error {
-	seqNoTag, _ := msgClone.FindFrom(34, 0)
+	seqNoTag, pos := msgClone.FindFrom(34, 0)
+	if pos == -1 {
+		return fmt.Errorf("Missing tag 34")
+	}
+
 	seqNo, err := seqNoTag.AsInt()
 	if err != nil {
 		return err

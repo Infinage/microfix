@@ -297,10 +297,16 @@ func (sess *Session) handleSend(msg message.Message, passthrough bool) {
 	select {
 	case sess.base.Outgoing() <- msg:
 		now := time.Now()
-		sess.engine.recordWrite(&msg, now)
+
+		// Record the write and log if the store fails (e.g. raw msg missing tag 34)
+		if err := sess.engine.recordWrite(&msg, now); err != nil {
+			sess.writeLog(newErrorLog(now, err))
+		}
+
 		if msgType, ok := msg.Get(35); ok {
 			sess.lastOut[msgType] = msg
 		}
+
 		sess.writeLog(newMessageLog(now, msg, false))
 	case <-sess.Done():
 		sess.writeLog(newErrorLog(time.Now(), fmt.Errorf("Send failed, session closed: %v", msg.String("|"))))

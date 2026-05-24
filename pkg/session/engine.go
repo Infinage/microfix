@@ -132,8 +132,9 @@ func (engine *Engine) Snapshot() Snapshot {
 	}
 }
 
-// Feedback that a write action was successful
-func (engine *Engine) recordWrite(msg *message.Message, now time.Time) {
+// Feedback that a write action was successful. Returns an error if the
+// message could not be persisted for potential recovery.
+func (engine *Engine) recordWrite(msg *message.Message, now time.Time) error {
 	engine.lastWriteTime = now
 
 	if msgType, _ := msg.Get(35); msgType != "4" {
@@ -144,9 +145,13 @@ func (engine *Engine) recordWrite(msg *message.Message, now time.Time) {
 		// Store only non admin message into our store
 		// And we clone so that downstream updates dont affect the store
 		if !engine.Router.IsAdmin(msgType) {
-			engine.store.Append(*msg)
+			if err := engine.store.Append(*msg); err != nil {
+				return fmt.Errorf("Failed to append to msg store (seq %v): %w", engine.outSeqNum, err)
+			}
 		}
 	}
+
+	return nil
 }
 
 // Returns an error if missing tags: [8, 9, 35, 49, 56, 34, 52, 10] or on failing outbound validation.
