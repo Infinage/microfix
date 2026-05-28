@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Microfix - Terminal</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@2.0.10"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <style>
+        /* Custom scrollbar for the dark theme */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #111827; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4B5563; }
+    </style>
+</head>
+<body class="bg-[#0d1117] text-gray-300 h-screen overflow-hidden flex flex-col font-sans" x-data="{ view: 'live' }">
+    
+    <header class="bg-gray-900 border-b border-gray-800 h-14 flex items-center justify-between px-4 shrink-0 shadow-sm z-10">
+        <div class="flex items-center space-x-4">
+            <span class="text-white font-bold text-lg tracking-widest">MICRO<span class="text-blue-500">FIX</span></span>
+            
+            <div class="h-5 w-px bg-gray-700"></div>
+            
+            <div class="flex space-x-2">
+                <button class="bg-green-900/40 hover:bg-green-900/60 text-green-400 border border-green-800/50 px-3 py-1.5 rounded text-sm font-semibold transition flex items-center space-x-2">
+                    <span class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></span>
+                    <span>Connect</span>
+                </button>
+                <button class="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 px-3 py-1.5 rounded text-sm font-semibold transition">
+                    Listen
+                </button>
+                <button class="bg-red-900/20 hover:bg-red-900/40 text-red-400 border border-red-900/50 px-3 py-1.5 rounded text-sm font-semibold transition" title="Reset Session">
+                    ⟳ Reset
+                </button>
+            </div>
+        </div>
+        
+        <div class="flex space-x-6 text-sm font-mono bg-gray-950 px-4 py-1.5 rounded border border-gray-800 cursor-pointer hover:border-gray-600 transition" title="Edit Sequence Numbers">
+            <div class="flex items-center space-x-2">
+                <span class="text-gray-500">InSeq:</span>
+                <span class="text-green-400">142</span>
+            </div>
+            <div class="flex items-center space-x-2">
+                <span class="text-gray-500">OutSeq:</span>
+                <span class="text-blue-400">143</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+        
+        <aside class="w-16 bg-gray-900 border-r border-gray-800 flex flex-col items-center py-4 space-y-6 shrink-0 z-10">
+            <button @click="view = 'live'" :class="view === 'live' ? 'text-blue-400' : 'text-gray-500 hover:text-gray-300'" class="transition" title="Live Session">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+            </button>
+            
+            <button @click="view = 'toolbox'" :class="view === 'toolbox' ? 'text-blue-400' : 'text-gray-500 hover:text-gray-300'" class="transition" title="FIX Toolbox">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+            </button>
+
+            <button @click="view = 'automation'" :class="view === 'automation' ? 'text-blue-400' : 'text-gray-500 hover:text-gray-300'" class="transition" title="Scripts & Automation">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </button>
+
+            <div class="flex-1"></div>
+
+            <button @click="view = 'config'" :class="view === 'config' ? 'text-blue-400' : 'text-gray-500 hover:text-gray-300'" class="transition" title="Config & Aliases">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            </button>
+        </aside>
+
+        <main class="flex-1 relative">
+            
+            <div x-show="view === 'live'" class="absolute inset-0 flex flex-col">
+                
+                <div class="h-48 border-b border-gray-800 bg-gray-900/50 p-4 flex flex-col shrink-0">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-semibold text-gray-400 uppercase tracking-widest">Message Builder</span>
+                        <div class="flex space-x-2">
+                            <button class="text-xs bg-gray-800 hover:bg-gray-700 px-2 py-1 rounded border border-gray-700 text-gray-300">Logon (A)</button>
+                            <button class="text-xs bg-gray-800 hover:bg-gray-700 px-2 py-1 rounded border border-gray-700 text-gray-300">TestReq (1)</button>
+                            <button class="text-xs bg-blue-900/30 hover:bg-blue-900/50 px-2 py-1 rounded border border-blue-800 text-blue-400">Order (D)</button>
+                        </div>
+                    </div>
+                    <textarea class="flex-1 bg-gray-950 border border-gray-800 rounded p-3 font-mono text-sm text-green-400 focus:outline-none focus:border-blue-500 resize-none shadow-inner" placeholder="Construct message here... e.g. 35=D|11=ORDER1|..."></textarea>
+                    <div class="mt-2 flex justify-end">
+                        <button class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-1.5 rounded text-sm font-semibold transition">Send ↗</button>
+                    </div>
+                </div>
+
+                <div class="flex-1 bg-[#0a0d12] flex flex-col overflow-hidden">
+                    <div class="bg-gray-900 px-4 py-1.5 border-b border-gray-800 flex justify-between items-center shrink-0">
+                        <span class="text-xs font-semibold text-gray-400 uppercase tracking-widest">Live Traffic Stream</span>
+                        <button class="text-xs text-gray-500 hover:text-red-400 transition">Clear</button>
+                    </div>
+                    
+                    <div id="log-stream" class="flex-1 overflow-y-auto p-2 font-mono text-xs space-y-1" hx-get="/logs/stream" hx-trigger="every 1s" hx-swap="beforeend">
+                        
+                        <div class="flex items-start space-x-3 p-1.5 hover:bg-gray-800/50 rounded group cursor-pointer border-l-2 border-green-500 transition">
+                            <span class="text-gray-600 shrink-0">08:12:00.142</span>
+                            <span class="text-green-500 font-bold shrink-0">IN &nbsp;</span>
+                            <span class="text-gray-400 break-all">8=FIX.4.4<span class="text-gray-600">|</span>9=65<span class="text-gray-600">|</span><span class="text-yellow-400 font-bold">35=A</span><span class="text-gray-600">|</span>34=142<span class="text-gray-600">|</span>49=SERVER<span class="text-gray-600">|</span>56=CLIENT<span class="text-gray-600">|</span>10=114<span class="text-gray-600">|</span></span>
+                        </div>
+
+                        <div class="flex items-start space-x-3 p-1.5 hover:bg-gray-800/50 rounded group cursor-pointer border-l-2 border-blue-500 transition">
+                            <span class="text-gray-600 shrink-0">08:12:05.991</span>
+                            <span class="text-blue-500 font-bold shrink-0">OUT </span>
+                            <span class="text-gray-400 break-all">8=FIX.4.4<span class="text-gray-600">|</span>9=72<span class="text-gray-600">|</span><span class="text-yellow-400 font-bold">35=D</span><span class="text-gray-600">|</span>34=143<span class="text-gray-600">|</span>49=CLIENT<span class="text-gray-600">|</span>56=SERVER<span class="text-gray-600">|</span>11=ORD123<span class="text-gray-600">|</span>10=045<span class="text-gray-600">|</span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="view === 'toolbox'" style="display: none;" class="absolute inset-0 flex items-center justify-center bg-[#0d1117]">
+                <div class="text-center text-gray-500">
+                    <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                    <h2 class="text-xl font-bold text-gray-400">FIX Toolbox</h2>
+                    <p class="text-sm mt-2">Validator, Decoder, and Dictionary Search goes here.</p>
+                </div>
+            </div>
+
+            <div x-show="view === 'automation'" style="display: none;" class="absolute inset-0 flex items-center justify-center bg-[#0d1117]">
+                 <div class="text-center text-gray-500">
+                    <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path></svg>
+                    <h2 class="text-xl font-bold text-gray-400">Script Runner</h2>
+                    <p class="text-sm mt-2">.mxs execution and test suites go here.</p>
+                </div>
+            </div>
+
+        </main>
+    </div>
+</body>
+</html>
