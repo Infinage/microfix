@@ -1,45 +1,72 @@
 package views
 
-templ ToolboxView() {
-    <main x-show="view === 'toolbox'" style="display: none;" class="flex-1 flex bg-[#0a0d12] overflow-hidden">
-        <div class="w-80 border-r border-gray-800 bg-gray-950 flex flex-col shrink-0">
-            <div class="p-4 border-b border-gray-800">
-                <input type="text" placeholder="Search Tag or Message..." class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-blue-500 font-mono">
+templ scriptRunner() {
+    <div x-show="toolboxTab === 'scripts'" class="flex-1 flex flex-col overflow-hidden">
+        <div class="flex justify-between items-center mb-6 shrink-0">
+            <div>
+                <h2 class="text-2xl font-bold text-white">Batch Script Runner</h2>
+                <p class="text-gray-400 text-sm mt-1">Execute .mxs scripts for automated testing and protocol simulations.</p>
             </div>
-            <div class="flex-1 overflow-y-auto p-2">
-                <div class="text-xs text-gray-500 font-bold mb-2 uppercase px-2 mt-2 tracking-wider">Messages</div>
-                <ul class="text-sm space-y-1 text-gray-400 mb-6">
-                    <li class="px-3 py-2 bg-gray-900 rounded cursor-pointer text-blue-400 font-bold transition">NewOrderSingle (D)</li>
-                    <li class="px-3 py-2 hover:bg-gray-900 rounded cursor-pointer transition">Logon (A)</li>
-                </ul>
-                <div class="text-xs text-gray-500 font-bold mb-2 uppercase px-2 tracking-wider border-t border-gray-800 pt-4">Fields</div>
-                <ul class="text-sm space-y-1 text-gray-400">
-                    <li class="px-3 py-2 hover:bg-gray-900 rounded cursor-pointer transition">11 (ClOrdID)</li>
-                    <li class="px-3 py-2 hover:bg-gray-900 rounded cursor-pointer transition">35 (MsgType)</li>
-                </ul>
+            <div class="flex space-x-3 items-center">
+                <label class="flex items-center space-x-2 text-sm text-gray-400 cursor-pointer mr-4">
+                    <input type="checkbox" class="rounded bg-gray-900 border-gray-700" checked>
+                    <span>Verbose Engine Logs</span>
+                </label>
+                <button class="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded text-sm transition border border-gray-700 font-bold">Browse .mxs...</button>
+                <button class="bg-green-600 hover:bg-green-500 text-white px-6 py-2 rounded text-sm font-bold transition shadow-lg flex items-center space-x-2">
+                    <span>▶ Run Script</span>
+                </button>
             </div>
         </div>
-        <div class="flex-1 p-8 overflow-y-auto">
-            <div class="flex items-end justify-between border-b border-gray-800 pb-4 mb-6">
-                <div>
-                    <div class="flex items-center space-x-3 mb-2">
-                        <span class="bg-blue-900/30 text-blue-400 font-bold font-fix px-3 py-1 rounded text-sm border border-blue-800">MsgType = D</span>
-                        <span class="bg-gray-800 text-gray-400 px-3 py-1 rounded text-sm border border-gray-700">App Message</span>
-                    </div>
-                    <h2 class="text-3xl font-bold text-white">NewOrderSingle</h2>
-                </div>
-                <button class="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm transition">Generate Sample</button>
+        
+        <div class="bg-gray-950 border border-gray-800 rounded-lg p-4 flex-1 overflow-y-auto font-mono text-sm shadow-inner space-y-2">
+            <div class="text-blue-400">> Loading script test_suite_v1.mxs...</div>
+            <div class="text-gray-500">[SYS] Initializing internal buffer...</div>
+            <div class="text-blue-400">> Sending Logon (35=A)...</div>
+            <div class="text-green-400">✓ Expect: 35=A passed.</div>
+            <div class="text-blue-400">> Sending NewOrderSingle (35=D)...</div>
+            <div class="text-red-400">✗ Wait: Expected 35=8, received 35=3 (Reject). Script halted.</div>
+        </div>
+    </div>
+}
+
+templ finalizeMessage() {
+    <div x-show="toolboxTab === 'finalize'" style="display: none;" class="flex-1 flex flex-col overflow-hidden">
+        <h2 class="text-2xl font-bold text-white mb-2">FIX Finalize</h2>
+        <p class="text-gray-400 text-sm mb-6">Paste incomplete raw FIX messages to automatically calculate and append missing BodyLength (Tag 9) and Checksum (Tag 10).</p>
+        
+        <div class="flex-1 flex space-x-6 overflow-hidden">
+            <div class="flex-1 flex flex-col">
+                <label class="text-sm text-gray-500 font-bold uppercase tracking-widest mb-2">Raw Input</label>
+                <textarea class="flex-1 bg-gray-950 border border-gray-800 rounded p-4 font-mono text-sm text-gray-300 resize-none focus:border-blue-500 focus:outline-none shadow-inner" placeholder="8=FIX.4.4|35=D|55=AAPL|..."></textarea>
             </div>
-            <h3 class="text-lg font-bold text-gray-300 mb-3">Message Specification</h3>
-            <div class="border border-gray-800 rounded-lg overflow-hidden bg-gray-950">
-                <table class="w-full text-left text-sm font-fix">
-                    <tr class="bg-gray-900 text-gray-400 border-b border-gray-800"><th class="p-3 w-16">Tag</th><th class="p-3 w-48">Name</th><th class="p-3 w-24">Req</th><th class="p-3">Type / Valid Values</th></tr>
-                    <tr class="border-b border-gray-800/50 hover:bg-gray-800/50"><td class="p-3 text-gray-500">11</td><td class="p-3 text-blue-400">ClOrdID</td><td class="p-3 text-green-400">Y</td><td class="p-3 text-gray-400">String</td></tr>
-                    <tr class="border-b border-gray-800/50 hover:bg-gray-800/50"><td class="p-3 text-gray-500">54</td><td class="p-3 text-blue-400">Side</td><td class="p-3 text-green-400">Y</td><td class="p-3 text-gray-400">Char (1=Buy, 2=Sell, 5=Sell Short)</td></tr>
-                    <tr class="border-b border-gray-800/50 hover:bg-gray-800/50"><td class="p-3 text-gray-500">60</td><td class="p-3 text-blue-400">TransactTime</td><td class="p-3 text-green-400">Y</td><td class="p-3 text-gray-400">UTCTimestamp</td></tr>
-                    <tr class="border-b border-gray-800/50 hover:bg-gray-800/50"><td class="p-3 text-gray-500">55</td><td class="p-3 text-blue-400">Symbol</td><td class="p-3 text-gray-500">N</td><td class="p-3 text-gray-400">String</td></tr>
-                </table>
+            <div class="flex flex-col justify-center shrink-0">
+                <button class="bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-full font-bold transition shadow-lg" title="Finalize Message">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                </button>
             </div>
+            <div class="flex-1 flex flex-col">
+                <label class="text-sm text-gray-500 font-bold uppercase tracking-widest mb-2">Calculated Output</label>
+                <textarea class="flex-1 bg-gray-950 border border-gray-800 rounded p-4 font-mono text-sm text-green-400 resize-none shadow-inner" readonly placeholder="Output with calculated lengths and checksums will appear here..."></textarea>
+                <button class="mt-4 bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded text-sm transition border border-gray-700 w-full font-bold">Copy to Clipboard</button>
+            </div>
+        </div>
+    </div>
+}
+
+templ ToolboxView() {
+    <main x-show="view === 'toolbox'" style="display: none;" class="flex-1 flex bg-[#0a0d12] overflow-hidden">
+        <div class="w-64 border-r border-gray-800 bg-gray-950 p-4 flex flex-col shrink-0">
+            <h2 class="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4">Automation Tools</h2>
+            <div class="space-y-2">
+                <button @click="toolboxTab = 'scripts'" :class="toolboxTab === 'scripts' ? 'bg-gray-800 text-white' : 'text-gray-400 hover:bg-gray-900'" class="w-full text-left px-4 py-2 text-sm rounded font-bold transition">Script Runner</button>
+                <button @click="toolboxTab = 'finalize'" :class="toolboxTab === 'finalize' ? 'bg-gray-800 text-white' : 'text-gray-400 hover:bg-gray-900'" class="w-full text-left px-4 py-2 text-sm rounded font-bold transition">FIX Finalize</button>
+            </div>
+        </div>
+        
+        <div class="flex-1 p-10 flex flex-col overflow-hidden">
+            @scriptRunner()
+            @finalizeMessage()
         </div>
     </main>
 }

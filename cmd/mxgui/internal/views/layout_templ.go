@@ -57,7 +57,7 @@ func Layout() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</head><body class=\"bg-[#0a0d12] text-gray-300 h-screen overflow-hidden flex flex-col font-sans selection:bg-blue-900 selection:text-white\" x-data=\"{ \n          view: 'stream', /* 'stream', 'toolbox', 'runner', 'settings' */\n          inspectorOpen: false, \n          selectedMsg: null,\n          inspectorTab: 'decoded',\n          settingsTab: 'about',\n          runnerTab: 'scripts',\n          sendRaw: false,\n          modal: '' /* '', 'seq', 'connect', 'form' */\n      }\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</head><body class=\"bg-[#0a0d12] text-gray-300 h-screen overflow-hidden flex flex-col font-sans selection:bg-blue-900 selection:text-white\" x-data=\"{ \n          view: 'stream', /* 'stream', 'dictionary', 'toolbox', 'settings' */\n          inspectorOpen: false, \n          selectedMsg: null,\n          inspectorTab: 'decoded',\n          settingsTab: 'about',\n          toolboxTab: 'scripts',\n          sendRaw: false,\n          modal: '' /* '', 'seq', 'connect', 'form' */\n      }\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -81,11 +81,11 @@ func Layout() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = ToolboxView().Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = DictionaryView().Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = RunnerView().Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = ToolboxView().Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

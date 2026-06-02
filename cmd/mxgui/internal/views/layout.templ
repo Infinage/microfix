@@ -17,12 +17,12 @@ templ Layout() {
     </head>
     <body class="bg-[#0a0d12] text-gray-300 h-screen overflow-hidden flex flex-col font-sans selection:bg-blue-900 selection:text-white" 
       x-data="{ 
-          view: 'stream', /* 'stream', 'toolbox', 'runner', 'settings' */
+          view: 'stream', /* 'stream', 'dictionary', 'toolbox', 'settings' */
           inspectorOpen: false, 
           selectedMsg: null,
           inspectorTab: 'decoded',
           settingsTab: 'about',
-          runnerTab: 'scripts',
+          toolboxTab: 'scripts',
           sendRaw: false,
           modal: '' /* '', 'seq', 'connect', 'form' */
       }">
@@ -33,8 +33,8 @@ templ Layout() {
     <div class="flex flex-1 overflow-hidden">
         @Sidebar()
         @StreamView()
+        @DictionaryView()
         @ToolboxView()
-        @RunnerView()
         @SettingsView()
     </div>
 
