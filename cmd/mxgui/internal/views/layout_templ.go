@@ -57,7 +57,43 @@ func Layout() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</head><body><header class=\"bg-gray-950 border-b border-gray-800 h-14 flex items-center justify-between px-4 shrink-0 z-20 shadow-md\"><div class=\"flex items-center space-x-6\"><span class=\"text-white font-bold text-lg tracking-widest\">MICRO<span class=\"text-blue-500\">FIX</span></span><div class=\"h-6 w-px bg-gray-800\"></div><div class=\"flex items-center space-x-3 bg-gray-900/80 px-3 py-1.5 rounded-md border border-gray-700/50\"><span class=\"flex items-center space-x-2 text-green-400 font-bold text-xs tracking-wider\"><span class=\"w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)] animate-pulse\"></span> <span>ACTIVE</span></span> <span class=\"text-gray-600\">|</span> <span class=\"text-gray-300 text-sm font-fix font-semibold\">FIX.4.4</span> <span class=\"text-gray-600\">|</span> <span class=\"text-gray-400 text-sm font-fix\">CLIENT &rarr; SERVER</span></div></div><div class=\"flex space-x-4 items-center\"><button @click=\"modal = 'connect'\" class=\"bg-gray-900 hover:bg-gray-800 border border-gray-700 text-gray-300 px-4 py-1.5 rounded text-sm font-semibold transition flex items-center space-x-2\" title=\"Configure IP/Port\"><svg class=\"w-4 h-4 text-gray-400\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1\"></path></svg> <span>Connection</span></button> <button class=\"bg-red-950/40 hover:bg-red-900/60 text-red-400 border border-red-900/50 px-4 py-1.5 rounded text-sm font-semibold transition\">Disconnect</button><div @click=\"modal = 'seq'\" class=\"flex space-x-4 text-sm font-fix bg-gray-900 px-4 py-1.5 rounded border border-gray-800 cursor-pointer hover:border-gray-600 transition\" title=\"Reset Sequences\"><div><span class=\"text-gray-500\">IN:</span> <span class=\"text-green-400 font-bold\">142</span></div><div><span class=\"text-gray-500\">OUT:</span> <span class=\"text-blue-400 font-bold\">143</span></div></div></div></header></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</head><body class=\"bg-[#0a0d12] text-gray-300 h-screen overflow-hidden flex flex-col font-sans selection:bg-blue-900 selection:text-white\" x-data=\"{ \n          view: 'stream', /* 'stream', 'toolbox', 'runner', 'settings' */\n          inspectorOpen: false, \n          selectedMsg: null,\n          inspectorTab: 'decoded',\n          settingsTab: 'about',\n          runnerTab: 'scripts',\n          sendRaw: false,\n          modal: '' /* '', 'seq', 'connect', 'form' */\n      }\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = Modals().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = Header().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"flex flex-1 overflow-hidden\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = Sidebar().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = StreamView().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = ToolboxView().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = RunnerView().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = SettingsView().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
