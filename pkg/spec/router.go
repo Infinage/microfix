@@ -78,8 +78,14 @@ func NewDefaultRouter(sessSpecPath string) (*Router, error) {
 		return router, nil
 	}
 
-	// Legacy session and appl spec are the same
+	// Legacy: session and appl spec are the same
 	return NewRouter(sessSpecPath, []string{sessSpecPath})
+}
+
+// SessionSpec == ApplSpec
+func (router *Router) IsLegacyRouter() bool {
+	return len(router.applSpecs) == 1 &&
+		router.ApplSpec().BeginString() == router.SessionSpec().BeginString()
 }
 
 // Returns currently selected defaultApplVer (FIX wire protocol value)

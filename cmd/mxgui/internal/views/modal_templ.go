@@ -8,6 +8,12 @@ package views
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import (
+	"strconv"
+
+	"github.com/infinage/microfix/cmd/mxgui/internal/models"
+)
+
 func addAliasModal() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -37,7 +43,7 @@ func addAliasModal() templ.Component {
 	})
 }
 
-func newConnectionModal() templ.Component {
+func newConnectionModal(data *models.ModalData) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -58,7 +64,33 @@ func newConnectionModal() templ.Component {
 			templ_7745c5c3_Var2 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div x-show=\"modal === 'connect'\" x-data=\"{ mode: 'client' }\" @click.away=\"modal = ''\" class=\"bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-96 p-5\"><div class=\"flex justify-between items-center mb-4\"><h3 class=\"text-white font-bold text-lg\">Connection Settings</h3><div class=\"flex items-center space-x-2 bg-gray-950 p-1 rounded-lg border border-gray-800\"><button @click=\"mode = 'client'\" :class=\"mode === 'client' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-300'\" class=\"px-3 py-1 text-xs font-bold rounded transition\">Client</button> <button @click=\"mode = 'server'\" :class=\"mode === 'server' ? 'bg-purple-700 text-white' : 'text-gray-500 hover:text-gray-300'\" class=\"px-3 py-1 text-xs font-bold rounded transition\">Server</button></div></div><div class=\"space-y-4\"><div><label class=\"text-xs text-gray-400 font-bold uppercase tracking-wider\">Host / Bind IP</label> <input type=\"text\" value=\"127.0.0.1\" class=\"w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 text-white font-mono mt-1 focus:border-blue-500 focus:outline-none\"></div><div><label class=\"text-xs text-gray-400 font-bold uppercase tracking-wider\">Port</label> <input type=\"number\" value=\"9876\" class=\"w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 text-white font-mono mt-1 focus:border-blue-500 focus:outline-none\"></div></div><div class=\"mt-6 flex justify-end space-x-3\"><button @click=\"modal = ''\" class=\"px-4 py-2 text-sm text-gray-400 hover:text-white transition\">Cancel</button> <button x-show=\"mode === 'client'\" @click=\"modal = ''\" class=\"px-4 py-2 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded font-bold transition shadow-lg w-28\">Connect</button> <button x-show=\"mode === 'server'\" style=\"display:none;\" @click=\"modal = ''\" class=\"px-4 py-2 text-sm bg-purple-700 hover:bg-purple-600 text-white rounded font-bold transition shadow-lg w-28\">Listen</button></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div x-show=\"modal === 'connect'\" x-data=\"{ mode: 'client' }\" @click.away=\"modal = ''\" class=\"bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-96 p-5\"><div class=\"flex justify-between items-center mb-4\"><h3 class=\"text-white font-bold text-lg\">Connection Settings</h3><div class=\"flex items-center space-x-2 bg-gray-950 p-1 rounded-lg border border-gray-800\"><button @click=\"mode = 'client'\" :class=\"mode === 'client' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-300'\" class=\"px-3 py-1 text-xs font-bold rounded transition\">Client</button> <button @click=\"mode = 'server'\" :class=\"mode === 'server' ? 'bg-purple-700 text-white' : 'text-gray-500 hover:text-gray-300'\" class=\"px-3 py-1 text-xs font-bold rounded transition\">Server</button></div></div><form hx-post=\"/api/connect\" hx-swap=\"none\" @htmx:after-request.camel=\"if ($event.detail.successful) modal = ''\" @close-modal.window=\"modal = '\"><input type=\"hidden\" name=\"mode\" :value=\"mode\"><div class=\"space-y-4\"><div><label class=\"text-xs text-gray-400 font-bold uppercase tracking-wider\">Host / Bind IP</label> <input type=\"text\" name=\"host\" value=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var3 string
+		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.IpAddr)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/modal.templ`, Line: 49, Col: 69}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" class=\"w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 text-white font-mono mt-1 focus:border-blue-500 focus:outline-none\"></div><div><label class=\"text-xs text-gray-400 font-bold uppercase tracking-wider\">Port</label> <input type=\"number\" name=\"port\" value=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var4 string
+		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.Itoa(int(data.Port)))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/modal.templ`, Line: 53, Col: 88}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\" class=\"w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 text-white font-mono mt-1 focus:border-blue-500 focus:outline-none\"></div></div># TODO: Listen to block or display a in progress gif or something to user and block UI<div class=\"mt-6 flex justify-end space-x-3\"><button type=\"button\" @click=\"modal = ''\" class=\"px-4 py-2 text-sm text-gray-400 hover:text-white transition\">Cancel</button> <button type=\"submit\" :class=\"mode === 'client' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-purple-700 hover:bg-purple-600'\" class=\"px-4 py-2 text-sm text-white rounded font-bold transition shadow-lg w-28\" x-text=\"mode === 'client' ? 'Connect' : 'Listen'\"></button></div></form></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -82,12 +114,12 @@ func sequenceResetModal() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var3 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var3 == nil {
-			templ_7745c5c3_Var3 = templ.NopComponent
+		templ_7745c5c3_Var5 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var5 == nil {
+			templ_7745c5c3_Var5 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div x-show=\"modal === 'seq'\" @click.away=\"modal = ''\" class=\"bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-80 p-5\"><h3 class=\"text-white font-bold text-lg mb-4\">Reset Sequence Numbers</h3><div class=\"space-y-4\"><div><label class=\"text-xs text-gray-400 font-bold uppercase tracking-wider\">Inbound (Next Expected)</label> <input type=\"number\" value=\"142\" class=\"w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 text-white font-mono mt-1 focus:border-blue-500 focus:outline-none\"></div><div><label class=\"text-xs text-gray-400 font-bold uppercase tracking-wider\">Outbound (Next Expected)</label> <input type=\"number\" value=\"144\" class=\"w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 text-white font-mono mt-1 focus:border-blue-500 focus:outline-none\"></div></div><div class=\"mt-6 flex justify-end space-x-3\"><button @click=\"modal = ''\" class=\"px-4 py-2 text-sm text-gray-400 hover:text-white transition\">Cancel</button> <button @click=\"modal = ''\" class=\"px-4 py-2 text-sm bg-red-600 hover:bg-red-500 text-white rounded font-bold transition shadow-lg\">Apply & Reset</button></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div x-show=\"modal === 'seq'\" @click.away=\"modal = ''\" class=\"bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-80 p-5\"><h3 class=\"text-white font-bold text-lg mb-4\">Reset Sequence Numbers</h3><div class=\"space-y-4\"><div><label class=\"text-xs text-gray-400 font-bold uppercase tracking-wider\">Inbound (Next Expected)</label> <input type=\"number\" value=\"142\" class=\"w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 text-white font-mono mt-1 focus:border-blue-500 focus:outline-none\"></div><div><label class=\"text-xs text-gray-400 font-bold uppercase tracking-wider\">Outbound (Next Expected)</label> <input type=\"number\" value=\"144\" class=\"w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 text-white font-mono mt-1 focus:border-blue-500 focus:outline-none\"></div></div><div class=\"mt-6 flex justify-end space-x-3\"><button @click=\"modal = ''\" class=\"px-4 py-2 text-sm text-gray-400 hover:text-white transition\">Cancel</button> <button @click=\"modal = ''\" class=\"px-4 py-2 text-sm bg-red-600 hover:bg-red-500 text-white rounded font-bold transition shadow-lg\">Apply & Reset</button></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -111,12 +143,12 @@ func formBuilderModal() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var4 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var4 == nil {
-			templ_7745c5c3_Var4 = templ.NopComponent
+		templ_7745c5c3_Var6 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var6 == nil {
+			templ_7745c5c3_Var6 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div x-show=\"modal === 'form'\" @click.away=\"modal = ''\" class=\"bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-[600px] max-h-[80vh] flex flex-col\"><div class=\"flex items-center justify-between p-4 border-b border-gray-800\"><div><h3 class=\"text-white font-bold text-lg\">Form Builder</h3><p class=\"text-xs text-gray-400 font-mono mt-1\">Generating: 35=D (NewOrderSingle)</p></div><button @click=\"modal = ''\" class=\"text-gray-500 hover:text-white transition\"><svg class=\"w-6 h-6\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M6 18L18 6M6 6l12 12\"></path></svg></button></div><div class=\"p-4 overflow-y-auto flex-1 space-y-3 bg-[#0a0d12]\"><div class=\"text-xs text-gray-500 uppercase font-bold tracking-wider mb-2\">Standard Header</div><div class=\"flex items-center hover:bg-gray-900 p-1.5 rounded transition\"><span class=\"w-48 text-sm text-gray-400 font-mono\">35 (MsgType)</span><input type=\"text\" value=\"D\" class=\"flex-1 bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-sm text-white font-mono focus:border-blue-500 focus:outline-none\"></div><div class=\"flex items-center hover:bg-gray-900 p-1.5 rounded transition\"><span class=\"w-48 text-sm text-gray-400 font-mono\">49 (SenderCompID)</span><input type=\"text\" value=\"CLIENT1\" class=\"flex-1 bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-sm text-white font-mono focus:border-blue-500 focus:outline-none\"></div><div class=\"text-xs text-gray-500 uppercase font-bold tracking-wider mt-4 mb-2 border-t border-gray-800 pt-4\">Message Body</div><div class=\"flex items-center hover:bg-gray-900 p-1.5 rounded transition\"><span class=\"w-48 text-sm text-gray-400 font-mono\">11 (ClOrdID)</span><input type=\"text\" value=\"ORD-9921\" class=\"flex-1 bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-sm text-white font-mono focus:border-blue-500 focus:outline-none\"></div><div class=\"flex items-center hover:bg-gray-900 p-1.5 rounded transition\"><span class=\"w-48 text-sm text-gray-400 font-mono\">55 (Symbol)</span><input type=\"text\" value=\"AAPL\" class=\"flex-1 bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-sm text-white font-mono focus:border-blue-500 focus:outline-none\"></div><div class=\"flex items-center hover:bg-gray-900 p-1.5 rounded transition\"><span class=\"w-48 text-sm text-gray-400 font-mono\">54 (Side)</span><input type=\"text\" value=\"1\" class=\"flex-1 bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-sm text-white font-mono focus:border-blue-500 focus:outline-none\"></div><div class=\"flex items-center hover:bg-gray-900 p-1.5 rounded transition\"><span class=\"w-48 text-sm text-gray-400 font-mono\">38 (OrderQty)</span><input type=\"text\" value=\"100\" class=\"flex-1 bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-sm text-white font-mono focus:border-blue-500 focus:outline-none\"></div><button class=\"w-full mt-4 py-2 border border-dashed border-gray-700 text-gray-500 hover:text-white hover:border-gray-500 rounded text-sm transition font-bold\">+ Add Custom Field</button></div><div class=\"p-4 border-t border-gray-800 flex justify-end space-x-3 bg-gray-900\"><button @click=\"modal = ''\" class=\"px-4 py-2 text-sm text-gray-400 hover:text-white transition\">Cancel</button> <button @click=\"modal = ''\" class=\"px-4 py-2 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded font-bold transition shadow-lg\">Apply to Raw String</button></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div x-show=\"modal === 'form'\" @click.away=\"modal = ''\" class=\"bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-[600px] max-h-[80vh] flex flex-col\"><div class=\"flex items-center justify-between p-4 border-b border-gray-800\"><div><h3 class=\"text-white font-bold text-lg\">Form Builder</h3><p class=\"text-xs text-gray-400 font-mono mt-1\">Generating: 35=D (NewOrderSingle)</p></div><button @click=\"modal = ''\" class=\"text-gray-500 hover:text-white transition\"><svg class=\"w-6 h-6\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M6 18L18 6M6 6l12 12\"></path></svg></button></div><div class=\"p-4 overflow-y-auto flex-1 space-y-3 bg-[#0a0d12]\"><div class=\"text-xs text-gray-500 uppercase font-bold tracking-wider mb-2\">Standard Header</div><div class=\"flex items-center hover:bg-gray-900 p-1.5 rounded transition\"><span class=\"w-48 text-sm text-gray-400 font-mono\">35 (MsgType)</span><input type=\"text\" value=\"D\" class=\"flex-1 bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-sm text-white font-mono focus:border-blue-500 focus:outline-none\"></div><div class=\"flex items-center hover:bg-gray-900 p-1.5 rounded transition\"><span class=\"w-48 text-sm text-gray-400 font-mono\">49 (SenderCompID)</span><input type=\"text\" value=\"CLIENT1\" class=\"flex-1 bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-sm text-white font-mono focus:border-blue-500 focus:outline-none\"></div><div class=\"text-xs text-gray-500 uppercase font-bold tracking-wider mt-4 mb-2 border-t border-gray-800 pt-4\">Message Body</div><div class=\"flex items-center hover:bg-gray-900 p-1.5 rounded transition\"><span class=\"w-48 text-sm text-gray-400 font-mono\">11 (ClOrdID)</span><input type=\"text\" value=\"ORD-9921\" class=\"flex-1 bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-sm text-white font-mono focus:border-blue-500 focus:outline-none\"></div><div class=\"flex items-center hover:bg-gray-900 p-1.5 rounded transition\"><span class=\"w-48 text-sm text-gray-400 font-mono\">55 (Symbol)</span><input type=\"text\" value=\"AAPL\" class=\"flex-1 bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-sm text-white font-mono focus:border-blue-500 focus:outline-none\"></div><div class=\"flex items-center hover:bg-gray-900 p-1.5 rounded transition\"><span class=\"w-48 text-sm text-gray-400 font-mono\">54 (Side)</span><input type=\"text\" value=\"1\" class=\"flex-1 bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-sm text-white font-mono focus:border-blue-500 focus:outline-none\"></div><div class=\"flex items-center hover:bg-gray-900 p-1.5 rounded transition\"><span class=\"w-48 text-sm text-gray-400 font-mono\">38 (OrderQty)</span><input type=\"text\" value=\"100\" class=\"flex-1 bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-sm text-white font-mono focus:border-blue-500 focus:outline-none\"></div><button class=\"w-full mt-4 py-2 border border-dashed border-gray-700 text-gray-500 hover:text-white hover:border-gray-500 rounded text-sm transition font-bold\">+ Add Custom Field</button></div><div class=\"p-4 border-t border-gray-800 flex justify-end space-x-3 bg-gray-900\"><button @click=\"modal = ''\" class=\"px-4 py-2 text-sm text-gray-400 hover:text-white transition\">Cancel</button> <button @click=\"modal = ''\" class=\"px-4 py-2 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded font-bold transition shadow-lg\">Apply to Raw String</button></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -124,7 +156,7 @@ func formBuilderModal() templ.Component {
 	})
 }
 
-func Modals() templ.Component {
+func Modals(data *models.ModalData) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -140,12 +172,12 @@ func Modals() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var5 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var5 == nil {
-			templ_7745c5c3_Var5 = templ.NopComponent
+		templ_7745c5c3_Var7 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var7 == nil {
+			templ_7745c5c3_Var7 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div x-show=\"modal !== ''\" style=\"display: none;\" class=\"fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<div x-show=\"modal !== ''\" style=\"display: none;\" class=\"fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -153,7 +185,7 @@ func Modals() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = newConnectionModal().Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = newConnectionModal(data).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -165,7 +197,7 @@ func Modals() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

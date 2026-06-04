@@ -1,17 +1,6 @@
 package views
 
-templ statusInfo() {
-    <div class="flex items-center space-x-3 bg-gray-900/80 px-3 py-1.5 rounded-md border border-gray-700/50">
-        <span class="flex items-center space-x-2 text-green-400 font-bold text-xs tracking-wider">
-            <span class="w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)] animate-pulse"></span>
-            <span>ACTIVE</span>
-        </span>
-        <span class="text-gray-600">|</span>
-        <span class="text-gray-300 text-sm font-mono font-semibold">FIX.4.4</span>
-        <span class="text-gray-600">|</span>
-        <span class="text-gray-400 text-sm font-mono">CLIENT &rarr; SERVER</span>
-    </div>
-}
+import "github.com/infinage/microfix/cmd/mxgui/internal/models"
 
 templ newConnectionButton() {
     <button 
@@ -31,39 +20,83 @@ templ newConnectionButton() {
 }
 
 templ resetConnectionButton() {
-    <button class="bg-yellow-900/20 hover:bg-yellow-900/40 text-yellow-400 border border-yellow-900/50 px-3 py-1.5 
-        rounded text-sm font-semibold transition cursor-pointer" title="Reset Session"
+    <button 
+        hx-get="/api/reset" hx-swap="none"
+        class="bg-yellow-900/20 hover:bg-yellow-900/40 text-yellow-400 border border-yellow-900/50 px-3 py-1.5 
+            rounded text-sm font-semibold transition cursor-pointer" title="Reset Session"
     >
         ⟳ Reset
     </button>
 }
 
 templ disconnectButton() {
-    <button class="bg-red-950/40 hover:bg-red-900/60 text-red-400 border border-red-900/50 px-4 py-1.5 rounded text-sm font-semibold transition cursor-pointer">
+    <button 
+        hx-get="/api/disconnect" hx-swap="none"
+        class="bg-red-950/40 hover:bg-red-900/60 text-red-400 border border-red-900/50 px-4 py-1.5 rounded text-sm font-semibold transition cursor-pointer">
         Disconnect
     </button>
 }
 
-templ sequenceResetButton() {
+templ sequenceResetButton(data *models.DashboardData) {
     <div @click="modal = 'seq'" class="flex space-x-4 text-sm font-mono bg-gray-900 px-4 py-1.5 rounded border border-gray-800 cursor-pointer hover:border-gray-600 transition" title="Reset Sequences">
-        <div><span class="text-gray-500">IN:</span> <span class="text-green-400 font-bold">142</span></div>
-        <div><span class="text-gray-500">OUT:</span> <span class="text-blue-400 font-bold">143</span></div>
+        <div><span class="text-gray-500">IN:</span> <span class="text-green-400 font-bold">{data.Snap.InSeqNum}</span></div>
+        <div><span class="text-gray-500">OUT:</span> <span class="text-blue-400 font-bold">{data.Snap.OutSeqNum}</span></div>
     </div>
 }
 
-templ Header() {
-    <header class="bg-gray-950 border-b border-gray-800 h-14 flex items-center justify-between px-4 shrink-0 z-20 shadow-md">
+templ Header(data *models.DashboardData) {
+    {{
+        // Spec name
+        specName := data.Config.ApplicationSpec
+        if specName == "" {
+            specName = data.Config.SessionSpec
+        }
+
+        // State info + CSS colors
+        stateName := data.Snap.State.String()
+        color := "red"
+        switch stateName {
+        case "New":
+            color = "blue"
+        case "Listening", "LoggingIn":
+            color = "emerald"
+        case "Connected":
+            color = "green"
+        case "Stale":
+            color = "yellow"
+        case "Closed":
+            color = "amber"
+        }
+    }}
+
+    <header 
+        id="main-header" hx-get="/api/header" hx-swap="outerHTML" hx-trigger="every 1s, session-updated from:body" 
+        class="bg-gray-950 border-b border-gray-800 h-14 flex items-center justify-between px-4 shrink-0 z-20 shadow-md"
+    >
+
         <div class="flex items-center space-x-6">
             <span class="text-white font-bold text-lg tracking-widest">MICRO<span class="text-blue-500">FIX</span></span>
             <div class="h-6 w-px bg-gray-800"></div>
-            @statusInfo() 
+            <div class="flex items-center space-x-3 bg-gray-900/80 px-3 py-1.5 rounded-md border border-gray-700/50">
+                <span class={"flex items-center space-x-2 text-" + color + "-400 font-bold text-xs tracking-wider"}>
+                    <span class={"w-2.5 h-2.5 rounded-full bg-" + color + "-500 shadow-[0_0_8px_rgba(34,197,94,0.8)] animate-pulse"}></span>
+                    <span>{data.Snap.State.String()}</span>
+                </span>
+                <span class="text-gray-600">|</span>
+                <span class="text-gray-300 text-sm font-mono font-semibold">{specName}</span>
+                <span class="text-gray-600">|</span>
+                <span class="text-gray-400 text-sm font-mono">{data.Config.SenderCompID} &rarr; {data.Config.TargetCompID}</span>
+            </div>
         </div>
         
         <div class="flex space-x-4 items-center">
-            @newConnectionButton()
-            @resetConnectionButton()
-            @disconnectButton()
-            @sequenceResetButton()
+            if stateName == "New" {
+                @newConnectionButton()
+            } else {
+                @resetConnectionButton()
+                @disconnectButton()
+                @sequenceResetButton(data)
+            }
         </div>
     </header>
 }

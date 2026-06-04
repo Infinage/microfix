@@ -1,11 +1,10 @@
 package gui
 
 import (
+	"context"
 	"embed"
 	"net/http"
 
-	"github.com/a-h/templ"
-	"github.com/infinage/microfix/cmd/mxgui/internal/views"
 	"github.com/infinage/microfix/pkg/session"
 	"github.com/infinage/microfix/pkg/store"
 )
@@ -13,19 +12,47 @@ import (
 type Application struct {
 	Session *session.Session
 	Store   *store.Store
+	Ctx     context.Context
 
 	assets embed.FS
 }
 
-func NewApplication(assets embed.FS) *Application {
+func NewSession(cfg store.Config) (*session.Session, error) {
+	return session.NewSession(
+		cfg.SessionSpec,
+		cfg.SenderCompID,
+		cfg.TargetCompID,
+		cfg.HeartbeatInt,
+		session.EngineOptions{
+			DefaultApplVer:   cfg.ApplicationSpec,
+			SkipLatencyCheck: cfg.SkipLatencyCheckInValidate,
+		})
+}
+
+func NewApplication(assets embed.FS) (*Application, error) {
 	st := store.InitStore()
-	return &Application{Store: &st, assets: assets}
+	sess, err := NewSession(st.Config())
+	if err != nil {
+		return nil, err
+	}
+
+	return &Application{
+		Session: sess,
+		Store:   &st,
+		Ctx:     context.Background(),
+		assets:  assets,
+	}, nil
 }
 
 func (app *Application) routes() *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.Handle("GET /assets/", http.FileServerFS(app.assets))
-	mux.Handle("GET /", templ.Handler(views.Layout()))
+	mux.HandleFunc("GET /{$}", app.handleHome)
+	mux.HandleFunc("GET /api/header", app.handleAPIHeader)
+	mux.HandleFunc("POST /api/connect", app.handleAPIConnect)
+	mux.HandleFunc("GET /api/reset", app.handleAPIReset)
+	mux.HandleFunc("GET /api/disconnect", app.handleAPIDisconnect)
+	mux.HandleFunc("GET /api/logs", app.handleAPILogs)
 	return mux
 }
 

@@ -8,7 +8,9 @@ package views
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-func messageUserInput() templ.Component {
+import "github.com/infinage/microfix/cmd/mxgui/internal/models"
+
+func LogEntries(logs []string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -29,9 +31,24 @@ func messageUserInput() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div x-data=\"{ mode: 'alias', selectedAlias: '', selectedMsgType: '' }\" class=\"bg-gray-900/40 border-b border-gray-800 flex flex-col shrink-0 p-4\"><div class=\"flex justify-between items-center mb-3\"><div class=\"flex space-x-3 items-center\"><select x-model=\"selectedAlias\" @change=\"selectedMsgType = ''\" :class=\"selectedAlias !== '' ? 'border-blue-500' : 'border-gray-700'\" class=\"bg-gray-950 border text-gray-300 text-sm rounded px-3 py-1.5 outline-none focus:border-blue-500 font-mono transition\"><option value=\"\">-- Select Alias --</option> <option value=\"QuickOrder\">Alias: QuickOrder</option> <option value=\"Logon\">Alias: Logon</option></select> <span class=\"text-gray-600 font-bold text-xs\">OR</span> <select x-model=\"selectedMsgType\" @change=\"selectedAlias = ''\" :class=\"selectedMsgType !== '' ? 'border-blue-500' : 'border-gray-700'\" class=\"bg-gray-950 border text-gray-300 text-sm rounded px-3 py-1.5 outline-none focus:border-blue-500 font-mono transition\"><option value=\"\">-- Select MsgType --</option> <option value=\"D\">Type: D (NewOrderSingle)</option> <option value=\"A\">Type: A (Logon)</option> <option value=\"8\">Type: 8 (ExecutionReport)</option></select> <span class=\"text-xs text-gray-500 italic ml-2\">&larr; Auto-populates raw payload</span></div><button @click=\"modal = 'form'\" class=\"bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-3 py-1.5 rounded text-sm font-semibold transition flex items-center space-x-2 shadow-sm\"><svg class=\"w-4 h-4 text-gray-400\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z\"></path></svg> <span>Form Builder</span></button></div><textarea class=\"w-full bg-gray-950/50 border border-gray-800 rounded p-3 font-mono text-sm text-blue-300 focus:outline-none focus:border-blue-500 h-28 placeholder-gray-700 resize-none shadow-inner\" placeholder=\"35=D|55=AAPL|54=1|38=100|40=2|...\"></textarea><div class=\"mt-3 flex justify-between items-center\"><label class=\"flex items-center space-x-2 text-sm text-gray-400 cursor-pointer hover:text-white transition\"><input type=\"checkbox\" x-model=\"sendRaw\" class=\"rounded bg-gray-900 border-gray-700 w-4 h-4\"> <span>Send Raw (Skip Finalize checksum/length)</span></label> <button class=\"bg-blue-600 hover:bg-blue-500 text-white px-8 py-2 rounded text-sm font-bold transition shadow-lg flex items-center space-x-2\"><span>Send Message</span> <span class=\"font-mono opacity-70 bg-blue-700 px-1.5 py-0.5 rounded text-xs\">⌘↵</span></button></div></div>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
+		for _, msg := range logs {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"flex items-start space-x-4 p-2 rounded cursor-pointer border-l-2 border-l-green-500 hover:bg-gray-900 transition\"><span class=\"text-gray-500 shrink-0\">08:12:00</span> <span class=\"text-green-500 font-bold shrink-0\">IN &nbsp;</span> <span class=\"text-gray-300 break-all leading-relaxed\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var2 string
+			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(msg)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/stream.templ`, Line: 11, Col: 71}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</span></div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
 		}
 		return nil
 	})
@@ -53,12 +70,173 @@ func messageLogs() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var2 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var2 == nil {
-			templ_7745c5c3_Var2 = templ.NopComponent
+		templ_7745c5c3_Var3 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var3 == nil {
+			templ_7745c5c3_Var3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"bg-gray-950 px-4 py-2 border-b border-gray-800 flex items-center justify-between shrink-0\"><input type=\"text\" placeholder=\"Search regex...\" class=\"bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-300 focus:outline-none focus:border-blue-500 w-64 font-mono\"><div class=\"flex space-x-2 items-center\"><button class=\"text-xs font-bold px-3 py-1.5 rounded border border-green-900/50 bg-green-900/20 text-green-400\">IN</button> <button class=\"text-xs font-bold px-3 py-1.5 rounded border border-blue-900/50 bg-blue-900/20 text-blue-400\">OUT</button><div class=\"w-px h-5 bg-gray-800 mx-2\"></div><button class=\"text-xs font-bold px-3 py-1.5 rounded border border-gray-700 bg-gray-800 text-gray-300\">Admin</button> <button class=\"text-xs font-bold px-3 py-1.5 rounded border border-gray-700 bg-gray-800 text-gray-300\">App</button> <button class=\"text-xs font-bold px-3 py-1.5 rounded border border-gray-700 bg-gray-800 text-red-400\">Errors</button><div class=\"w-px h-5 bg-gray-800 mx-2\"></div><button class=\"text-xs font-bold px-3 py-1.5 rounded text-gray-500 hover:text-white transition\">Clear Logs</button></div></div><div class=\"flex-1 overflow-y-auto p-3 font-mono text-sm space-y-1\"><div @click=\"selectedMsg = 'msg1'; inspectorOpen = true; inspectorTab = 'decoded'\" :class=\"selectedMsg === 'msg1' ? 'bg-gray-800 border-l-green-500' : 'hover:bg-gray-900 border-l-transparent'\" class=\"flex items-start space-x-4 p-2 rounded cursor-pointer border-l-2 transition\"><span class=\"text-gray-500 shrink-0\">08:12:00.142</span> <span class=\"text-green-500 font-bold shrink-0\">IN &nbsp;</span> <span class=\"text-gray-300 break-all leading-relaxed\">8=FIX.4.4|9=65|<span class=\"text-yellow-400 font-bold\">35=A</span>|34=142|49=SERVER|56=CLIENT|10=114|</span></div><div @click=\"selectedMsg = 'msg2'; inspectorOpen = true; inspectorTab = 'validation'\" :class=\"selectedMsg === 'msg2' ? 'bg-red-900/30 border-l-red-500' : 'hover:bg-red-900/10 border-l-transparent'\" class=\"flex items-start space-x-4 p-2 rounded cursor-pointer border-l-2 transition\"><span class=\"text-gray-500 shrink-0\">08:12:06.012</span> <span class=\"text-green-500 font-bold shrink-0\">IN &nbsp;</span> <span class=\"text-gray-300 break-all leading-relaxed\">8=FIX.4.4|9=88|<span class=\"text-red-400 font-bold\">35=3</span>|34=143|49=SERVER|58=Invalid Price|10=221|</span></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"bg-gray-950 px-4 py-2 border-b border-gray-800 flex items-center justify-between shrink-0\"></div><div id=\"log-stream-container\" hx-get=\"/api/logs\" hx-trigger=\"every 1s\" class=\"flex-1 overflow-y-auto p-3 font-mono text-sm space-y-1\"><div class=\"text-gray-600 text-center mt-10\">Waiting for messages...</div></div>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+func messageUserInput(sendmsgData *models.SendMessageData) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var4 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var4 == nil {
+			templ_7745c5c3_Var4 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div x-data=\"{ mode: 'alias', selectedAlias: '', selectedMsgType: '' }\" class=\"bg-gray-900/40 border-b border-gray-800 flex flex-col shrink-0 p-4\"><div class=\"flex justify-between items-center mb-3\"><div class=\"flex space-x-3 items-center\"><select x-model=\"selectedAlias\" @change=\"selectedMsgType = ''\" :class=\"selectedAlias !== '' ? 'border-blue-500' : 'border-gray-700'\" class=\"bg-gray-950 border text-gray-300 text-sm rounded px-3 py-1.5 outline-none focus:border-blue-500 font-mono transition\"><option disabled value=\"\">-- Select Alias --</option> ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		for alias, val := range *sendmsgData.Aliases {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<option value=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var5 string
+			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(val)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/stream.templ`, Line: 38, Col: 42}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\">Alias: ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var6 string
+			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(alias)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/stream.templ`, Line: 38, Col: 57}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</option>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</select> <span class=\"text-gray-600 font-bold text-xs\">OR</span> <select x-model=\"selectedMsgType\" @change=\"selectedAlias = ''\" :class=\"selectedMsgType !== '' ? 'border-blue-500' : 'border-gray-700'\" class=\"bg-gray-950 border text-gray-300 text-sm rounded px-3 py-1.5 outline-none focus:border-blue-500 font-mono transition\"><option disabled value=\"\">-- Select MsgType --</option> ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		for msgId, msgSpec := range sendmsgData.Router.SessionSpec().Messages {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<option value=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var7 string
+			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(msgId)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/stream.templ`, Line: 47, Col: 44}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\">[Sess] Type: ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var8 string
+			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(msgId)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/stream.templ`, Line: 47, Col: 65}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, " (")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var9 string
+			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(msgSpec.Name)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/stream.templ`, Line: 47, Col: 81}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, ")</option> ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		if !sendmsgData.Router.IsLegacyRouter() {
+			for msgId, msgSpec := range sendmsgData.Router.ApplSpec().Messages {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<option value=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var10 string
+				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(msgId)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/stream.templ`, Line: 51, Col: 48}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "\">[Appl] Type: ")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var11 string
+				templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(msgId)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/stream.templ`, Line: 51, Col: 69}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, " (")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var12 string
+				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(msgSpec.Name)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/views/stream.templ`, Line: 51, Col: 85}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, ")</option>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</select> <span class=\"text-xs text-gray-500 italic ml-2\">&larr; Auto-populates raw payload</span></div><button @click=\"modal = 'form'\" class=\"bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-3 py-1.5 rounded text-sm font-semibold transition flex items-center space-x-2 shadow-sm\"><svg class=\"w-4 h-4 text-gray-400\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z\"></path></svg> <span>Form Builder</span></button></div><textarea class=\"w-full bg-gray-950/50 border border-gray-800 rounded p-3 font-mono text-sm text-blue-300 focus:outline-none focus:border-blue-500 h-28 placeholder-gray-700 resize-none shadow-inner\" placeholder=\"35=D|55=AAPL|54=1|38=100|40=2|...\"></textarea><div class=\"mt-3 flex justify-between items-center\"><label class=\"flex items-center space-x-2 text-sm text-gray-400 cursor-pointer hover:text-white transition\"><input type=\"checkbox\" x-model=\"sendRaw\" class=\"rounded bg-gray-900 border-gray-700 w-4 h-4\"> <span>Send Raw (Skip Finalize checksum/length)</span></label> <button class=\"bg-blue-600 hover:bg-blue-500 text-white px-8 py-2 rounded text-sm font-bold transition shadow-lg flex items-center space-x-2\"><span>Send Message</span> <span class=\"font-mono opacity-70 bg-blue-700 px-1.5 py-0.5 rounded text-xs\">⌘↵</span></button></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -82,12 +260,12 @@ func messageInspectDecode() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var3 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var3 == nil {
-			templ_7745c5c3_Var3 = templ.NopComponent
+		templ_7745c5c3_Var13 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var13 == nil {
+			templ_7745c5c3_Var13 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div x-show=\"inspectorTab === 'decoded'\"><table class=\"w-full text-sm text-left border-collapse font-mono\"><tbody><tr class=\"bg-gray-900/50 border-y border-gray-800\"><td colspan=\"3\" class=\"px-3 py-2 text-xs text-gray-500 font-sans font-bold uppercase tracking-widest\">Header</td></tr><tr class=\"border-b border-gray-800/50 hover:bg-gray-800\"><td class=\"px-3 py-2 text-gray-500 w-12\">35</td><td class=\"px-3 py-2 text-gray-300 w-40 truncate\">MsgType</td><td class=\"px-3 py-2 text-blue-400 font-bold\" x-text=\"selectedMsg === 'msg1' ? 'A' : '3'\"></td></tr><tr class=\"border-b border-gray-800/50 hover:bg-gray-800 transition\"><td class=\"px-2 py-1.5 text-gray-500 w-10\">35</td><td class=\"px-2 py-1.5 text-gray-300 w-32 truncate\">MsgType</td><td class=\"px-2 py-1.5 text-blue-400 font-bold\">D <span class=\"text-gray-600 font-sans text-[9px] font-normal\">(NewOrderSingle)</span></td></tr><tr class=\"bg-gray-900/50 border-y border-gray-800\"><td colspan=\"3\" class=\"px-3 py-2 text-xs text-gray-500 font-sans font-bold uppercase tracking-widest\">Body</td></tr><tr class=\"border-b border-gray-800/50 hover:bg-gray-800 transition\"><td class=\"px-2 py-1.5 text-gray-500\">55</td><td class=\"px-2 py-1.5 text-gray-300 truncate\">Symbol</td><td class=\"px-2 py-1.5 text-white\">AAPL</td></tr><tr class=\"bg-gray-900/20 border-t border-gray-800 cursor-pointer hover:bg-gray-800\"><td class=\"px-2 py-1.5 text-gray-500\">268</td><td class=\"px-2 py-1.5 text-gray-300 flex items-center space-x-1\"><span class=\"text-[8px]\">▼</span> <span>NoMDEntries</span></td><td class=\"px-2 py-1.5 text-purple-400 font-bold\">2 <span class=\"text-gray-600 font-sans text-[9px] font-normal\">entries</span></td></tr><tr class=\"border-b border-gray-800/30 bg-[#0a0d12]\"><td class=\"px-2 py-1\"></td><td colspan=\"2\" class=\"pl-4 py-1 border-l-2 border-gray-800\"><div class=\"text-[12px] text-gray-500 mb-1\">Entry 1</div><div class=\"flex mb-1 hover:bg-gray-800\"><span class=\"w-10 text-gray-500\">269</span> <span class=\"w-24 text-gray-400\">MDEntryType</span> <span class=\"text-white\">0 (Bid)</span></div><div class=\"flex hover:bg-gray-800\"><span class=\"w-10 text-gray-500\">270</span> <span class=\"w-24 text-gray-400\">MDEntryPx</span> <span class=\"text-white\">150.50</span></div></td></tr><tr class=\"border-b border-gray-800/30 bg-[#0a0d12]\"><td class=\"px-2 py-1\"></td><td colspan=\"2\" class=\"pl-4 py-1 border-l-2 border-gray-800\"><div class=\"text-[12px] text-gray-500 mb-1\">Entry 2</div><div class=\"flex mb-1 hover:bg-gray-800\"><span class=\"w-10 text-gray-500\">269</span> <span class=\"w-24 text-gray-400\">MDEntryType</span> <span class=\"text-white\">1 (Ask)</span></div><div class=\"flex hover:bg-gray-800\"><span class=\"w-10 text-gray-500\">270</span> <span class=\"w-24 text-gray-400\">MDEntryPx</span> <span class=\"text-white\">151.20</span></div></td></tr></tbody></table></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<div x-show=\"inspectorTab === 'decoded'\"><table class=\"w-full text-sm text-left border-collapse font-mono\"><tbody><tr class=\"bg-gray-900/50 border-y border-gray-800\"><td colspan=\"3\" class=\"px-3 py-2 text-xs text-gray-500 font-sans font-bold uppercase tracking-widest\">Header</td></tr><tr class=\"border-b border-gray-800/50 hover:bg-gray-800\"><td class=\"px-3 py-2 text-gray-500 w-12\">35</td><td class=\"px-3 py-2 text-gray-300 w-40 truncate\">MsgType</td><td class=\"px-3 py-2 text-blue-400 font-bold\" x-text=\"selectedMsg === 'msg1' ? 'A' : '3'\"></td></tr><tr class=\"border-b border-gray-800/50 hover:bg-gray-800 transition\"><td class=\"px-2 py-1.5 text-gray-500 w-10\">35</td><td class=\"px-2 py-1.5 text-gray-300 w-32 truncate\">MsgType</td><td class=\"px-2 py-1.5 text-blue-400 font-bold\">D <span class=\"text-gray-600 font-sans text-[9px] font-normal\">(NewOrderSingle)</span></td></tr><tr class=\"bg-gray-900/50 border-y border-gray-800\"><td colspan=\"3\" class=\"px-3 py-2 text-xs text-gray-500 font-sans font-bold uppercase tracking-widest\">Body</td></tr><tr class=\"border-b border-gray-800/50 hover:bg-gray-800 transition\"><td class=\"px-2 py-1.5 text-gray-500\">55</td><td class=\"px-2 py-1.5 text-gray-300 truncate\">Symbol</td><td class=\"px-2 py-1.5 text-white\">AAPL</td></tr><tr class=\"bg-gray-900/20 border-t border-gray-800 cursor-pointer hover:bg-gray-800\"><td class=\"px-2 py-1.5 text-gray-500\">268</td><td class=\"px-2 py-1.5 text-gray-300 flex items-center space-x-1\"><span class=\"text-[8px]\">▼</span> <span>NoMDEntries</span></td><td class=\"px-2 py-1.5 text-purple-400 font-bold\">2 <span class=\"text-gray-600 font-sans text-[9px] font-normal\">entries</span></td></tr><tr class=\"border-b border-gray-800/30 bg-[#0a0d12]\"><td class=\"px-2 py-1\"></td><td colspan=\"2\" class=\"pl-4 py-1 border-l-2 border-gray-800\"><div class=\"text-[12px] text-gray-500 mb-1\">Entry 1</div><div class=\"flex mb-1 hover:bg-gray-800\"><span class=\"w-10 text-gray-500\">269</span> <span class=\"w-24 text-gray-400\">MDEntryType</span> <span class=\"text-white\">0 (Bid)</span></div><div class=\"flex hover:bg-gray-800\"><span class=\"w-10 text-gray-500\">270</span> <span class=\"w-24 text-gray-400\">MDEntryPx</span> <span class=\"text-white\">150.50</span></div></td></tr><tr class=\"border-b border-gray-800/30 bg-[#0a0d12]\"><td class=\"px-2 py-1\"></td><td colspan=\"2\" class=\"pl-4 py-1 border-l-2 border-gray-800\"><div class=\"text-[12px] text-gray-500 mb-1\">Entry 2</div><div class=\"flex mb-1 hover:bg-gray-800\"><span class=\"w-10 text-gray-500\">269</span> <span class=\"w-24 text-gray-400\">MDEntryType</span> <span class=\"text-white\">1 (Ask)</span></div><div class=\"flex hover:bg-gray-800\"><span class=\"w-10 text-gray-500\">270</span> <span class=\"w-24 text-gray-400\">MDEntryPx</span> <span class=\"text-white\">151.20</span></div></td></tr></tbody></table></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -111,12 +289,12 @@ func messageInspectValidate() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var4 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var4 == nil {
-			templ_7745c5c3_Var4 = templ.NopComponent
+		templ_7745c5c3_Var14 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var14 == nil {
+			templ_7745c5c3_Var14 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div x-show=\"inspectorTab === 'validation'\" style=\"display:none;\" class=\"space-y-4\"><div x-show=\"selectedMsg !== 'msg2'\" class=\"text-green-400 text-sm font-mono bg-green-900/10 p-4 rounded border border-green-900/30\">No validation errors detected. Structure and sequence are correct.</div><div x-show=\"selectedMsg === 'msg2'\" class=\"text-red-400 text-sm font-mono bg-red-900/10 p-4 rounded border border-red-900/30\"><div class=\"font-bold text-base mb-2\">RejectError: MsgSeqNum (34)</div><div class=\"text-gray-400 leading-relaxed\">Expected sequence <span class=\"text-white\">142</span>, but received <span class=\"text-white\">143</span>.</div></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<div x-show=\"inspectorTab === 'validation'\" style=\"display:none;\" class=\"space-y-4\"><div x-show=\"selectedMsg !== 'msg2'\" class=\"text-green-400 text-sm font-mono bg-green-900/10 p-4 rounded border border-green-900/30\">No validation errors detected. Structure and sequence are correct.</div><div x-show=\"selectedMsg === 'msg2'\" class=\"text-red-400 text-sm font-mono bg-red-900/10 p-4 rounded border border-red-900/30\"><div class=\"font-bold text-base mb-2\">RejectError: MsgSeqNum (34)</div><div class=\"text-gray-400 leading-relaxed\">Expected sequence <span class=\"text-white\">142</span>, but received <span class=\"text-white\">143</span>.</div></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -140,12 +318,12 @@ func messageInspectDiff() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var5 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var5 == nil {
-			templ_7745c5c3_Var5 = templ.NopComponent
+		templ_7745c5c3_Var15 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var15 == nil {
+			templ_7745c5c3_Var15 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div x-show=\"inspectorTab === 'diff'\" style=\"display:none;\" class=\"flex flex-col h-full\"><p class=\"text-[12px] text-gray-400 mb-2\">Paste another raw message below to diff against the selected stream message.</p><textarea class=\"w-full bg-[#0a0d12] border border-gray-800 rounded p-3 font-mono text-sm text-gray-300 resize-none h-24 focus:border-blue-500\" placeholder=\"Paste target FIX string to diff...\"></textarea><div class=\"mt-4 border border-gray-800 rounded overflow-hidden\"><table class=\"w-full text-[12px] text-left font-mono\"><tr class=\"bg-gray-900 text-gray-500\"><th class=\"px-2 py-1\">Tag</th><th class=\"px-2 py-1\">Selected</th><th class=\"px-2 py-1\">Target</th></tr><tr class=\"bg-red-900/20 border-b border-gray-800\"><td class=\"px-2 py-1.5 text-gray-400\">34</td><td class=\"px-2 py-1.5 text-red-300 line-through\">142</td><td class=\"px-2 py-1.5 text-green-400 font-bold\">143</td></tr><tr class=\"bg-green-900/20 border-b border-gray-800\"><td class=\"px-2 py-1.5 text-gray-400\">11</td><td class=\"px-2 py-1.5 text-gray-500 italic\">none</td><td class=\"px-2 py-1.5 text-green-400 font-bold\">ORD123</td></tr></table></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<div x-show=\"inspectorTab === 'diff'\" style=\"display:none;\" class=\"flex flex-col h-full\"><p class=\"text-[12px] text-gray-400 mb-2\">Paste another raw message below to diff against the selected stream message.</p><textarea class=\"w-full bg-[#0a0d12] border border-gray-800 rounded p-3 font-mono text-sm text-gray-300 resize-none h-24 focus:border-blue-500\" placeholder=\"Paste target FIX string to diff...\"></textarea><div class=\"mt-4 border border-gray-800 rounded overflow-hidden\"><table class=\"w-full text-[12px] text-left font-mono\"><tr class=\"bg-gray-900 text-gray-500\"><th class=\"px-2 py-1\">Tag</th><th class=\"px-2 py-1\">Selected</th><th class=\"px-2 py-1\">Target</th></tr><tr class=\"bg-red-900/20 border-b border-gray-800\"><td class=\"px-2 py-1.5 text-gray-400\">34</td><td class=\"px-2 py-1.5 text-red-300 line-through\">142</td><td class=\"px-2 py-1.5 text-green-400 font-bold\">143</td></tr><tr class=\"bg-green-900/20 border-b border-gray-800\"><td class=\"px-2 py-1.5 text-gray-400\">11</td><td class=\"px-2 py-1.5 text-gray-500 italic\">none</td><td class=\"px-2 py-1.5 text-green-400 font-bold\">ORD123</td></tr></table></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -169,12 +347,12 @@ func messageInspector() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var6 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var6 == nil {
-			templ_7745c5c3_Var6 = templ.NopComponent
+		templ_7745c5c3_Var16 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var16 == nil {
+			templ_7745c5c3_Var16 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<aside x-show=\"inspectorOpen\" x-transition:enter=\"transition ease-out duration-200\" x-transition:enter-start=\"transform translate-x-full\" x-transition:enter-end=\"transform translate-x-0\" x-transition:leave=\"transition ease-in duration-150\" x-transition:leave-start=\"transform translate-x-0\" x-transition:leave-end=\"transform translate-x-full\" class=\"w-[480px] bg-gray-950 flex flex-col shrink-0 border-l border-gray-800 shadow-2xl z-20 absolute right-0 top-0 bottom-0\"><div class=\"p-4 border-b border-gray-800 bg-[#0a0d12]\"><div class=\"flex justify-between items-start mb-3\"><div><div class=\"text-lg font-bold text-white flex items-center space-x-2\"><span x-text=\"selectedMsg === 'msg1' ? 'Logon' : 'Reject'\"></span> <span class=\"bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded border border-gray-700 font-mono\">35=<span x-text=\"selectedMsg === 'msg1' ? 'A' : '3'\"></span></span></div><div class=\"text-xs text-gray-500 font-mono mt-1\">08:12:05.991 &bull; 122 Bytes</div></div><div class=\"flex space-x-3 items-center\"><div x-show=\"selectedMsg !== 'msg2'\" class=\"text-green-400 flex items-center space-x-1 font-bold text-xs uppercase\"><svg class=\"w-4 h-4\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M5 13l4 4L19 7\"></path></svg> <span>Valid</span></div><div x-show=\"selectedMsg === 'msg2'\" class=\"text-red-500 flex items-center space-x-1 cursor-pointer font-bold text-xs uppercase hover:text-red-400\" @click=\"inspectorTab = 'validation'\"><span>⚠ Error</span></div><button @click=\"inspectorOpen = false\" class=\"text-gray-500 hover:text-white transition\"><svg class=\"w-6 h-6\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M6 18L18 6M6 6l12 12\"></path></svg></button></div></div><div class=\"flex space-x-2\"><button class=\"text-xs bg-gray-900 border border-gray-700 hover:bg-gray-800 text-gray-300 px-3 py-1.5 rounded transition\">Copy Raw</button> <button class=\"text-xs bg-gray-900 border border-gray-700 hover:bg-gray-800 text-gray-300 px-3 py-1.5 rounded transition\">Copy JSON</button></div></div><div class=\"flex border-b border-gray-800 bg-[#0a0d12] px-2 shrink-0\"><button @click=\"inspectorTab = 'decoded'\" :class=\"inspectorTab === 'decoded' ? 'text-white border-b-2 border-blue-500' : 'text-gray-500 hover:text-gray-300'\" class=\"px-4 py-3 text-xs uppercase font-bold tracking-wider transition\">Decoded</button> <button @click=\"inspectorTab = 'validation'\" :class=\"inspectorTab === 'validation' ? 'text-white border-b-2 border-blue-500' : 'text-gray-500 hover:text-gray-300'\" class=\"px-4 py-3 text-xs uppercase font-bold tracking-wider transition flex items-center space-x-1\"><span>Validation</span> <span x-show=\"selectedMsg === 'msg2'\" class=\"bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px]\">1</span></button> <button @click=\"inspectorTab = 'diff'\" :class=\"inspectorTab === 'diff' ? 'text-white border-b-2 border-blue-500' : 'text-gray-500 hover:text-gray-300'\" class=\"px-4 py-3 text-xs uppercase font-bold tracking-wider transition\">Diff</button></div><div class=\"flex-1 overflow-y-auto p-4\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<aside x-show=\"inspectorOpen\" x-transition:enter=\"transition ease-out duration-200\" x-transition:enter-start=\"transform translate-x-full\" x-transition:enter-end=\"transform translate-x-0\" x-transition:leave=\"transition ease-in duration-150\" x-transition:leave-start=\"transform translate-x-0\" x-transition:leave-end=\"transform translate-x-full\" class=\"w-[480px] bg-gray-950 flex flex-col shrink-0 border-l border-gray-800 shadow-2xl z-20 absolute right-0 top-0 bottom-0\"><div class=\"p-4 border-b border-gray-800 bg-[#0a0d12]\"><div class=\"flex justify-between items-start mb-3\"><div><div class=\"text-lg font-bold text-white flex items-center space-x-2\"><span x-text=\"selectedMsg === 'msg1' ? 'Logon' : 'Reject'\"></span> <span class=\"bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded border border-gray-700 font-mono\">35=<span x-text=\"selectedMsg === 'msg1' ? 'A' : '3'\"></span></span></div><div class=\"text-xs text-gray-500 font-mono mt-1\">08:12:05.991 &bull; 122 Bytes</div></div><div class=\"flex space-x-3 items-center\"><div x-show=\"selectedMsg !== 'msg2'\" class=\"text-green-400 flex items-center space-x-1 font-bold text-xs uppercase\"><svg class=\"w-4 h-4\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M5 13l4 4L19 7\"></path></svg> <span>Valid</span></div><div x-show=\"selectedMsg === 'msg2'\" class=\"text-red-500 flex items-center space-x-1 cursor-pointer font-bold text-xs uppercase hover:text-red-400\" @click=\"inspectorTab = 'validation'\"><span>⚠ Error</span></div><button @click=\"inspectorOpen = false\" class=\"text-gray-500 hover:text-white transition\"><svg class=\"w-6 h-6\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M6 18L18 6M6 6l12 12\"></path></svg></button></div></div><div class=\"flex space-x-2\"><button class=\"text-xs bg-gray-900 border border-gray-700 hover:bg-gray-800 text-gray-300 px-3 py-1.5 rounded transition\">Copy Raw</button> <button class=\"text-xs bg-gray-900 border border-gray-700 hover:bg-gray-800 text-gray-300 px-3 py-1.5 rounded transition\">Copy JSON</button></div></div><div class=\"flex border-b border-gray-800 bg-[#0a0d12] px-2 shrink-0\"><button @click=\"inspectorTab = 'decoded'\" :class=\"inspectorTab === 'decoded' ? 'text-white border-b-2 border-blue-500' : 'text-gray-500 hover:text-gray-300'\" class=\"px-4 py-3 text-xs uppercase font-bold tracking-wider transition\">Decoded</button> <button @click=\"inspectorTab = 'validation'\" :class=\"inspectorTab === 'validation' ? 'text-white border-b-2 border-blue-500' : 'text-gray-500 hover:text-gray-300'\" class=\"px-4 py-3 text-xs uppercase font-bold tracking-wider transition flex items-center space-x-1\"><span>Validation</span> <span x-show=\"selectedMsg === 'msg2'\" class=\"bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px]\">1</span></button> <button @click=\"inspectorTab = 'diff'\" :class=\"inspectorTab === 'diff' ? 'text-white border-b-2 border-blue-500' : 'text-gray-500 hover:text-gray-300'\" class=\"px-4 py-3 text-xs uppercase font-bold tracking-wider transition\">Diff</button></div><div class=\"flex-1 overflow-y-auto p-4\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -190,7 +368,7 @@ func messageInspector() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</div></aside>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</div></aside>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -198,7 +376,7 @@ func messageInspector() templ.Component {
 	})
 }
 
-func StreamView() templ.Component {
+func StreamView(sendmsgData *models.SendMessageData) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -214,16 +392,16 @@ func StreamView() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var7 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var7 == nil {
-			templ_7745c5c3_Var7 = templ.NopComponent
+		templ_7745c5c3_Var17 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var17 == nil {
+			templ_7745c5c3_Var17 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<main x-show=\"view === 'stream'\" class=\"flex-1 flex bg-[#0d1117] overflow-hidden relative\"><div class=\"flex-1 flex flex-col min-w-0 border-r border-gray-800\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<main x-show=\"view === 'stream'\" class=\"flex-1 flex bg-[#0d1117] overflow-hidden relative\"><div class=\"flex-1 flex flex-col min-w-0 border-r border-gray-800\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = messageUserInput().Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = messageUserInput(sendmsgData).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -231,7 +409,7 @@ func StreamView() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -239,7 +417,7 @@ func StreamView() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</main>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</main>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

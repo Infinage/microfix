@@ -1,20 +1,56 @@
 package views
 
-templ messageUserInput() {
+import "github.com/infinage/microfix/cmd/mxgui/internal/models"
+
+templ LogEntries(logs []string) {
+    // This is where you format your FIX messages from Go
+    for _, msg := range logs {
+        <div class="flex items-start space-x-4 p-2 rounded cursor-pointer border-l-2 border-l-green-500 hover:bg-gray-900 transition">
+            <span class="text-gray-500 shrink-0">08:12:00</span>
+            <span class="text-green-500 font-bold shrink-0">IN &nbsp;</span>
+            <span class="text-gray-300 break-all leading-relaxed">{ msg }</span>
+        </div>
+    }
+}
+
+templ messageLogs() {
+    <div class="bg-gray-950 px-4 py-2 border-b border-gray-800 flex items-center justify-between shrink-0">
+        </div>
+
+    <div 
+        id="log-stream-container"
+        hx-get="/api/logs" 
+        hx-trigger="every 1s" 
+        class="flex-1 overflow-y-auto p-3 font-mono text-sm space-y-1"
+    >
+        // Initial empty state (or you can pass initial logs here on page load)
+        <div class="text-gray-600 text-center mt-10">Waiting for messages...</div>
+    </div>
+}
+
+templ messageUserInput(sendmsgData *models.SendMessageData) {
     <div x-data="{ mode: 'alias', selectedAlias: '', selectedMsgType: '' }" class="bg-gray-900/40 border-b border-gray-800 flex flex-col shrink-0 p-4">
         <div class="flex justify-between items-center mb-3">
             <div class="flex space-x-3 items-center">
                 <select x-model="selectedAlias" @change="selectedMsgType = ''" :class="selectedAlias !== '' ? 'border-blue-500' : 'border-gray-700'" class="bg-gray-950 border text-gray-300 text-sm rounded px-3 py-1.5 outline-none focus:border-blue-500 font-mono transition">
-                    <option value="">-- Select Alias --</option>
-                    <option value="QuickOrder">Alias: QuickOrder</option>
-                    <option value="Logon">Alias: Logon</option>
+                    <option disabled value="">-- Select Alias --</option>
+                    for alias, val := range *sendmsgData.Aliases {
+                        <option value={val}>Alias: {alias}</option>
+                    }
                 </select>
+
                 <span class="text-gray-600 font-bold text-xs">OR</span>
+
                 <select x-model="selectedMsgType" @change="selectedAlias = ''" :class="selectedMsgType !== '' ? 'border-blue-500' : 'border-gray-700'" class="bg-gray-950 border text-gray-300 text-sm rounded px-3 py-1.5 outline-none focus:border-blue-500 font-mono transition">
-                    <option value="">-- Select MsgType --</option>
-                    <option value="D">Type: D (NewOrderSingle)</option>
-                    <option value="A">Type: A (Logon)</option>
-                    <option value="8">Type: 8 (ExecutionReport)</option>
+                    <option disabled value="">-- Select MsgType --</option>
+                    for msgId, msgSpec := range sendmsgData.Router.SessionSpec().Messages {
+                        <option value={msgId}>[Sess] Type: {msgId} ({msgSpec.Name})</option>
+                    }
+                    if !sendmsgData.Router.IsLegacyRouter() {
+                        for msgId, msgSpec := range sendmsgData.Router.ApplSpec().Messages {
+                            <option value={msgId}>[Appl] Type: {msgId} ({msgSpec.Name})</option>
+                        }
+                    }
                 </select>
                 <span class="text-xs text-gray-500 italic ml-2">&larr; Auto-populates raw payload</span>
             </div>
@@ -35,35 +71,6 @@ templ messageUserInput() {
                 <span>Send Message</span>
                 <span class="font-mono opacity-70 bg-blue-700 px-1.5 py-0.5 rounded text-xs">⌘↵</span>
             </button>
-        </div>
-    </div>
-}
-
-templ messageLogs() {
-    <div class="bg-gray-950 px-4 py-2 border-b border-gray-800 flex items-center justify-between shrink-0">
-        <input type="text" placeholder="Search regex..." class="bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-300 focus:outline-none focus:border-blue-500 w-64 font-mono">
-        <div class="flex space-x-2 items-center">
-            <button class="text-xs font-bold px-3 py-1.5 rounded border border-green-900/50 bg-green-900/20 text-green-400">IN</button>
-            <button class="text-xs font-bold px-3 py-1.5 rounded border border-blue-900/50 bg-blue-900/20 text-blue-400">OUT</button>
-            <div class="w-px h-5 bg-gray-800 mx-2"></div>
-            <button class="text-xs font-bold px-3 py-1.5 rounded border border-gray-700 bg-gray-800 text-gray-300">Admin</button>
-            <button class="text-xs font-bold px-3 py-1.5 rounded border border-gray-700 bg-gray-800 text-gray-300">App</button>
-            <button class="text-xs font-bold px-3 py-1.5 rounded border border-gray-700 bg-gray-800 text-red-400">Errors</button>
-            <div class="w-px h-5 bg-gray-800 mx-2"></div>
-            <button class="text-xs font-bold px-3 py-1.5 rounded text-gray-500 hover:text-white transition">Clear Logs</button>
-        </div>
-    </div>
-
-    <div class="flex-1 overflow-y-auto p-3 font-mono text-sm space-y-1">
-        <div @click="selectedMsg = 'msg1'; inspectorOpen = true; inspectorTab = 'decoded'" :class="selectedMsg === 'msg1' ? 'bg-gray-800 border-l-green-500' : 'hover:bg-gray-900 border-l-transparent'" class="flex items-start space-x-4 p-2 rounded cursor-pointer border-l-2 transition">
-            <span class="text-gray-500 shrink-0">08:12:00.142</span>
-            <span class="text-green-500 font-bold shrink-0">IN &nbsp;</span>
-            <span class="text-gray-300 break-all leading-relaxed">8=FIX.4.4|9=65|<span class="text-yellow-400 font-bold">35=A</span>|34=142|49=SERVER|56=CLIENT|10=114|</span>
-        </div>
-        <div @click="selectedMsg = 'msg2'; inspectorOpen = true; inspectorTab = 'validation'" :class="selectedMsg === 'msg2' ? 'bg-red-900/30 border-l-red-500' : 'hover:bg-red-900/10 border-l-transparent'" class="flex items-start space-x-4 p-2 rounded cursor-pointer border-l-2 transition">
-            <span class="text-gray-500 shrink-0">08:12:06.012</span>
-            <span class="text-green-500 font-bold shrink-0">IN &nbsp;</span>
-            <span class="text-gray-300 break-all leading-relaxed">8=FIX.4.4|9=88|<span class="text-red-400 font-bold">35=3</span>|34=143|49=SERVER|58=Invalid Price|10=221|</span>
         </div>
     </div>
 }
@@ -202,10 +209,10 @@ templ messageInspector() {
     </aside>
 }
 
-templ StreamView() {
+templ StreamView(sendmsgData *models.SendMessageData) {
     <main x-show="view === 'stream'" class="flex-1 flex bg-[#0d1117] overflow-hidden relative">
         <div class="flex-1 flex flex-col min-w-0 border-r border-gray-800">
-            @messageUserInput()
+            @messageUserInput(sendmsgData)
             @messageLogs()
         </div>
         @messageInspector()

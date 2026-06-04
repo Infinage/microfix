@@ -1,8 +1,10 @@
 package views
 
+import "github.com/infinage/microfix/cmd/mxgui/internal/models"
+
 var importHandler = templ.NewOnceHandle()
 
-templ Layout() {
+templ layout() {
     <!DOCTYPE html>
     <html lang="en">
     <head>
@@ -27,17 +29,25 @@ templ Layout() {
           sendRaw: false,
       }">
 
-    @Modals()
-    @Header()
+	{ children... }
 
-    <div class="flex flex-1 overflow-hidden">
-        @Sidebar()
-        @StreamView()
-        @DictionaryView()
-        @ToolboxView()
-        @SettingsView()
-    </div>
+    <div id="toast-container" class="fixed bottom-5 right-5 z-[100] flex flex-col"></div>
 
     </body>
     </html>
+}
+
+templ HomePage(dashboardData *models.DashboardData, modalData *models.ModalData, sendMsgData *models.SendMessageData) {
+    @layout() {
+        @Modals(modalData)
+        @Header(dashboardData)
+
+        <div class="flex flex-1 overflow-hidden">
+            @Sidebar()
+            @StreamView(sendMsgData)
+            @DictionaryView()
+            @ToolboxView()
+            @SettingsView()
+        </div>
+    }
 }
