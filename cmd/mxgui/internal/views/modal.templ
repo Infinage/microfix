@@ -1,8 +1,40 @@
 package views
 
+templ addAliasModal() {
+    <div x-show="modal === 'alias'" style="display: none;" @click.away="modal = ''" class="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-[500px] p-5">
+        <h3 class="text-white font-bold text-lg mb-4">Add New Message Alias</h3>
+        <div class="space-y-4">
+            <div>
+                <label class="text-xs text-gray-400 font-bold uppercase tracking-wider">Alias Name</label>
+                <input type="text" placeholder="e.g. CancelReq" class="w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 text-white font-mono mt-1 focus:border-blue-500 focus:outline-none">
+                <p class="text-[10px] text-gray-500 mt-1">This name will appear in the Stream dropdown.</p>
+            </div>
+            <div>
+                <label class="text-xs text-gray-400 font-bold uppercase tracking-wider">FIX Payload Template</label>
+                <textarea placeholder="35=F|41=ORD123|11=CXL123|..." class="w-full bg-gray-950 border border-gray-700 rounded p-3 text-blue-300 font-mono mt-1 h-28 resize-none focus:border-blue-500 focus:outline-none shadow-inner"></textarea>
+            </div>
+        </div>
+        <div class="mt-6 flex justify-end space-x-3">
+            <button @click="modal = ''" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition">Cancel</button>
+            <button @click="modal = ''" class="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded font-bold transition shadow-lg flex items-center space-x-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                <span>Save Alias</span>
+            </button>
+        </div>
+    </div>
+}
+
 templ newConnectionModal() {
-    <div x-show="modal === 'connect'" @click.away="modal = ''" class="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-96 p-5">
-        <h3 class="text-white font-bold text-lg mb-4">Connection Settings</h3>
+    <div x-show="modal === 'connect'" x-data="{ mode: 'client' }" @click.away="modal = ''" class="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-96 p-5">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-white font-bold text-lg">Connection Settings</h3>
+            
+            <div class="flex items-center space-x-2 bg-gray-950 p-1 rounded-lg border border-gray-800">
+                <button @click="mode = 'client'" :class="mode === 'client' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-300'" class="px-3 py-1 text-xs font-bold rounded transition">Client</button>
+                <button @click="mode = 'server'" :class="mode === 'server' ? 'bg-purple-700 text-white' : 'text-gray-500 hover:text-gray-300'" class="px-3 py-1 text-xs font-bold rounded transition">Server</button>
+            </div>
+        </div>
+
         <div class="space-y-4">
             <div>
                 <label class="text-xs text-gray-400 font-bold uppercase tracking-wider">Host / Bind IP</label>
@@ -15,8 +47,9 @@ templ newConnectionModal() {
         </div>
         <div class="mt-6 flex justify-end space-x-3">
             <button @click="modal = ''" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition">Cancel</button>
-            <button @click="modal = ''" class="px-4 py-2 text-sm bg-purple-700 hover:bg-purple-600 text-white rounded font-bold transition shadow-lg">Listen (Server)</button>
-            <button @click="modal = ''" class="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded font-bold transition shadow-lg">Connect (Client)</button>
+            
+            <button x-show="mode === 'client'" @click="modal = ''" class="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded font-bold transition shadow-lg w-28">Connect</button>
+            <button x-show="mode === 'server'" style="display:none;" @click="modal = ''" class="px-4 py-2 text-sm bg-purple-700 hover:bg-purple-600 text-white rounded font-bold transition shadow-lg w-28">Listen</button>
         </div>
     </div>
 }
@@ -77,5 +110,6 @@ templ Modals() {
         @sequenceResetModal()
         @newConnectionModal()
         @formBuilderModal()
+        @addAliasModal()
     </div>
 }

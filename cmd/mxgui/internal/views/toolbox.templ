@@ -1,5 +1,46 @@
 package views
 
+templ validateMessage() {
+    <div x-show="toolboxTab === 'validate'" style="display: none;" class="flex-1 flex flex-col overflow-hidden">
+        <div class="flex justify-between items-center mb-6 shrink-0">
+            <div>
+                <h2 class="text-2xl font-bold text-white">Strict Validation</h2>
+                <p class="text-gray-400 text-sm mt-1">Run raw messages through the spec router to check for structural or tag errors.</p>
+            </div>
+        </div>
+        
+        <div class="flex-1 flex flex-col space-y-6 overflow-hidden">
+            <div class="flex flex-col h-48 shrink-0">
+                <label class="text-sm text-gray-500 font-bold uppercase tracking-widest mb-2">Target Message</label>
+                <textarea class="flex-1 bg-gray-950 border border-gray-800 rounded p-4 font-mono text-sm text-gray-300 resize-none focus:border-blue-500 focus:outline-none shadow-inner" placeholder="Paste raw FIX string here to validate against dictionary..."></textarea>
+                <button class="mt-3 bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded text-sm font-bold transition shadow-lg w-48">Run Validation</button>
+            </div>
+            
+            <div class="flex-1 flex flex-col overflow-hidden border-t border-gray-800 pt-6">
+                <label class="text-sm text-gray-500 font-bold uppercase tracking-widest mb-2">Validation Report</label>
+                
+                <div class="bg-gray-950 border border-red-900/30 rounded-lg p-4 flex-1 overflow-y-auto shadow-inner">
+                    <div class="flex items-center space-x-2 text-red-500 mb-4 border-b border-gray-800 pb-3">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                        <span class="font-bold text-lg">Status: FAILED (3 Issues Found)</span>
+                    </div>
+                    
+                    <ul class="font-mono text-sm space-y-3">
+                        <li class="flex items-start space-x-3 bg-red-950/20 p-2 rounded">
+                            <span class="text-red-400 font-bold mt-0.5">•</span>
+                            <span class="text-gray-300 leading-relaxed">Tag <span class="text-white">11</span> (ClOrdID) is marked as required for MsgType <span class="text-white">D</span>, but is missing.</span>
+                        </li>
+                        <li class="flex items-start space-x-3 bg-red-950/20 p-2 rounded">
+                            <span class="text-red-400 font-bold mt-0.5">•</span>
+                            <span class="text-gray-300 leading-relaxed">Value <span class="text-white">3</span> is invalid for Tag <span class="text-white">54</span> (Side). Valid values are: 1, 2, 5.</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 templ scriptRunner() {
     <div x-show="toolboxTab === 'scripts'" class="flex-1 flex flex-col overflow-hidden">
         <div class="flex justify-between items-center mb-6 shrink-0">
@@ -9,7 +50,7 @@ templ scriptRunner() {
             </div>
             <div class="flex space-x-3 items-center">
                 <label class="flex items-center space-x-2 text-sm text-gray-400 cursor-pointer mr-4">
-                    <input type="checkbox" class="rounded bg-gray-900 border-gray-700" checked>
+                    <input type="checkbox" class="rounded bg-gray-900 border-gray-700">
                     <span>Verbose Engine Logs</span>
                 </label>
                 <button class="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded text-sm transition border border-gray-700 font-bold">Browse .mxs...</button>
@@ -61,12 +102,14 @@ templ ToolboxView() {
             <div class="space-y-2">
                 <button @click="toolboxTab = 'scripts'" :class="toolboxTab === 'scripts' ? 'bg-gray-800 text-white' : 'text-gray-400 hover:bg-gray-900'" class="w-full text-left px-4 py-2 text-sm rounded font-bold transition">Script Runner</button>
                 <button @click="toolboxTab = 'finalize'" :class="toolboxTab === 'finalize' ? 'bg-gray-800 text-white' : 'text-gray-400 hover:bg-gray-900'" class="w-full text-left px-4 py-2 text-sm rounded font-bold transition">FIX Finalize</button>
+                <button @click="toolboxTab = 'validate'" :class="toolboxTab === 'validate' ? 'bg-gray-800 text-white' : 'text-gray-400 hover:bg-gray-900'" class="w-full text-left px-4 py-2 text-sm rounded font-bold transition">Validate Fix Message</button>
             </div>
         </div>
         
         <div class="flex-1 p-10 flex flex-col overflow-hidden">
             @scriptRunner()
             @finalizeMessage()
+            @validateMessage()
         </div>
     </main>
 }

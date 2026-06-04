@@ -1,17 +1,90 @@
 package views
 
-templ aliases() {
-    <div x-show="settingsTab === 'aliases'">
-        <h2 class="text-2xl font-bold text-white mb-2">Message Aliases</h2>
-        <p class="text-gray-400 mb-8">Map custom names to raw FIX template strings for rapid testing.</p>
+templ configView() {
+    <div x-show="settingsTab === 'config'" style="display:none;">
+        <div class="flex justify-between items-center mb-6">
+            <div>
+                <h2 class="text-2xl font-bold text-white mb-1">Session Configuration</h2>
+                <p class="text-gray-400 text-sm">Modify global connection parameters. These apply upon next connection.</p>
+            </div>
+            <div class="flex space-x-3">
+                <button class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-4 py-2 rounded text-sm transition font-bold shadow-sm">Load from File...</button>
+                <button class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-4 py-2 rounded text-sm transition font-bold shadow-sm">Save to File...</button>
+            </div>
+        </div>
+        
         <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
             <table class="w-full text-left text-sm font-mono">
-                <tr class="text-gray-500 border-b border-gray-800 bg-gray-950"><th class="p-4">Alias Name</th><th class="p-4">Template String</th><th class="p-4 text-right">Actions</th></tr>
-                <tr class="border-b border-gray-800/50 hover:bg-gray-800/30"><td class="p-4 text-blue-400 font-bold">Logon</td><td class="p-4 text-gray-300">35=A|98=0|108=30|</td><td class="p-4 text-right text-gray-500 hover:text-red-400 cursor-pointer">Delete</td></tr>
-                <tr class="border-b border-gray-800/50 hover:bg-gray-800/30"><td class="p-4 text-blue-400 font-bold">Order</td><td class="p-4 text-gray-300">35=D|54=1|38=100|40=2|</td><td class="p-4 text-right text-gray-500 hover:text-red-400 cursor-pointer">Delete</td></tr>
+                <tr class="text-gray-500 border-b border-gray-800 bg-gray-950 uppercase text-xs tracking-wider">
+                    <th class="p-4 w-1/3">Field Name</th>
+                    <th class="p-4">Value</th>
+                </tr>
+                
+                <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
+                    <td class="p-4 text-gray-400 font-bold">SenderCompID</td>
+                    <td class="p-4"><input type="text" value="CLIENT1" class="bg-gray-950 border border-gray-700 rounded px-3 py-1.5 text-white font-mono w-full max-w-md focus:border-blue-500 focus:outline-none"></td>
+                </tr>
+                
+                <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
+                    <td class="p-4 text-gray-400 font-bold">TargetCompID</td>
+                    <td class="p-4"><input type="text" value="SERVER" class="bg-gray-950 border border-gray-700 rounded px-3 py-1.5 text-white font-mono w-full max-w-md focus:border-blue-500 focus:outline-none"></td>
+                </tr>
+                
+                <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
+                    <td class="p-4 text-gray-400 font-bold">HeartbeatInt <span class="text-gray-600 text-xs font-sans font-normal ml-2">(Seconds)</span></td>
+                    <td class="p-4"><input type="number" value="30" class="bg-gray-950 border border-gray-700 rounded px-3 py-1.5 text-white font-mono w-24 focus:border-blue-500 focus:outline-none"></td>
+                </tr>
+                
+                <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
+                    <td class="p-4 text-gray-400 font-bold">FixValidateStrict</td>
+                    <td class="p-4">
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" value="" class="sr-only peer" checked>
+                            <div class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </td>
+                </tr>
             </table>
         </div>
-        <button class="mt-4 bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded text-sm transition font-bold">+ Add New Alias</button>
+        
+        <div class="mt-6 flex justify-end">
+            <button class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded font-bold transition shadow-lg text-sm">Apply & Save Configuration</button>
+        </div>
+    </div>
+}
+
+templ aliases() {
+    <div x-show="settingsTab === 'aliases'">
+        <div class="flex justify-between items-center mb-6">
+            <div>
+                <h2 class="text-2xl font-bold text-white mb-2">Message Aliases</h2>
+                <p class="text-gray-400 text-sm">Map custom names to raw FIX template strings for rapid testing in the Stream view.</p>
+            </div>
+            <button @click="modal = 'alias'" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm transition font-bold shadow-lg flex items-center space-x-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                <span>Add Alias</span>
+            </button>
+        </div>
+        
+        <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+            <table class="w-full text-left text-sm font-mono">
+                <tr class="text-gray-500 border-b border-gray-800 bg-gray-950 uppercase text-xs tracking-wider">
+                    <th class="p-4">Alias Name</th>
+                    <th class="p-4">Template String</th>
+                    <th class="p-4 text-right">Actions</th>
+                </tr>
+                <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
+                    <td class="p-4 text-blue-400 font-bold">Logon</td>
+                    <td class="p-4 text-gray-300 truncate max-w-md">35=A|98=0|108=30|</td>
+                    <td class="p-4 text-right text-gray-500 hover:text-red-400 cursor-pointer transition">Delete</td>
+                </tr>
+                <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
+                    <td class="p-4 text-blue-400 font-bold">Order</td>
+                    <td class="p-4 text-gray-300 truncate max-w-md">35=D|54=1|38=100|40=2|</td>
+                    <td class="p-4 text-right text-gray-500 hover:text-red-400 cursor-pointer transition">Delete</td>
+                </tr>
+            </table>
+        </div>
     </div>
 }
 
@@ -57,6 +130,7 @@ templ SettingsView() {
         </div>
         
         <div class="flex-1 p-10 overflow-y-auto">
+            @configView()
             @aliases()
             @about()
         </div>

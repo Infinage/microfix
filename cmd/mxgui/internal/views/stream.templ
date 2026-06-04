@@ -1,18 +1,20 @@
 package views
 
 templ messageUserInput() {
-    <div class="bg-gray-900/40 border-b border-gray-800 flex flex-col shrink-0 p-4">
+    <div x-data="{ mode: 'alias', selectedAlias: '', selectedMsgType: '' }" class="bg-gray-900/40 border-b border-gray-800 flex flex-col shrink-0 p-4">
         <div class="flex justify-between items-center mb-3">
             <div class="flex space-x-3 items-center">
-                <select class="bg-gray-950 border border-gray-700 text-gray-300 text-sm rounded px-3 py-1.5 outline-none focus:border-blue-500 font-mono">
-                    <option>Alias: QuickOrder</option>
-                    <option>Alias: Logon</option>
+                <select x-model="selectedAlias" @change="selectedMsgType = ''" :class="selectedAlias !== '' ? 'border-blue-500' : 'border-gray-700'" class="bg-gray-950 border text-gray-300 text-sm rounded px-3 py-1.5 outline-none focus:border-blue-500 font-mono transition">
+                    <option value="">-- Select Alias --</option>
+                    <option value="QuickOrder">Alias: QuickOrder</option>
+                    <option value="Logon">Alias: Logon</option>
                 </select>
-                <span class="text-gray-600 font-bold">+</span>
-                <select class="bg-gray-950 border border-gray-700 text-gray-300 text-sm rounded px-3 py-1.5 outline-none focus:border-blue-500 font-mono">
-                    <option>Type: D (NewOrderSingle)</option>
-                    <option>Type: A (Logon)</option>
-                    <option>Type: 8 (ExecutionReport)</option>
+                <span class="text-gray-600 font-bold text-xs">OR</span>
+                <select x-model="selectedMsgType" @change="selectedAlias = ''" :class="selectedMsgType !== '' ? 'border-blue-500' : 'border-gray-700'" class="bg-gray-950 border text-gray-300 text-sm rounded px-3 py-1.5 outline-none focus:border-blue-500 font-mono transition">
+                    <option value="">-- Select MsgType --</option>
+                    <option value="D">Type: D (NewOrderSingle)</option>
+                    <option value="A">Type: A (Logon)</option>
+                    <option value="8">Type: 8 (ExecutionReport)</option>
                 </select>
                 <span class="text-xs text-gray-500 italic ml-2">&larr; Auto-populates raw payload</span>
             </div>

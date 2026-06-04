@@ -18,13 +18,13 @@ templ Layout() {
     <body class="bg-[#0a0d12] text-gray-300 h-screen overflow-hidden flex flex-col font-sans selection:bg-blue-900 selection:text-white" 
       x-data="{ 
           view: 'stream', /* 'stream', 'dictionary', 'toolbox', 'settings' */
+          inspectorTab: 'decoded', /* 'decoded', 'validation', 'diff' */
+          settingsTab: 'about', /* 'about', 'config', 'aliases' */
+          toolboxTab: 'scripts', /* 'validate', 'scripts', 'finalize' */
+          modal: '', /* '', 'seq', 'connect', 'form', 'alias' */
           inspectorOpen: false, 
           selectedMsg: null,
-          inspectorTab: 'decoded',
-          settingsTab: 'about',
-          toolboxTab: 'scripts',
           sendRaw: false,
-          modal: '' /* '', 'seq', 'connect', 'form' */
       }">
 
     @Modals()
