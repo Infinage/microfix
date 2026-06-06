@@ -3,6 +3,7 @@ package gui
 import (
 	"context"
 	"embed"
+	"html/template"
 	"net/http"
 
 	"github.com/infinage/microfix/pkg/session"
@@ -15,6 +16,7 @@ type Application struct {
 	Ctx     context.Context
 
 	assets embed.FS
+	templ  *template.Template
 }
 
 func NewSession(cfg store.Config) (*session.Session, error) {
@@ -30,6 +32,17 @@ func NewSession(cfg store.Config) (*session.Session, error) {
 }
 
 func NewApplication(assets embed.FS) (*Application, error) {
+	// Helper functions for parsing templates
+	templHelpers := template.FuncMap{
+		"getSpecName":  getSpecName,
+		"getColorName": getColorName,
+	}
+
+	templ, err := template.New("").Funcs(templHelpers).ParseFS(assets, "assets/html/*html")
+	if err != nil {
+		return nil, err
+	}
+
 	st := store.InitStore()
 	sess, err := NewSession(st.Config())
 	if err != nil {
@@ -41,6 +54,7 @@ func NewApplication(assets embed.FS) (*Application, error) {
 		Store:   &st,
 		Ctx:     context.Background(),
 		assets:  assets,
+		templ:   templ,
 	}, nil
 }
 
