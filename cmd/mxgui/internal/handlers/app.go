@@ -35,7 +35,8 @@ func NewApplication(assets embed.FS) (*Application, error) {
 	// Helper functions for parsing templates
 	templHelpers := template.FuncMap{
 		"getSpecName":  getSpecName,
-		"getColorName": getColorName,
+		"getThemeForEngineState": getThemeForEngineState,
+		"getThemeForLogType": getThemeForLogType,
 	}
 
 	templ, err := template.New("").Funcs(templHelpers).ParseFS(assets, "assets/html/*html")

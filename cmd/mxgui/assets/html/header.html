@@ -35,8 +35,8 @@
 
 {{define "SequenceResetButton"}}
 <div @click="modal = 'seq'" class="flex space-x-4 text-sm font-mono bg-gray-900 px-4 py-1.5 rounded border border-gray-800 cursor-pointer hover:border-gray-600 transition" title="Reset Sequences">
-    <div><span class="text-gray-500">IN:</span> <span class="text-green-400 font-bold">{.Snapshot.InSeqNum}</span></div>
-    <div><span class="text-gray-500">OUT:</span> <span class="text-blue-400 font-bold">{.Snapshot.OutSeqNum}</span></div>
+  <div><span class="text-gray-500">IN:</span> <span class="text-green-400 font-bold">{{.Snapshot.InSeqNum}}</span></div>
+  <div><span class="text-gray-500">OUT:</span> <span class="text-blue-400 font-bold">{{.Snapshot.OutSeqNum}}</span></div>
 </div>
 {{end}}
 
@@ -49,14 +49,14 @@
     class="bg-gray-950 border-b border-gray-800 h-14 flex items-center justify-between px-4 shrink-0 z-20 shadow-md"
 >
     {{$state := .Snapshot.State.String}}
-    {{$color := getColorName $state}}
+    {{$theme := getThemeForEngineState $state}}
     <div class="flex items-center space-x-6">
         <span class="text-white font-bold text-lg tracking-widest">MICRO<span class="text-blue-500">FIX</span></span>
         <div class="h-6 w-px bg-gray-800"></div>
         
         <div class="flex items-center space-x-3 bg-gray-900/80 px-3 py-1.5 rounded-md border border-gray-700/50">
-            <span class="flex items-center space-x-2 text-{{$color}}-400 font-bold text-xs tracking-wider">
-                <span class="w-2.5 h-2.5 rounded-full bg-{{$color}}-500 shadow-[0_0_8px_rgba(34,197,94,0.8)] animate-pulse"></span>
+            <span class="flex items-center space-x-2 {{$theme.Text}} font-bold text-xs tracking-wider">
+                <span class="w-2.5 h-2.5 rounded-full {{$theme.Bg}} shadow-[0_0_8px_rgba(34,197,94,0.8)] animate-pulse"></span>
                 <span>{{$state}}</span>
             </span>
             
@@ -71,8 +71,11 @@
         {{if eq $state "New"}}
             {{template "ConnectButton" .}}
         {{else}}
-            {{template "ResetConnectionButton" .}}
-            {{template "DisconnectButton" .}}
+            {{if ne $state "Closed"}} 
+              {{template "DisconnectButton" .}}
+            {{else}}
+              {{template "ResetConnectionButton" .}}
+            {{end}}
             {{template "SequenceResetButton" .}}
         {{end}}
     </div>

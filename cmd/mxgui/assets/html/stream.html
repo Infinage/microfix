@@ -1,25 +1,24 @@
-{{define "LogEntries"}}
-  {{range .logs}}
-  <div class="flex items-start space-x-4 p-2 rounded cursor-pointer border-l-2 border-l-green-500 hover:bg-gray-900 transition">
-      <span class="text-gray-500 shrink-0">08:12:00</span>
-      <span class="text-green-500 font-bold shrink-0">IN &nbsp;</span>
-      <span class="text-gray-300 break-all leading-relaxed">{ .Msg }</span>
-  </div>
-  {{end}}
+{{define "LogEntry"}}
+{{$LogType := .Type.String}}
+{{$theme := getThemeForLogType $LogType}}
+
+<div class="flex items-start space-x-4 p-2 rounded cursor-pointer border-l-2 {{$theme.Border}} hover:bg-gray-900 transition">
+    <span class="text-gray-500 shrink-0">{{.Timestamp.Format "15:04:05.000"}}</span>
+    <span class="{{$theme.Text}} font-bold shrink-0">{{$LogType}}</span>
+    <span class="text-gray-300 break-all leading-relaxed">{{.Content}}</span>
+</div>
 {{end}}
 
 {{define "MessageLogs"}}
-<div class="bg-gray-950 px-4 py-2 border-b border-gray-800 flex items-center justify-between shrink-0">
-    </div>
-
 <div 
+    hx-ext="sse"
     id="log-stream-container"
-    hx-get="/api/logs" 
-    hx-trigger="every 1s" 
+    sse-connect="/api/logs" 
+    sse-swap="message"
+    hx-swap="beforeend"
     class="flex-1 overflow-y-auto p-3 font-mono text-sm space-y-1"
 >
-    {{/* Initial empty state (or you can pass initial logs here on page load) */}}
-    <div class="text-gray-600 text-center mt-10">Waiting for messages...</div>
+    <div class="hidden only:block text-gray-600 text-center mt-10"> Waiting for messages... </div>
 </div>
 {{end}}
 

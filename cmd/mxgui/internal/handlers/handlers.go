@@ -1,8 +1,10 @@
 package gui
 
 import (
+	"bytes"
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 func (app *Application) handleHome(w http.ResponseWriter, r *http.Request) {
@@ -82,8 +84,42 @@ func (app *Application) handleAPIHeader(w http.ResponseWriter, r *http.Request) 
 }
 
 func (app *Application) handleAPILogs(w http.ResponseWriter, r *http.Request) {
-	dummyLogs := []string{
-		"8=FIX.4.4|9=65|35=A|34=142|49=SERVER|56=CLIENT|10=114|",
+	// Set header for Server sent events (SSE)
+	w.Header().Set("Content-Type", "text/event-stream")
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		app.templ.ExecuteTemplate(w, "Toast", map[string]string{"type": "error", "message": "Streaming unsupported"})
+		return
 	}
-	app.templ.ExecuteTemplate(w, "LogEntries", dummyLogs)
+
+	// Subscribe to logs from session
+	logCh, closeLogs, err := app.Session.SubscribeLog()
+	if err != nil {
+		app.templ.ExecuteTemplate(w, "Toast", map[string]string{
+			"type": "error", 
+			"message": fmt.Sprintf("Failed to subscribe log: %v", err.Error()),
+		})
+		return
+	}
+	defer closeLogs()
+
+	// Continuously poll the logs and push to the server
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case log, ok := <-logCh:
+			if !ok {
+				return
+			}
+
+			// Parse and print the logs
+			var buf bytes.Buffer
+			app.templ.ExecuteTemplate(&buf, "LogEntry", log)
+			logMarkup := strings.ReplaceAll(buf.String(), "\n", " ")
+			fmt.Fprintf(w, "data: %s\n\n", logMarkup)
+			flusher.Flush()
+		}
+	}
 }
