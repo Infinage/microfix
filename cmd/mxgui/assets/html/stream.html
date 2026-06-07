@@ -10,6 +10,20 @@
 {{end}}
 
 {{define "MessageLogs"}}
+<div class="bg-gray-950 px-4 py-2 border-b border-gray-800 flex items-center justify-between shrink-0">
+  <input type="text" placeholder="Search regex..." class="bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-300 focus:outline-none focus:border-blue-500 w-64 font-mono">
+  <div class="flex space-x-2 items-center">
+      <button class="text-xs font-bold px-3 py-1.5 rounded border border-green-900/50 bg-green-900/20 text-green-400">IN</button>
+      <button class="text-xs font-bold px-3 py-1.5 rounded border border-blue-900/50 bg-blue-900/20 text-blue-400">OUT</button>
+      <div class="w-px h-5 bg-gray-800 mx-2"></div>
+      <button class="text-xs font-bold px-3 py-1.5 rounded border border-gray-700 bg-gray-800 text-gray-300">Admin</button>
+      <button class="text-xs font-bold px-3 py-1.5 rounded border border-gray-700 bg-gray-800 text-gray-300">App</button>
+      <button class="text-xs font-bold px-3 py-1.5 rounded border border-gray-700 bg-gray-800 text-red-400">Errors</button>
+      <div class="w-px h-5 bg-gray-800 mx-2"></div>
+      <button class="text-xs font-bold px-3 py-1.5 rounded text-gray-500 hover:text-white transition">Clear Logs</button>
+  </div>
+</div>
+
 <div 
     hx-ext="sse"
     id="log-stream-container"
@@ -23,10 +37,25 @@
 {{end}}
 
 {{define "SendMessageInput"}}
+<textarea class="w-full bg-gray-950/50 border border-gray-800 rounded p-3 font-mono text-sm text-blue-300 focus:outline-none 
+  focus:border-blue-500 h-28 placeholder-gray-700 resize-none shadow-inner" placeholder="35=D|55=AAPL|54=1|38=100|40=2|..."
+>{{if .SendMessageInputPayload}}{{.SendMessageInputPayload}}{{end}}</textarea>
+{{end}}
+
+{{define "SendMessageForm"}}
 <div x-data="{ mode: 'alias', selectedAlias: '', selectedMsgType: '' }" class="bg-gray-900/40 border-b border-gray-800 flex flex-col shrink-0 p-4">
     <div class="flex justify-between items-center mb-3">
         <div class="flex space-x-3 items-center">
-            <select x-model="selectedAlias" @change="selectedMsgType = ''" :class="selectedAlias !== '' ? 'border-blue-500' : 'border-gray-700'" class="bg-gray-950 border text-gray-300 text-sm rounded px-3 py-1.5 outline-none focus:border-blue-500 font-mono transition">
+            <select 
+             name="alias"
+              hx-get="/api/alias"
+              hx-target="next textarea"
+              hx-swap="outerHTML"
+              x-model="selectedAlias" 
+              @change="selectedMsgType = ''" 
+              :class="selectedAlias !== '' ? 'border-blue-500' : 'border-gray-700'" 
+              class="bg-gray-950 border text-gray-300 text-sm rounded px-3 py-1.5 outline-none focus:border-blue-500 font-mono transition"
+            >
                 <option disabled value="">-- Select Alias --</option>
                 {{range $alias, $val := .Aliases}}
                   <option value={{$val}}>Alias: {{$alias}}</option>
@@ -35,7 +64,16 @@
 
             <span class="text-gray-600 font-bold text-xs">OR</span>
 
-            <select x-model="selectedMsgType" @change="selectedAlias = ''" :class="selectedMsgType !== '' ? 'border-blue-500' : 'border-gray-700'" class="bg-gray-950 border text-gray-300 text-sm rounded px-3 py-1.5 outline-none focus:border-blue-500 font-mono transition">
+            <select 
+             name="msgtype"
+              hx-get="/api/sample"
+              hx-target="next textarea"
+              hx-swap="outerHTML"
+              x-model="selectedMsgType" 
+              @change="selectedAlias = ''" 
+              :class="selectedMsgType !== '' ? 'border-blue-500' : 'border-gray-700'" 
+              class="bg-gray-950 border text-gray-300 text-sm rounded px-3 py-1.5 outline-none focus:border-blue-500 font-mono transition"
+            >
                 <option disabled value="">-- Select MsgType --</option>
                 {{range $msgId, $msgSpec := .Router.SessionSpec.Messages}}
                   <option value={{$msgId}}>[Sess] Type: {{$msgId}} ({{$msgSpec.Name}})</option>
@@ -53,9 +91,9 @@
             <span>Form Builder</span>
         </button>
     </div>
-    
-    <textarea class="w-full bg-gray-950/50 border border-gray-800 rounded p-3 font-mono text-sm text-blue-300 focus:outline-none focus:border-blue-500 h-28 placeholder-gray-700 resize-none shadow-inner" placeholder="35=D|55=AAPL|54=1|38=100|40=2|..."></textarea>
-    
+
+    {{template "SendMessageInput" .}}
+
     <div class="mt-3 flex justify-between items-center">
         <label class="flex items-center space-x-2 text-sm text-gray-400 cursor-pointer hover:text-white transition">
             <input type="checkbox" x-model="sendRaw" class="rounded bg-gray-900 border-gray-700 w-4 h-4">
@@ -206,7 +244,7 @@
 {{define "Stream"}}
 <main x-show="view === 'stream'" class="flex-1 flex bg-[#0d1117] overflow-hidden relative">
     <div class="flex-1 flex flex-col min-w-0 border-r border-gray-800">
-      {{template "SendMessageInput" .}}
+      {{template "SendMessageForm" .}}
       {{template "MessageLogs" .}}
     </div>
     {{template "MessageInspector" .}}

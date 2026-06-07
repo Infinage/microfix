@@ -68,6 +68,8 @@ func (app *Application) routes() *http.ServeMux {
 	mux.HandleFunc("GET /api/reset", app.handleAPIReset)
 	mux.HandleFunc("GET /api/disconnect", app.handleAPIDisconnect)
 	mux.HandleFunc("GET /api/logs", app.handleAPILogs)
+	mux.HandleFunc("GET /api/alias", app.handleAPIGetAlias)
+	mux.HandleFunc("GET /api/sample", app.handleAPISample)
 	return mux
 }
 

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	"github.com/infinage/microfix/pkg/spec"
 )
 
 func (app *Application) handleHome(w http.ResponseWriter, r *http.Request) {
@@ -121,5 +123,26 @@ func (app *Application) handleAPILogs(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(w, "data: %s\n\n", logMarkup)
 			flusher.Flush()
 		}
+	}
+}
+
+func (app *Application) handleAPIGetAlias(w http.ResponseWriter, r *http.Request) {
+	aliasName := r.URL.Query().Get("alias")	
+	alias, ok, _ := app.Store.Get("ALIAS." + aliasName)
+	if ok {
+		app.templ.ExecuteTemplate(w, "SendMessageInput", map[string]string{"SendMessageInputPayload": alias})
+	} else {
+		errMsg := fmt.Sprintf("Alias not found: %s", aliasName)
+		app.templ.ExecuteTemplate(w, "Toast", map[string]string{"type": "error", "message": errMsg})
+	}
+}
+
+func (app *Application) handleAPISample(w http.ResponseWriter, r *http.Request) {
+	msgType := r.URL.Query().Get("msgtype")
+	msg, err := app.Session.Router().Sample(msgType, spec.SampleOptions{})
+	if err == nil {
+		app.templ.ExecuteTemplate(w, "SendMessageInput", map[string]string{"SendMessageInputPayload": msg.String("|")})
+	} else {
+		app.templ.ExecuteTemplate(w, "Toast", map[string]string{"type": "error", "message": err.Error()})
 	}
 }

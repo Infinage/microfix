@@ -19,7 +19,6 @@ func getSpecName(config store.Config) string {
 	return config.SessionSpec
 }
 
-// Returns text color and bg color
 func getThemeForEngineState(state string) Theme {
 	textColor := ""
 	bgColor := ""
