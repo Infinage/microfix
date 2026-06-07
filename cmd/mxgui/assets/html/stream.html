@@ -2,7 +2,8 @@
 {{$LogType := .Type.String}}
 {{$theme := getThemeForLogType $LogType}}
 
-<div class="flex items-start space-x-4 p-2 rounded cursor-pointer border-l-2 {{$theme.Border}} hover:bg-gray-900 transition">
+<div class="log-entry flex items-start space-x-4 p-2 rounded cursor-pointer border-l-2 {{$theme.Border}} hover:bg-gray-900 transition"
+     data-log-type="{{$LogType}}">
     <span class="text-gray-500 shrink-0">{{.Timestamp.Format "15:04:05.000"}}</span>
     <span class="{{$theme.Text}} font-bold shrink-0">{{$LogType}}</span>
     <span class="text-gray-300 break-all leading-relaxed">{{.Content}}</span>
@@ -10,35 +11,112 @@
 {{end}}
 
 {{define "MessageLogs"}}
-<div class="bg-gray-950 px-4 py-2 border-b border-gray-800 flex items-center justify-between shrink-0">
-  <input type="text" placeholder="Search regex..." class="bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-300 focus:outline-none focus:border-blue-500 w-64 font-mono">
-  <div class="flex space-x-2 items-center">
-      <button class="text-xs font-bold px-3 py-1.5 rounded border border-green-900/50 bg-green-900/20 text-green-400">IN</button>
-      <button class="text-xs font-bold px-3 py-1.5 rounded border border-blue-900/50 bg-blue-900/20 text-blue-400">OUT</button>
-      <div class="w-px h-5 bg-gray-800 mx-2"></div>
-      <button class="text-xs font-bold px-3 py-1.5 rounded border border-gray-700 bg-gray-800 text-gray-300">Admin</button>
-      <button class="text-xs font-bold px-3 py-1.5 rounded border border-gray-700 bg-gray-800 text-gray-300">App</button>
-      <button class="text-xs font-bold px-3 py-1.5 rounded border border-gray-700 bg-gray-800 text-red-400">Errors</button>
-      <div class="w-px h-5 bg-gray-800 mx-2"></div>
-      <button class="text-xs font-bold px-3 py-1.5 rounded text-gray-500 hover:text-white transition">Clear Logs</button>
-  </div>
-</div>
+<div x-data="{
+        regexStr: '',
+        activeFilters: [],
+        
+        toggleFilter(f) {
+            if (this.activeFilters.includes(f)) {
+                this.activeFilters = this.activeFilters.filter(x => x !== f);
+            } else {
+                this.activeFilters.push(f);
+            }
+            this.applyFilters();
+        },
+        
+        clearLogs() {
+            document.querySelectorAll('.log-entry').forEach(el => el.remove());
+        },
+        
+        applyFilters() {
+            let re = null;
+            if (this.regexStr) {
+                try { re = new RegExp(this.regexStr, 'i'); } catch(e) { /* Ignore invalid regex */ }
+            }
+            
+            document.querySelectorAll('.log-entry').forEach(el => {
+                const text = el.textContent;
+                const type = (el.dataset.logType || '').trim(); 
+                
+                let matchRegex = true;
+                if (re) {
+                    matchRegex = re.test(text);
+                }
+                
+                let matchFilter = true;
+                if (this.activeFilters.length > 0) {
+                    let tags = [];
+                    if (type === 'RECV') tags.push('IN');
+                    if (type === 'SEND') tags.push('OUT');
+                    if (type === 'ERR') tags.push('Error');
+                    if (type === 'SYS') tags.push('Admin');
+                    
+                    // Renamed from 'App' (Business Level Messages)
+                    if (type === 'RECV' || type === 'SEND') tags.push('App');
 
-<div 
-    hx-ext="sse"
-    id="log-stream-container"
-    sse-connect="/api/logs" 
-    sse-swap="message"
-    hx-swap="beforeend"
-    class="flex-1 overflow-y-auto p-3 font-mono text-sm space-y-1"
+                    matchFilter = this.activeFilters.some(f => tags.includes(f));
+                }
+                
+                el.style.display = (matchRegex && matchFilter) ? '' : 'none';
+            });
+        }
+    }" 
+    @htmx:sse-message.camel="setTimeout(() => { 
+        applyFilters(); 
+        let container = document.getElementById('log-stream-container');
+        container.scrollTop = container.scrollHeight;
+    }, 50)" 
+    @htmx:after-settle="applyFilters()" 
+    class="flex-1 flex flex-col min-w-0 min-h-0"
 >
-    <div class="hidden only:block text-gray-600 text-center mt-10"> Waiting for messages... </div>
+    <div class="bg-gray-950 px-4 py-2 border-b border-gray-800 flex items-center justify-between shrink-0">
+        <input 
+            type="text" 
+            x-model="regexStr" 
+            @input="applyFilters()"
+            placeholder="Search regex..." 
+            class="bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-300 focus:outline-none focus:border-blue-500 w-64 font-mono"
+        >
+        
+        <div class="flex space-x-2 items-center">
+            <button @click="toggleFilter('IN')" :class="activeFilters.includes('IN') ? 'ring-2 ring-green-500' : ''" class="text-xs font-bold px-3 py-1.5 rounded border border-green-900/50 bg-green-900/20 text-green-400 transition">IN</button>
+            <button @click="toggleFilter('OUT')" :class="activeFilters.includes('OUT') ? 'ring-2 ring-blue-500' : ''" class="text-xs font-bold px-3 py-1.5 rounded border border-blue-900/50 bg-blue-900/20 text-blue-400 transition">OUT</button>
+            <div class="w-px h-5 bg-gray-800 mx-2"></div>
+            
+            <button @click="toggleFilter('Admin')" :class="activeFilters.includes('Admin') ? 'ring-2 ring-gray-400' : ''" class="text-xs font-bold px-3 py-1.5 rounded border border-gray-700 bg-gray-800 text-gray-300 transition">Admin</button>
+            <button @click="toggleFilter('App')" :class="activeFilters.includes('App') ? 'ring-2 ring-gray-400' : ''" class="text-xs font-bold px-3 py-1.5 rounded border border-gray-700 bg-gray-800 text-gray-300 transition">App</button>
+            <button @click="toggleFilter('Error')" :class="activeFilters.includes('Error') ? 'ring-2 ring-red-500' : ''" class="text-xs font-bold px-3 py-1.5 rounded border border-gray-700 bg-gray-800 text-red-400 transition">Errors</button>
+            <div class="w-px h-5 bg-gray-800 mx-2"></div>
+            
+            <button 
+                @click="clearLogs()"
+                class="text-xs font-bold px-3 py-1.5 rounded text-gray-500 hover:text-white transition"
+            >
+                Clear Logs
+            </button>
+        </div>
+    </div>
+
+    <div 
+        hx-ext="sse"
+        id="log-stream-container"
+        sse-connect="/api/logs" 
+        sse-swap="message"
+        hx-swap="beforeend scroll:bottom"
+        class="flex-1 overflow-y-auto min-h-0 p-3 font-mono text-sm space-y-1 scroll-smooth"
+    >
+        <div class="hidden only:block text-gray-600 text-center mt-10"> Waiting for messages... </div>
+    </div>
 </div>
 {{end}}
 
+{{/* This is wrapped inside a form tag */}}
 {{define "SendMessageInput"}}
-<textarea class="w-full bg-gray-950/50 border border-gray-800 rounded p-3 font-mono text-sm text-blue-300 focus:outline-none 
-  focus:border-blue-500 h-28 placeholder-gray-700 resize-none shadow-inner" placeholder="35=D|55=AAPL|54=1|38=100|40=2|..."
+<textarea 
+  name="message" id="message-input" minlength="4"
+  placeholder="35=D|55=AAPL|54=1|38=100|40=2|..."
+  class="w-full bg-gray-950/50 border border-gray-800 rounded p-3 font-mono text-sm text-blue-300 focus:outline-none 
+    focus:border-blue-500 h-28 placeholder-gray-700 resize-none shadow-inner" 
 >{{if .SendMessageInputPayload}}{{.SendMessageInputPayload}}{{end}}</textarea>
 {{end}}
 
@@ -49,7 +127,7 @@
             <select 
              name="alias"
               hx-get="/api/alias"
-              hx-target="next textarea"
+              hx-target="#message-input"
               hx-swap="outerHTML"
               x-model="selectedAlias" 
               @change="selectedMsgType = ''" 
@@ -67,7 +145,7 @@
             <select 
              name="msgtype"
               hx-get="/api/sample"
-              hx-target="next textarea"
+              hx-target="#message-input"
               hx-swap="outerHTML"
               x-model="selectedMsgType" 
               @change="selectedAlias = ''" 
@@ -78,32 +156,38 @@
                 {{range $msgId, $msgSpec := .Router.SessionSpec.Messages}}
                   <option value={{$msgId}}>[Sess] Type: {{$msgId}} ({{$msgSpec.Name}})</option>
                 {{end}}
-                {{if not .sendMsgData.Router.IsLegacyRouter}}
-                    {{range $msgId, $msgSpec := .sendMsgData.Router.ApplSpec.Messages}}
+                {{if not .Router.IsLegacyRouter}}
+                    {{range $msgId, $msgSpec := .Router.ApplSpec.Messages}}
                         <option value="{{$msgId}}">[Appl] Type: {{$msgId}} ({{$msgSpec.Name}})</option>
                     {{end}}
                 {{end}}
             </select>
             <span class="text-xs text-gray-500 italic ml-2">&larr; Auto-populates raw payload</span>
         </div>
-        <button @click="modal = 'form'" class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-3 py-1.5 rounded text-sm font-semibold transition flex items-center space-x-2 shadow-sm">
+        <button 
+          @click="modal = 'form'" 
+          class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-3 py-1.5 rounded text-sm 
+            font-semibold transition flex items-center space-x-2 shadow-sm cursor-pointer"
+        >
             <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
             <span>Form Builder</span>
         </button>
     </div>
 
-    {{template "SendMessageInput" .}}
+    <form hx-post="/api/send" hx-swap="none">
+      {{template "SendMessageInput" .}}
 
-    <div class="mt-3 flex justify-between items-center">
-        <label class="flex items-center space-x-2 text-sm text-gray-400 cursor-pointer hover:text-white transition">
-            <input type="checkbox" x-model="sendRaw" class="rounded bg-gray-900 border-gray-700 w-4 h-4">
-            <span>Send Raw (Skip Finalize checksum/length)</span>
-        </label>
-        <button class="bg-blue-600 hover:bg-blue-500 text-white px-8 py-2 rounded text-sm font-bold transition shadow-lg flex items-center space-x-2">
-            <span>Send Message</span>
-            <span class="font-mono opacity-70 bg-blue-700 px-1.5 py-0.5 rounded text-xs">⌘↵</span>
-        </button>
-    </div>
+      <div class="mt-3 flex justify-between items-center">
+          <label class="flex items-center space-x-2 text-sm text-gray-400 cursor-pointer hover:text-white transition">
+              <input name="raw" value="yes" type="checkbox" x-model="sendRaw" class="rounded bg-gray-900 border-gray-700 w-4 h-4">
+              <span>Send Raw (Skip Finalize checksum/length)</span>
+          </label>
+          <button class="bg-blue-600 hover:bg-blue-500 cursor-pointer text-white px-8 py-2 rounded text-sm font-bold transition shadow-lg flex items-center space-x-2">
+              <span>Send Message</span>
+              <span class="font-mono opacity-70 bg-blue-700 px-1.5 py-0.5 rounded text-xs">⌘↵</span>
+          </button>
+      </div>
+    </form>
 </div>
 {{end}}
 

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/infinage/microfix/pkg/message"
 	"github.com/infinage/microfix/pkg/spec"
 )
 
@@ -23,7 +24,6 @@ func (app *Application) handleHome(w http.ResponseWriter, r *http.Request) {
 
 func (app *Application) handleAPIConnect(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		w.WriteHeader(http.StatusOK)
 		app.templ.ExecuteTemplate(w, "Toast", map[string]string{"type": "error", "message": "Failed to parse form"})
 		return
 	}
@@ -99,7 +99,7 @@ func (app *Application) handleAPILogs(w http.ResponseWriter, r *http.Request) {
 	logCh, closeLogs, err := app.Session.SubscribeLog()
 	if err != nil {
 		app.templ.ExecuteTemplate(w, "Toast", map[string]string{
-			"type": "error", 
+			"type":    "error",
 			"message": fmt.Sprintf("Failed to subscribe log: %v", err.Error()),
 		})
 		return
@@ -127,7 +127,7 @@ func (app *Application) handleAPILogs(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *Application) handleAPIGetAlias(w http.ResponseWriter, r *http.Request) {
-	aliasName := r.URL.Query().Get("alias")	
+	aliasName := r.URL.Query().Get("alias")
 	alias, ok, _ := app.Store.Get("ALIAS." + aliasName)
 	if ok {
 		app.templ.ExecuteTemplate(w, "SendMessageInput", map[string]string{"SendMessageInputPayload": alias})
@@ -144,5 +144,29 @@ func (app *Application) handleAPISample(w http.ResponseWriter, r *http.Request) 
 		app.templ.ExecuteTemplate(w, "SendMessageInput", map[string]string{"SendMessageInputPayload": msg.String("|")})
 	} else {
 		app.templ.ExecuteTemplate(w, "Toast", map[string]string{"type": "error", "message": err.Error()})
+	}
+}
+
+func (app *Application) handleAPISend(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil || len(r.FormValue("message")) < 4 {
+		app.templ.ExecuteTemplate(w, "Toast", map[string]string{"type": "error", "message": "Failed to parse form"})
+		return
+	}
+
+	msgRaw := r.Form.Get("message")
+	raw := r.Form.Get("raw") == "yes"
+
+	delim := msgRaw[len(msgRaw)-1:]
+	msg, err := message.MessageFromString(msgRaw, delim)
+	if err != nil {
+		errMsg := fmt.Sprintf("Failed to parse input string: %s", err.Error())
+		app.templ.ExecuteTemplate(w, "Toast", map[string]string{"type": "error", "message": errMsg})
+		return
+	}
+
+	if err = app.Session.Send(msg, raw); err != nil {
+		errMsg := fmt.Sprintf("Failed to send message: %s", err.Error())
+		app.templ.ExecuteTemplate(w, "Toast", map[string]string{"type": "error", "message": errMsg})
+		return
 	}
 }

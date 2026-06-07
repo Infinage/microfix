@@ -34,9 +34,9 @@ func NewSession(cfg store.Config) (*session.Session, error) {
 func NewApplication(assets embed.FS) (*Application, error) {
 	// Helper functions for parsing templates
 	templHelpers := template.FuncMap{
-		"getSpecName":  getSpecName,
+		"getSpecName":            getSpecName,
 		"getThemeForEngineState": getThemeForEngineState,
-		"getThemeForLogType": getThemeForLogType,
+		"getThemeForLogType":     getThemeForLogType,
 	}
 
 	templ, err := template.New("").Funcs(templHelpers).ParseFS(assets, "assets/html/*html")
@@ -70,6 +70,7 @@ func (app *Application) routes() *http.ServeMux {
 	mux.HandleFunc("GET /api/logs", app.handleAPILogs)
 	mux.HandleFunc("GET /api/alias", app.handleAPIGetAlias)
 	mux.HandleFunc("GET /api/sample", app.handleAPISample)
+	mux.HandleFunc("POST /api/send", app.handleAPISend)
 	return mux
 }
 

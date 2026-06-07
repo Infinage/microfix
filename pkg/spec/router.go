@@ -8,7 +8,7 @@ import (
 
 type Router struct {
 	sessSpec       *Spec
-	applSpecs      map[string]*Spec // Keyed by Spec ID (e.g., "FIX50")
+	applSpecs      map[string]*Spec // Keyed by Spec ID minus extension (e.g., "FIX50")
 	defaultApplVer string           // e.g., "FIX50"
 
 	// Maps the wire value of Tag 1128/1137
@@ -74,7 +74,10 @@ func NewDefaultRouter(sessSpecPath string) (*Router, error) {
 			return nil, err
 		}
 
-		router.SetDefaultApplVer("FIX.5.0")
+		if !router.SetDefaultApplVer("FIX50") {
+			return nil, fmt.Errorf("failed to set defaultApplVer: FIX50")
+		}
+
 		return router, nil
 	}
 
