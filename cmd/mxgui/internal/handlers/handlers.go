@@ -130,8 +130,9 @@ func (app *Application) handleAPIGetAlias(w http.ResponseWriter, r *http.Request
 	aliasName := r.URL.Query().Get("alias")
 	alias, ok, _ := app.Store.Get("ALIAS." + aliasName)
 	if ok {
-		app.templ.ExecuteTemplate(w, "SendMessageInput", map[string]string{"SendMessageInputPayload": alias})
+		w.Write([]byte(alias))
 	} else {
+		w.Header().Set("HX-Reswap", "none")
 		errMsg := fmt.Sprintf("Alias not found: %s", aliasName)
 		app.templ.ExecuteTemplate(w, "Toast", map[string]string{"type": "error", "message": errMsg})
 	}
@@ -141,9 +142,10 @@ func (app *Application) handleAPISample(w http.ResponseWriter, r *http.Request) 
 	msgType := r.URL.Query().Get("msgtype")
 	msg, err := app.Session.Router().Sample(msgType, spec.SampleOptions{})
 	if err == nil {
-		app.templ.ExecuteTemplate(w, "SendMessageInput", map[string]string{"SendMessageInputPayload": msg.String("|")})
+		w.Write([]byte(msg.String("|")))
 	} else {
-		app.templ.ExecuteTemplate(w, "Toast", map[string]string{"type": "error", "message": err.Error()})
+		w.Header().Set("HX-Reswap", "none")
+		app.templ.ExecuteTemplate(w, "Toast", map[string]string{"type": "error", "message": "abc"})
 	}
 }
 
@@ -169,4 +171,26 @@ func (app *Application) handleAPISend(w http.ResponseWriter, r *http.Request) {
 		app.templ.ExecuteTemplate(w, "Toast", map[string]string{"type": "error", "message": errMsg})
 		return
 	}
+}
+
+func (app *Application) handleAPIFinalize(w http.ResponseWriter, r *http.Request) {
+	msgRaw := r.URL.Query().Get("finalize-input")
+	if len(msgRaw) < 4 {
+		w.Header().Set("HX-Reswap", "none")
+		app.templ.ExecuteTemplate(w, "Toast", map[string]string{"type": "error", "message": "Input must be atleast 4 chars long"})
+		return
+	}
+
+	delim := msgRaw[len(msgRaw)-1:]
+	msg, err := message.MessageFromString(msgRaw, delim)
+	if err != nil {
+		w.Header().Set("HX-Reswap", "none")
+		errMsg := fmt.Sprintf("Invalid fix string input: %s", err.Error())
+		app.templ.ExecuteTemplate(w, "Toast", map[string]string{"type": "error", "message": errMsg})
+		return
+	}
+
+	// Finalize the message and return fragment
+	msg.Finalize()
+	w.Write([]byte(msg.String(delim)))
 }

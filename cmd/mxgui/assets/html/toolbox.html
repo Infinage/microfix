@@ -59,11 +59,11 @@
     </div>
     
     <div class="bg-gray-950 border border-gray-800 rounded-lg p-4 flex-1 overflow-y-auto font-mono text-sm shadow-inner space-y-2">
-        <div class="text-blue-400">> Loading script test_suite_v1.mxs...</div>
+        <div class="text-blue-400">&gt; Loading script test_suite_v1.mxs...</div>
         <div class="text-gray-500">[SYS] Initializing internal buffer...</div>
-        <div class="text-blue-400">> Sending Logon (35=A)...</div>
+        <div class="text-blue-400">&gt; Sending Logon (35=A)...</div>
         <div class="text-green-400">✓ Expect: 35=A passed.</div>
-        <div class="text-blue-400">> Sending NewOrderSingle (35=D)...</div>
+        <div class="text-blue-400">&gt; Sending NewOrderSingle (35=D)...</div>
         <div class="text-red-400">✗ Wait: Expected 35=8, received 35=3 (Reject). Script halted.</div>
     </div>
 </div>
@@ -77,16 +77,34 @@
     <div class="flex-1 flex space-x-6 overflow-hidden">
         <div class="flex-1 flex flex-col">
             <label class="text-sm text-gray-500 font-bold uppercase tracking-widest mb-2">Raw Input</label>
-            <textarea class="flex-1 bg-gray-950 border border-gray-800 rounded p-4 font-mono text-sm text-gray-300 resize-none focus:border-blue-500 focus:outline-none shadow-inner" placeholder="8=FIX.4.4|35=D|55=AAPL|..."></textarea>
+            <textarea 
+              name="finalize-input"
+              id="finalize-input" 
+              class="flex-1 bg-gray-950 border border-gray-800 rounded p-4 font-mono text-sm text-gray-300 resize-none focus:border-blue-500 focus:outline-none shadow-inner" 
+              placeholder="8=FIX.4.4|35=D|55=AAPL|..."
+              minlength="4"
+              @keydown.enter.prevent="$refs.FinalizeSubmit.click()"
+            ></textarea>
         </div>
         <div class="flex flex-col justify-center shrink-0">
-            <button class="bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-full font-bold transition shadow-lg" title="Finalize Message">
+            <button 
+              x-ref="FinalizeSubmit"
+              hx-get="/api/finalize"
+              hx-include="#finalize-input"
+              hx-target="#finalize-output"
+              class="bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-full font-bold transition shadow-lg cursor-pointer" 
+              title="Finalize Message"
+            >
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
             </button>
         </div>
         <div class="flex-1 flex flex-col">
             <label class="text-sm text-gray-500 font-bold uppercase tracking-widest mb-2">Calculated Output</label>
-            <textarea class="flex-1 bg-gray-950 border border-gray-800 rounded p-4 font-mono text-sm text-green-400 resize-none shadow-inner" readonly placeholder="Output with calculated lengths and checksums will appear here..."></textarea>
+            <textarea 
+              id="finalize-output" 
+              class="flex-1 bg-gray-950 border border-gray-800 rounded p-4 font-mono text-sm text-green-400 resize-none shadow-inner" 
+              readonly placeholder="Output with calculated lengths and checksums will appear here..."
+            ></textarea>
             <button class="mt-4 bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded text-sm transition border border-gray-700 w-full font-bold">Copy to Clipboard</button>
         </div>
     </div>

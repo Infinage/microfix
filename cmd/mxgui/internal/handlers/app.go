@@ -71,6 +71,7 @@ func (app *Application) routes() *http.ServeMux {
 	mux.HandleFunc("GET /api/alias", app.handleAPIGetAlias)
 	mux.HandleFunc("GET /api/sample", app.handleAPISample)
 	mux.HandleFunc("POST /api/send", app.handleAPISend)
+	mux.HandleFunc("GET /api/finalize", app.handleAPIFinalize)
 	return mux
 }
 
