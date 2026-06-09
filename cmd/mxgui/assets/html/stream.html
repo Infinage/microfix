@@ -164,8 +164,11 @@
 
     <form hx-post="/api/send" hx-swap="none">
       <textarea 
-        name="message" id="message-input" minlength="4"
+        name="message" 
+        id="message-input" 
+        minlength="4"
         placeholder="35=D|55=AAPL|54=1|38=100|40=2|..."
+        spellcheck="false"
         class="w-full bg-gray-950/50 border border-gray-800 rounded p-3 font-mono text-sm text-blue-300 focus:outline-none 
           focus:border-blue-500 h-28 placeholder-gray-700 resize-none shadow-inner" 
       ></textarea>
@@ -251,7 +254,7 @@
 {{define "MessageInspectDiff"}}
 <div x-show="inspectorTab === 'diff'" style="display:none;" class="flex flex-col h-full">
     <p class="text-[12px] text-gray-400 mb-2">Paste another raw message below to diff against the selected stream message.</p>
-    <textarea class="w-full bg-[#0a0d12] border border-gray-800 rounded p-3 font-mono text-sm text-gray-300 resize-none h-24 focus:border-blue-500" placeholder="Paste target FIX string to diff..."></textarea>
+    <textarea spellcheck="false" class="w-full bg-[#0a0d12] border border-gray-800 rounded p-3 font-mono text-sm text-gray-300 resize-none h-24 focus:border-blue-500" placeholder="Paste target FIX string to diff..."></textarea>
     <div class="mt-4 border border-gray-800 rounded overflow-hidden">
         <table class="w-full text-[12px] text-left font-mono">
             <tr class="bg-gray-900 text-gray-500"><th class="px-2 py-1">Tag</th><th class="px-2 py-1">Selected</th><th class="px-2 py-1">Target</th></tr>

@@ -194,3 +194,24 @@ func (app *Application) handleAPIFinalize(w http.ResponseWriter, r *http.Request
 	msg.Finalize()
 	w.Write([]byte(msg.String(delim)))
 }
+
+func (app *Application) handleAPIValidate(w http.ResponseWriter, r *http.Request) {
+	msgRaw := r.URL.Query().Get("validate-input")
+	if len(msgRaw) < 4 {
+		app.templ.ExecuteTemplate(w, "ValidationReport", []string{"Structural Error: Input must be at least 4 chars long"})
+		return
+	}
+
+	// Try to parse the structural FIX message
+	delim := msgRaw[len(msgRaw)-1:]
+	msg, err := message.MessageFromString(msgRaw, delim)
+	if err != nil {
+		errMsg := fmt.Sprintf("Structural Error: Invalid fix string input - %s", err.Error())
+		app.templ.ExecuteTemplate(w, "ValidationReport", []string{errMsg})
+		return
+	}
+
+	// Spec Dictionary Validation
+	result, _ := app.Session.Router().Validate(&msg, spec.ValidationStrict)
+	app.templ.ExecuteTemplate(w, "ValidationReport", result)
+}
