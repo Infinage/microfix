@@ -43,18 +43,18 @@
 {{end}}
 
 {{define "DictionaryMessageDetail"}}
-<div class="w-full max-w-4xl" x-data="{ 
+<div class="w-full" x-data="{ 
     copied: false, 
-    sampleStr: '8=FIX.4.4|9=105|35=D|11=ORDER123|54=1|55=AAPL|60=20231027-10:00:00|10=045|' 
+    sampleStr: '{{.SampleStr}}' 
 }">
     
   <div class="flex items-end justify-between border-b border-gray-800 pb-4 mb-6">
     <div>
       <div class="flex items-center space-x-3 mb-2">
-        <span class="bg-blue-900/30 text-blue-400 font-bold font-mono px-3 py-1 rounded text-sm border border-blue-800">MsgType = {{.MsgType}}</span>
-        <span class="bg-gray-800 text-gray-400 px-3 py-1 rounded text-sm border border-gray-700">{{.Category}}</span>
+        <span class="bg-blue-900/30 text-blue-400 font-bold font-mono px-3 py-1 rounded text-sm border border-blue-800">MsgType = {{.Id}}</span>
+        <span class="bg-gray-800 text-gray-400 px-3 py-1 rounded text-sm border border-gray-700">{{if .IsAdmin}}Admin{{else}}App{{end}}</span>
       </div>
-      <h2 class="text-3xl font-bold text-white">{{.Name}}</h2>
+      <h2 class="text-3xl font-semibold text-white">{{.Entry.Name}}</h2>
     </div>
     
     <button 
@@ -81,25 +81,21 @@
         <th class="p-3 w-24">Req</th>
         <th class="p-3">Type / Valid Values</th>
       </tr>
+      {{range .Entries}}
       <tr class="border-b border-gray-800/50 hover:bg-gray-800/50">
-        <td class="p-3 text-gray-500">11</td>
-        <td class="p-3 text-blue-400">ClOrdID</td>
-        <td class="p-3 text-green-400">Y</td>
-        <td class="p-3 text-gray-400">String</td>
+        <td class="p-3 text-gray-500">{{.Tag}}</td>
+        <td class="p-3 text-blue-400">{{.Name}}</td>
+        <td class="p-3 text-green-400">{{.Required}}</td>
+        <td class="p-3 text-gray-400 truncate max-w-sm">{{.SampleValues}}</td>
       </tr>
-      <tr class="border-b border-gray-800/50 hover:bg-gray-800/50">
-        <td class="p-3 text-gray-500">54</td>
-        <td class="p-3 text-blue-400">Side</td>
-        <td class="p-3 text-green-400">Y</td>
-        <td class="p-3 text-gray-400">Char (1=Buy, 2=Sell, 5=Sell Short)</td>
-      </tr>
+      {{end}}
     </table>
   </div>
 </div>
 {{end}}
 
 {{define "DictionaryFieldDetail"}}
-<div class="w-full max-w-4xl" x-data="{ 
+<div class="w-full" x-data="{ 
     copied: false, 
     sampleStr: '54=1|' 
 }">

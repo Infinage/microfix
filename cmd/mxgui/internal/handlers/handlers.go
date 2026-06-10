@@ -3,12 +3,18 @@ package gui
 import (
 	"bytes"
 	"fmt"
+	"html/template"
 	"net/http"
 	"strings"
 
 	"github.com/infinage/microfix/pkg/message"
 	"github.com/infinage/microfix/pkg/spec"
 )
+
+func toast(w http.ResponseWriter, templ *template.Template, typeStr, msg string) {
+	w.Header().Set("HX-Reswap", "none")
+	templ.ExecuteTemplate(w, "Toast", map[string]string{"type": typeStr, "message": msg})
+}
 
 func (app *Application) handleHome(w http.ResponseWriter, r *http.Request) {
 	snap := app.Session.Status()
@@ -24,7 +30,7 @@ func (app *Application) handleHome(w http.ResponseWriter, r *http.Request) {
 
 func (app *Application) handleAPIConnect(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		app.templ.ExecuteTemplate(w, "Toast", map[string]string{"type": "error", "message": "Failed to parse form"})
+		toast(w, app.templ, "error", "Failed to parse form")
 		return
 	}
 
@@ -39,43 +45,30 @@ func (app *Application) handleAPIConnect(w http.ResponseWriter, r *http.Request)
 	}
 
 	if err != nil {
-		app.templ.ExecuteTemplate(w, "Toast", map[string]string{
-			"type":    "error",
-			"message": fmt.Sprintf("Connection Failed: %v", err),
-		})
+		toast(w, app.templ, "error", fmt.Sprintf("Connection Failed: %v", err.Error()))
 	} else {
 		w.Header().Set("HX-Trigger", "session-updated, close-modal")
-		app.templ.ExecuteTemplate(w, "Toast", map[string]string{
-			"type":    "success",
-			"message": fmt.Sprintf("Started %s on %s", mode, addr),
-		})
+		toast(w, app.templ, "success", fmt.Sprintf("Started %s on %s", mode, addr))
 	}
 }
 
 func (app *Application) handleAPIDisconnect(w http.ResponseWriter, r *http.Request) {
 	app.Session.Close()
 	w.Header().Set("HX-Trigger", "session-updated")
-	app.templ.ExecuteTemplate(w, "Toast", map[string]string{
-		"type": "success", "message": "Session disconnected",
-	})
+	toast(w, app.templ, "success", "Session disconnected")
 }
 
 func (app *Application) handleAPIReset(w http.ResponseWriter, r *http.Request) {
 	app.Session.Close()
 	sess, err := NewSession(app.Store.Config())
 	if err != nil {
-		app.templ.ExecuteTemplate(w, "Toast", map[string]string{
-			"type":    "error",
-			"message": fmt.Sprintf("Failed to reset session: %v", err),
-		})
+		toast(w, app.templ, "error", fmt.Sprintf("Failed to reset session: %v", err))
 		return
 	}
 
 	app.Session = sess
 	w.Header().Set("HX-Trigger", "session-updated")
-	app.templ.ExecuteTemplate(w, "Toast", map[string]string{
-		"type": "success", "message": "Session reset successfully",
-	})
+	toast(w, app.templ, "success", "Session reset successfully")
 }
 
 func (app *Application) handleAPIHeader(w http.ResponseWriter, r *http.Request) {
@@ -91,17 +84,14 @@ func (app *Application) handleAPILogs(w http.ResponseWriter, r *http.Request) {
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		app.templ.ExecuteTemplate(w, "Toast", map[string]string{"type": "error", "message": "Streaming unsupported"})
+		toast(w, app.templ, "error", "Streaming unsupported")
 		return
 	}
 
 	// Subscribe to logs from session
 	logCh, closeLogs, err := app.Session.SubscribeLog()
 	if err != nil {
-		app.templ.ExecuteTemplate(w, "Toast", map[string]string{
-			"type":    "error",
-			"message": fmt.Sprintf("Failed to subscribe log: %v", err.Error()),
-		})
+		toast(w, app.templ, "error", fmt.Sprintf("Failed to subscribe log: %s", err.Error()))
 		return
 	}
 	defer closeLogs()
@@ -132,9 +122,7 @@ func (app *Application) handleAPIGetAlias(w http.ResponseWriter, r *http.Request
 	if ok {
 		w.Write([]byte(alias))
 	} else {
-		w.Header().Set("HX-Reswap", "none")
-		errMsg := fmt.Sprintf("Alias not found: %s", aliasName)
-		app.templ.ExecuteTemplate(w, "Toast", map[string]string{"type": "error", "message": errMsg})
+		toast(w, app.templ, "error", fmt.Sprintf("Alias not found: %s", aliasName))
 	}
 }
 
@@ -144,14 +132,13 @@ func (app *Application) handleAPISample(w http.ResponseWriter, r *http.Request) 
 	if err == nil {
 		w.Write([]byte(msg.String("|")))
 	} else {
-		w.Header().Set("HX-Reswap", "none")
-		app.templ.ExecuteTemplate(w, "Toast", map[string]string{"type": "error", "message": "abc"})
+		toast(w, app.templ, "error", fmt.Sprintf("Failed to sample: %s", err.Error()))
 	}
 }
 
 func (app *Application) handleAPISend(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil || len(r.FormValue("message")) < 4 {
-		app.templ.ExecuteTemplate(w, "Toast", map[string]string{"type": "error", "message": "Failed to parse form"})
+		toast(w, app.templ, "error", "Failed to parse form")
 		return
 	}
 
@@ -161,14 +148,12 @@ func (app *Application) handleAPISend(w http.ResponseWriter, r *http.Request) {
 	delim := msgRaw[len(msgRaw)-1:]
 	msg, err := message.MessageFromString(msgRaw, delim)
 	if err != nil {
-		errMsg := fmt.Sprintf("Failed to parse input string: %s", err.Error())
-		app.templ.ExecuteTemplate(w, "Toast", map[string]string{"type": "error", "message": errMsg})
+		toast(w, app.templ, "error", fmt.Sprintf("Failed to parse input string: %s", err.Error()))
 		return
 	}
 
 	if err = app.Session.Send(msg, raw); err != nil {
-		errMsg := fmt.Sprintf("Failed to send message: %s", err.Error())
-		app.templ.ExecuteTemplate(w, "Toast", map[string]string{"type": "error", "message": errMsg})
+		toast(w, app.templ, "error", fmt.Sprintf("Failed to send message: %s", err.Error()))
 		return
 	}
 }
@@ -176,17 +161,14 @@ func (app *Application) handleAPISend(w http.ResponseWriter, r *http.Request) {
 func (app *Application) handleAPIFinalize(w http.ResponseWriter, r *http.Request) {
 	msgRaw := r.URL.Query().Get("finalize-input")
 	if len(msgRaw) < 4 {
-		w.Header().Set("HX-Reswap", "none")
-		app.templ.ExecuteTemplate(w, "Toast", map[string]string{"type": "error", "message": "Input must be atleast 4 chars long"})
+		toast(w, app.templ, "error",  "Input must be atleast 4 chars long")
 		return
 	}
 
 	delim := msgRaw[len(msgRaw)-1:]
 	msg, err := message.MessageFromString(msgRaw, delim)
 	if err != nil {
-		w.Header().Set("HX-Reswap", "none")
-		errMsg := fmt.Sprintf("Invalid fix string input: %s", err.Error())
-		app.templ.ExecuteTemplate(w, "Toast", map[string]string{"type": "error", "message": errMsg})
+		toast(w, app.templ, "error",  fmt.Sprintf("Invalid fix string input: %s", err.Error()))
 		return
 	}
 
@@ -217,7 +199,37 @@ func (app *Application) handleAPIValidate(w http.ResponseWriter, r *http.Request
 }
 
 func (app *Application) handleAPIDictionaryMessage(w http.ResponseWriter, r *http.Request) {
-	app.templ.ExecuteTemplate(w, "DictionaryMessageDetail", nil)
+	msgId := r.PathValue("id")
+
+	router := app.Session.Router()
+
+	sp := router.SpecForMsgType(msgId)
+	msgEntry, ok := sp.Messages[msgId]
+	if !ok {
+		toast(w, app.templ, "error", fmt.Sprintf("MsgId [%v] not found", msgId))
+		return
+	}
+
+	sampleMsg, err := router.Sample(msgId, spec.SampleOptions{})
+	if err != nil {
+		toast(w, app.templ, "error", fmt.Sprintf("MsgId [%v] not found", msgId))
+		return
+	}
+
+	flattenedMsgSpec, err := flattenMessageSpec(msgEntry, sp)
+	if err != nil {
+		toast(w, app.templ, "error", fmt.Sprintf("Unexpected error, please try again: %s", err.Error()))
+		return
+	}
+
+	msgDetail := map[string]any{
+		"Id": msgId,
+		"IsAdmin": router.IsAdmin(msgId),
+		"SampleStr": sampleMsg.String("|"),
+		"Entries": flattenedMsgSpec, 
+	}
+
+	app.templ.ExecuteTemplate(w, "DictionaryMessageDetail", msgDetail)
 }
 
 func (app *Application) handleAPIDictionaryField(w http.ResponseWriter, r *http.Request) {
