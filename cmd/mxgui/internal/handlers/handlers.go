@@ -215,3 +215,11 @@ func (app *Application) handleAPIValidate(w http.ResponseWriter, r *http.Request
 	result, _ := app.Session.Router().Validate(&msg, spec.ValidationStrict)
 	app.templ.ExecuteTemplate(w, "ValidationReport", result)
 }
+
+func (app *Application) handleAPIDictionaryMessage(w http.ResponseWriter, r *http.Request) {
+	app.templ.ExecuteTemplate(w, "DictionaryMessageDetail", nil)
+}
+
+func (app *Application) handleAPIDictionaryField(w http.ResponseWriter, r *http.Request) {
+	app.templ.ExecuteTemplate(w, "DictionaryFieldDetail", nil)
+}
