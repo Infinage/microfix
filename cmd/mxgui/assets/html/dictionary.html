@@ -8,18 +8,25 @@
     <div class="flex-1 overflow-y-auto p-2">
       <div class="text-xs text-gray-500 font-bold mb-2 uppercase px-2 mt-2 tracking-wider">Messages</div>
       <ul class="text-sm space-y-1 text-gray-400 mb-6">
-        <li x-show="'NewOrderSingle (D)'.toLowerCase().includes(search.toLowerCase())"
-            hx-get="/api/dictionary/message/D" 
-            hx-target="#dict-details"
-            class="px-3 py-2 hover:bg-gray-900 hover:text-white rounded cursor-pointer transition">
-            NewOrderSingle (D)
-        </li>
-        <li x-show="'Logon (A)'.toLowerCase().includes(search.toLowerCase())"
-            hx-get="/api/dictionary/message/A" 
-            hx-target="#dict-details"
-            class="px-3 py-2 hover:bg-gray-900 hover:text-white rounded cursor-pointer transition">
-            Logon (A)
-        </li>
+
+        {{range $msgId, $msgSpec := .Router.SessionSpec.Messages}}
+            {{$displayText := print $msgSpec.Name " (" $msgId ")"}}
+            <li x-show="'{{$displayText}}'.toLowerCase().includes(search.toLowerCase())"
+              hx-get="/api/dictionary/message/{{$msgId}}" 
+              hx-target="#dict-details"
+              class="px-3 py-2 hover:bg-gray-900 hover:text-white rounded cursor-pointer transition"
+          >[SESS] {{$displayText}}</li>
+        {{end}}
+        {{if not .Router.IsLegacyRouter}}
+            {{range $msgId, $msgSpec := .Router.ApplSpec.Messages}}
+              {{$displayText := print $msgSpec.Name " (" $msgId ")"}}
+              <li x-show="'{{$displayText}}'.toLowerCase().includes(search.toLowerCase())"
+                  hx-get="/api/dictionary/message/{{$msgId}}" 
+                  hx-target="#dict-details"
+                  class="px-3 py-2 hover:bg-gray-900 hover:text-white rounded cursor-pointer transition"
+              >[App] {{$displayText}}</li>
+            {{end}}
+        {{end}}
       </ul>
 
       <div class="text-xs text-gray-500 font-bold mb-2 uppercase px-2 tracking-wider border-t border-gray-800 pt-4">Fields</div>
@@ -54,7 +61,7 @@
         <span class="bg-blue-900/30 text-blue-400 font-bold font-mono px-3 py-1 rounded text-sm border border-blue-800">MsgType = {{.Id}}</span>
         <span class="bg-gray-800 text-gray-400 px-3 py-1 rounded text-sm border border-gray-700">{{if .IsAdmin}}Admin{{else}}App{{end}}</span>
       </div>
-      <h2 class="text-3xl font-semibold text-white">{{.Entry.Name}}</h2>
+      <h2 class="text-3xl font-semibold text-white">{{.Name}}</h2>
     </div>
     
     <button 
@@ -95,10 +102,7 @@
 {{end}}
 
 {{define "DictionaryFieldDetail"}}
-<div class="w-full" x-data="{ 
-    copied: false, 
-    sampleStr: '54=1|' 
-}">
+<div class="w-full">
     
   <div class="flex items-end justify-between border-b border-gray-800 pb-4 mb-6">
     <div>
@@ -108,22 +112,6 @@
       </div>
       <h2 class="text-3xl font-bold text-white">{{.Name}}</h2>
     </div>
-    
-    <button 
-      @click="navigator.clipboard.writeText(sampleStr.replace(/\|/g, '\x01')); copied = true; setTimeout(() => copied = false, 2000)"
-      class="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm transition flex items-center space-x-2 border border-gray-700"
-    >
-      <svg x-show="!copied" class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
-      <svg x-show="copied" style="display:none;" class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-      <span x-text="copied ? 'Copied!' : 'Copy Sample'"></span>
-    </button>
-  </div>
-
-  <div class="mb-8">
-    <h3 class="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2">Description</h3>
-    <p class="text-gray-300 text-sm leading-relaxed bg-gray-900/50 p-4 rounded border border-gray-800/50">
-      Side of order. Indicates if the order is to buy or sell. 
-    </p>
   </div>
 
   <div class="mb-8">
@@ -138,22 +126,6 @@
           <td class="p-3 text-blue-400 font-bold">1</td>
           <td class="p-3 text-gray-300">Buy</td>
         </tr>
-        <tr class="border-b border-gray-800/50 hover:bg-gray-800/50 transition">
-          <td class="p-3 text-blue-400 font-bold">2</td>
-          <td class="p-3 text-gray-300">Sell</td>
-        </tr>
-        <tr class="border-b border-gray-800/50 hover:bg-gray-800/50 transition">
-          <td class="p-3 text-blue-400 font-bold">3</td>
-          <td class="p-3 text-gray-300">Buy minus</td>
-        </tr>
-        <tr class="border-b border-gray-800/50 hover:bg-gray-800/50 transition">
-          <td class="p-3 text-blue-400 font-bold">4</td>
-          <td class="p-3 text-gray-300">Sell plus</td>
-        </tr>
-        <tr class="border-b border-gray-800/50 hover:bg-gray-800/50 transition">
-          <td class="p-3 text-blue-400 font-bold">5</td>
-          <td class="p-3 text-gray-300">Sell short</td>
-        </tr>
         </table>
     </div>
   </div>
@@ -161,14 +133,13 @@
   <div>
     <h3 class="text-sm font-bold text-gray-500 uppercase tracking-widest mb-3">Used In Messages</h3>
     <div class="flex flex-wrap gap-2">
-      <button hx-get="/api/dictionary/msg/D" hx-target="#dict-details" class="px-3 py-1 bg-gray-900 hover:bg-blue-900/30 hover:text-blue-400 hover:border-blue-800 text-gray-400 text-xs font-mono rounded border border-gray-800 transition cursor-pointer">
+      <button 
+        hx-get="/api/dictionary/message/D" 
+        hx-target="#dict-details" 
+        class="px-3 py-1 bg-gray-900 hover:bg-blue-900/30 hover:text-blue-400 hover:border-blue-800 
+          text-gray-400 text-xs font-mono rounded border border-gray-800 transition cursor-pointer"
+      >
         NewOrderSingle (D)
-      </button>
-      <button hx-get="/api/dictionary/msg/8" hx-target="#dict-details" class="px-3 py-1 bg-gray-900 hover:bg-blue-900/30 hover:text-blue-400 hover:border-blue-800 text-gray-400 text-xs font-mono rounded border border-gray-800 transition cursor-pointer">
-        ExecutionReport (8)
-      </button>
-      <button hx-get="/api/dictionary/msg/G" hx-target="#dict-details" class="px-3 py-1 bg-gray-900 hover:bg-blue-900/30 hover:text-blue-400 hover:border-blue-800 text-gray-400 text-xs font-mono rounded border border-gray-800 transition cursor-pointer">
-        OrderCancelReplaceRequest (G)
       </button>
     </div>
   </div>

@@ -161,14 +161,14 @@ func (app *Application) handleAPISend(w http.ResponseWriter, r *http.Request) {
 func (app *Application) handleAPIFinalize(w http.ResponseWriter, r *http.Request) {
 	msgRaw := r.URL.Query().Get("finalize-input")
 	if len(msgRaw) < 4 {
-		toast(w, app.templ, "error",  "Input must be atleast 4 chars long")
+		toast(w, app.templ, "error", "Input must be atleast 4 chars long")
 		return
 	}
 
 	delim := msgRaw[len(msgRaw)-1:]
 	msg, err := message.MessageFromString(msgRaw, delim)
 	if err != nil {
-		toast(w, app.templ, "error",  fmt.Sprintf("Invalid fix string input: %s", err.Error()))
+		toast(w, app.templ, "error", fmt.Sprintf("Invalid fix string input: %s", err.Error()))
 		return
 	}
 
@@ -210,23 +210,26 @@ func (app *Application) handleAPIDictionaryMessage(w http.ResponseWriter, r *htt
 		return
 	}
 
-	sampleMsg, err := router.Sample(msgId, spec.SampleOptions{})
+	includeOptFields := app.Store.Config().SpecDisplayOptFields
+	sampleMsg, err := router.Sample(msgId, spec.SampleOptions{IncludeOptional: includeOptFields})
+
 	if err != nil {
 		toast(w, app.templ, "error", fmt.Sprintf("MsgId [%v] not found", msgId))
 		return
 	}
 
-	flattenedMsgSpec, err := flattenMessageSpec(msgEntry, sp)
-	if err != nil {
+	var flattenedMsgSpec []FieldInfo
+	if err = flattenMessageSpec(&flattenedMsgSpec, msgEntry, sp, includeOptFields); err != nil {
 		toast(w, app.templ, "error", fmt.Sprintf("Unexpected error, please try again: %s", err.Error()))
 		return
 	}
 
 	msgDetail := map[string]any{
-		"Id": msgId,
-		"IsAdmin": router.IsAdmin(msgId),
+		"Id":        msgId,
+		"Name":      msgEntry.Name,
+		"IsAdmin":   router.IsAdmin(msgId),
 		"SampleStr": sampleMsg.String("|"),
-		"Entries": flattenedMsgSpec, 
+		"Entries":   flattenedMsgSpec,
 	}
 
 	app.templ.ExecuteTemplate(w, "DictionaryMessageDetail", msgDetail)
