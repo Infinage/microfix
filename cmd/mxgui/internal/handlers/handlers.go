@@ -119,8 +119,7 @@ func (app *Application) handleAPILogs(w http.ResponseWriter, r *http.Request) {
 
 func (app *Application) handleAPIGetAlias(w http.ResponseWriter, r *http.Request) {
 	aliasName := r.URL.Query().Get("alias")
-	alias, ok, _ := app.Store.Get("ALIAS." + aliasName)
-	if ok {
+	if alias, ok, _ := app.Store.Get("ALIAS." + aliasName); ok {
 		w.Write([]byte(alias))
 	} else {
 		toast(w, app.templ, "error", fmt.Sprintf("Alias not found: %s", aliasName))
@@ -268,4 +267,19 @@ func (app *Application) handleAPIDictionaryField(w http.ResponseWriter, r *http.
 
 	dictFieldDetail := map[string]any{"FieldDef": fieldDef, "UsedIn": usedIn}
 	app.templ.ExecuteTemplate(w, "DictionaryFieldDetail", dictFieldDetail)
+}
+
+func (app *Application) handleAPIAliasNameCheck(w http.ResponseWriter, r *http.Request) {
+	aliasName := r.URL.Query().Get("aliasName")
+	if aliasName == "" {
+        fmt.Fprint(w, `<span id="alias-check" class="text-[10px] text-gray-500 mt-1">Enter an alias name</span>`)
+        return
+    }
+
+    if _, ok, _ := app.Store.Get("ALIAS." + aliasName); ok {
+        fmt.Fprint(w, `<span id="alias-check" class="text-[10px] text-red-400 mt-1">Alias already exists</span>`)
+        return
+    }
+
+    fmt.Fprint(w, `<span id="alias-check" class="text-[10px] text-green-400 mt-1">Alias available</span>`)
 }

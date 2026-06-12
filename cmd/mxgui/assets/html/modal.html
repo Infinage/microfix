@@ -4,8 +4,22 @@
     <div class="space-y-4">
         <div>
             <label class="text-xs text-gray-400 font-bold uppercase tracking-wider">Alias Name</label>
-            <input type="text" placeholder="e.g. CancelReq" class="w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 text-white font-mono mt-1 focus:border-blue-500 focus:outline-none">
-            <p class="text-[10px] text-gray-500 mt-1">This name will appear in the Stream dropdown.</p>
+            <input 
+              name="aliasName"
+              type="text" placeholder="e.g. CancelReq" 
+              hx-trigger="input delay:300ms"
+              class="w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 text-white font-mono mt-1 focus:border-blue-500 focus:outline-none"
+              hx-get="/api/alias/name-check" 
+              hx-indicator="#spinner" 
+              hx-target="#alias-check" 
+              hx-swap="outerHTML"
+            >
+            <div class="flex items-center gap-2 mt-1">
+              <span id="alias-check" class="text-[10px] text-gray-500 mt-1">This name will appear in the Stream dropdown.</span>
+              <svg id="spinner" class="htmx-indicator animate-spin" width="24" height="24" viewBox="0 0 24 24" alt="checking..." xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" stroke-dasharray="31.4 31.4"/>
+              </svg>
+            </div>
         </div>
         <div>
             <label class="text-xs text-gray-400 font-bold uppercase tracking-wider">FIX Payload Template</label>

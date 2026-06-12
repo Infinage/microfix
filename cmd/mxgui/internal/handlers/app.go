@@ -76,6 +76,7 @@ func (app *Application) routes() *http.ServeMux {
 	mux.HandleFunc("GET /api/validate", app.handleAPIValidate)
 	mux.HandleFunc("GET /api/dictionary/message/{id}", app.handleAPIDictionaryMessage)
 	mux.HandleFunc("GET /api/dictionary/field/{tag}", app.handleAPIDictionaryField)
+	mux.HandleFunc("GET /api/alias/name-check", app.handleAPIAliasNameCheck)
 	return mux
 }
 

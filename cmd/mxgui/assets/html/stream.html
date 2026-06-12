@@ -124,8 +124,8 @@
               class="bg-gray-950 border text-gray-300 text-sm rounded px-3 py-1.5 outline-none focus:border-blue-500 font-mono transition"
             >
                 <option disabled value="">-- Select Alias --</option>
-                {{range $alias, $val := .Aliases}}
-                  <option value={{$val}}>Alias: {{$alias}}</option>
+                {{range $alias, $_ := .Aliases}}
+                  <option value={{$alias}}>Alias: {{$alias}}</option>
                 {{end}}
             </select>
 
