@@ -14,6 +14,14 @@ type FieldInfo struct {
 	SampleValues string
 }
 
+func toTitle(input string) string {
+	if len(input) == 0 {
+		return input
+	}
+
+	return strings.ToUpper(input[:1]) + strings.ToLower(input[1:])
+}
+
 // Recursively iterates through message entries and converts to HTML friendly spec
 func flattenMessageSpec(result *[]FieldInfo, entry spec.Entry, sp *spec.Spec, includeOptional bool) error {
 	for _, en := range entry.Entries {
@@ -38,7 +46,7 @@ func flattenMessageSpec(result *[]FieldInfo, entry spec.Entry, sp *spec.Spec, in
 
 		// Convert enum contents into user friendly string, eg: "Int (0=New, 1=Replace, 2=Cancel)"
 		var sampleValuesBuilder strings.Builder
-		sampleValuesBuilder.WriteString(strings.ToUpper(fDef.Type[:1]) + strings.ToLower(fDef.Type[1:]))
+		sampleValuesBuilder.WriteString(toTitle(fDef.Type))
 		if len(fDef.Enums) > 0 {
 			sampleValuesBuilder.WriteString("(")
 			for i, enum := range fDef.Enums {

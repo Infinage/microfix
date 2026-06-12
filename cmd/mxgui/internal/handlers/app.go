@@ -37,6 +37,7 @@ func NewApplication(assets embed.FS) (*Application, error) {
 		"getSpecName":            getSpecName,
 		"getThemeForEngineState": getThemeForEngineState,
 		"getThemeForLogType":     getThemeForLogType,
+		"toTitle":                toTitle,
 	}
 
 	templ, err := template.New("").Funcs(templHelpers).ParseFS(assets, "assets/html/*html")
@@ -74,7 +75,7 @@ func (app *Application) routes() *http.ServeMux {
 	mux.HandleFunc("GET /api/finalize", app.handleAPIFinalize)
 	mux.HandleFunc("GET /api/validate", app.handleAPIValidate)
 	mux.HandleFunc("GET /api/dictionary/message/{id}", app.handleAPIDictionaryMessage)
-	mux.HandleFunc("GET /api/dictionary/field/{id}", app.handleAPIDictionaryField)
+	mux.HandleFunc("GET /api/dictionary/field/{tag}", app.handleAPIDictionaryField)
 	return mux
 }
 

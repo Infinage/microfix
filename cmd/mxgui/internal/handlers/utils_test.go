@@ -6,6 +6,23 @@ import (
 	"github.com/infinage/microfix/pkg/spec"
 )
 
+func Test_titleCasing(t *testing.T) {
+	tests := []struct {
+		input, expect string
+	}{
+		{input: "", expect: ""},
+		{input: "a", expect: "A"},
+		{input: "ab", expect: "Ab"},
+		{input: "ab a", expect: "Ab a"},
+	}
+
+	for _, tt := range tests {
+		if got := toTitle(tt.input); got != tt.expect {
+			t.Errorf("Got '%s', Want: '%s'", got, tt.expect)
+		}
+	}
+}
+
 func Test_flattenMessageSpec(t *testing.T) {
 	sp, err := spec.LoadSpec("FIX44")
 	if err != nil {

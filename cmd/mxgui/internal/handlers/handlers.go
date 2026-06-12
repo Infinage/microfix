@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/infinage/microfix/pkg/message"
@@ -236,5 +237,35 @@ func (app *Application) handleAPIDictionaryMessage(w http.ResponseWriter, r *htt
 }
 
 func (app *Application) handleAPIDictionaryField(w http.ResponseWriter, r *http.Request) {
-	app.templ.ExecuteTemplate(w, "DictionaryFieldDetail", nil)
+	var tag uint16
+
+	tagStr := r.PathValue("tag")
+	if tagInt, err := strconv.Atoi(tagStr); err != nil {
+		toast(w, app.templ, "error", "Tag is not a valid integer")
+		return
+	} else {
+		tag = uint16(tagInt)
+	}
+
+	fieldDef, ok := app.Session.Router().Field(tag)
+	if !ok {
+		toast(w, app.templ, "error", fmt.Sprintf("Tag [%d] not found", tag))
+		return
+	}
+
+	sessMsgs, appMsgs := app.Session.Router().SessionSpec().Messages,
+		app.Session.Router().ApplSpec().Messages
+
+	// For now we only do a surface level lookup - map to prevent dups
+	var usedIn = make(map[string]string)
+	for _, sp := range []map[string]spec.Entry{sessMsgs, appMsgs} {
+		for msgId, msgSpec := range sp {
+			if _, ok := msgSpec.Lookup[tag]; ok {
+				usedIn[msgId] = msgSpec.Name
+			}
+		}
+	}
+
+	dictFieldDetail := map[string]any{"FieldDef": fieldDef, "UsedIn": usedIn}
+	app.templ.ExecuteTemplate(w, "DictionaryFieldDetail", dictFieldDetail)
 }
