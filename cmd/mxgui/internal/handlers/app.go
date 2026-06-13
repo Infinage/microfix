@@ -38,6 +38,7 @@ func NewApplication(assets embed.FS) (*Application, error) {
 		"getThemeForEngineState": getThemeForEngineState,
 		"getThemeForLogType":     getThemeForLogType,
 		"toTitle":                toTitle,
+		"getAllFieldNamesAsJSON": getAllFieldNamesAsJSON,
 	}
 
 	templ, err := template.New("").Funcs(templHelpers).ParseFS(assets, "assets/html/*html")

@@ -1,8 +1,11 @@
 package gui
 
 import (
+	"encoding/json"
 	"fmt"
+	"html/template"
 
+	"github.com/infinage/microfix/pkg/spec"
 	"github.com/infinage/microfix/pkg/store"
 )
 
@@ -65,4 +68,24 @@ func getThemeForLogType(state string) Theme {
 	}
 
 	return Theme{Text: textColor, Border: borderColor}
+}
+
+func getAllFieldNamesAsJSON(r *spec.Router) template.JS {
+	fields := make(map[uint16]string)
+	for tag, field := range r.SessionSpec().Fields {
+		fields[tag] = field.Name
+	}
+
+	if !r.IsLegacyRouter() {
+		for tag, field := range r.ApplSpec().Fields {
+			fields[tag] = field.Name
+		}
+	}
+
+	tagMapJSON, err := json.Marshal(fields)
+	if err != nil {
+		return "{}"
+	}
+
+	return template.JS(tagMapJSON)
 }

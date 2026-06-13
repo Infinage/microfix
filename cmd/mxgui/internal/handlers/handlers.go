@@ -272,14 +272,14 @@ func (app *Application) handleAPIDictionaryField(w http.ResponseWriter, r *http.
 func (app *Application) handleAPIAliasNameCheck(w http.ResponseWriter, r *http.Request) {
 	aliasName := r.URL.Query().Get("aliasName")
 	if aliasName == "" {
-        fmt.Fprint(w, `<span id="alias-check" class="text-[10px] text-gray-500 mt-1">Enter an alias name</span>`)
-        return
-    }
+		fmt.Fprint(w, `<span id="alias-check" class="text-[10px] text-gray-500 mt-1">Enter an alias name</span>`)
+		return
+	}
 
-    if _, ok, _ := app.Store.Get("ALIAS." + aliasName); ok {
-        fmt.Fprint(w, `<span id="alias-check" class="text-[10px] text-red-400 mt-1">Alias already exists</span>`)
-        return
-    }
+	if _, ok, _ := app.Store.Get("ALIAS." + aliasName); ok {
+		fmt.Fprint(w, `<span id="alias-check" class="text-[10px] text-red-400 mt-1">Alias already exists</span>`)
+		return
+	}
 
-    fmt.Fprint(w, `<span id="alias-check" class="text-[10px] text-green-400 mt-1">Alias available</span>`)
+	fmt.Fprint(w, `<span id="alias-check" class="text-[10px] text-green-400 mt-1">Alias available</span>`)
 }

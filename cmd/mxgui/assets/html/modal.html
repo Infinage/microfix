@@ -1,5 +1,6 @@
 {{define "AddAliasModal"}}
 <div x-show="modal === 'alias'" style="display: none;" @click.away="modal = ''" class="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-[500px] p-5">
+  <form @close-modal.window="modal = ''">
     <h3 class="text-white font-bold text-lg mb-4">Add New Message Alias</h3>
     <div class="space-y-4">
         <div>
@@ -23,52 +24,74 @@
         </div>
         <div>
             <label class="text-xs text-gray-400 font-bold uppercase tracking-wider">FIX Payload Template</label>
-            <textarea spellcheck="false" placeholder="35=F|41=ORD123|11=CXL123|..." class="w-full bg-gray-950 border border-gray-700 rounded p-3 text-blue-300 font-mono mt-1 h-28 resize-none focus:border-blue-500 focus:outline-none shadow-inner"></textarea>
+            <textarea required spellcheck="false" placeholder="35=F|41=ORD123|11=CXL123|..." class="w-full bg-gray-950 border border-gray-700 rounded p-3 text-blue-300 font-mono mt-1 h-28 resize-none focus:border-blue-500 focus:outline-none shadow-inner"></textarea>
         </div>
     </div>
     <div class="mt-6 flex justify-end space-x-3">
         <button @click="modal = ''" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition">Cancel</button>
-        <button @click="modal = ''" class="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded font-bold transition shadow-lg flex items-center space-x-2">
+        <button class="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded font-bold transition shadow-lg flex items-center space-x-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
             <span>Save Alias</span>
         </button>
     </div>
+  </form>
 </div>
 {{end}}
 
 {{define "NewConnectionModal"}}
-<div x-show="modal === 'connect'" x-data="{ mode: 'client' }" @click.away="modal = ''" class="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-96 p-5">
+<div
+    x-show="modal === 'connect'"
+    x-data="{mode: 'client', loading: false}"
+    @click.away="if (!loading) modal = ''"
+    class="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-96 p-5"
+>
     <div class="flex justify-between items-center mb-4">
         <h3 class="text-white font-bold text-lg">Connection Settings</h3>
-        
         <div class="flex items-center space-x-2 bg-gray-950 p-1 rounded-lg border border-gray-800">
-            <button @click="mode = 'client'" :class="mode === 'client' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-300'" class="px-3 py-1 text-xs font-bold rounded transition">Client</button>
-            <button @click="mode = 'server'" :class="mode === 'server' ? 'bg-purple-700 text-white' : 'text-gray-500 hover:text-gray-300'" class="px-3 py-1 text-xs font-bold rounded transition">Server</button>
+            <button type="button" @click="mode = 'client'" :disabled="loading"
+                :class="mode === 'client' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-300'"
+                class="px-3 py-1 text-xs font-bold rounded transition"
+            >Client</button>
+            <button type="button" @click="mode = 'server'" :disabled="loading"
+                :class="mode === 'server' ? 'bg-purple-700 text-white' : 'text-gray-500 hover:text-gray-300'"
+                class="px-3 py-1 text-xs font-bold rounded transition"
+            >Server</button>
         </div>
     </div>
 
-    <form hx-post="/api/connect" hx-swap="none" @htmx:after-request.camel="if ($event.detail.successful) modal = ''" @close-modal.window="modal = ''">
-        <input type="hidden" name="mode" :value="mode" />
-        <div class="space-y-4">
+    <form hx-post="/api/connect" hx-swap="none" @htmx:before-request="loading = true" @htmx:after-request="loading = false" @close-modal.window="modal = ''">
+        <input type="hidden" name="mode" :value="mode">
+        <fieldset :disabled="loading" class="space-y-4">
             <div>
                 <label class="text-xs text-gray-400 font-bold uppercase tracking-wider">Host / Bind IP</label>
-                <input type="text" name="host" value={{.Config.IpAddr}} class="w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 text-white font-mono mt-1 focus:border-blue-500 focus:outline-none">
+                <input type="text" name="host" value="{{.Config.IpAddr}}"
+                    class="w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 text-white font-mono mt-1 focus:border-blue-500 focus:outline-none"
+                >
             </div>
+
             <div>
                 <label class="text-xs text-gray-400 font-bold uppercase tracking-wider">Port</label>
-                <input type="number" name="port" value={{.Config.Port}} 
-                    class="w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 text-white font-mono mt-1 focus:border-blue-500 focus:outline-none">
+                <input 
+                  type="number" name="port" value="{{.Config.Port}}"
+                  class="w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 text-white font-mono mt-1 focus:border-blue-500 focus:outline-none"
+                >
             </div>
-        </div>
-        
-        {{/* TODO: Listen to block or display a in progress gif or something to user and block UI */}} 
+        </fieldset>
+
         <div class="mt-6 flex justify-end space-x-3">
-            <button type="button" @click="modal = ''" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition">Cancel</button>
-            <button type="submit" 
-                :class="mode === 'client' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-purple-700 hover:bg-purple-600'"
-                class="px-4 py-2 text-sm text-white rounded font-bold transition shadow-lg w-28"
-                x-text="mode === 'client' ? 'Connect' : 'Listen'"
-            ></button>
+            <button type="button" @click="modal = ''" :disabled="loading"
+                class="px-4 py-2 text-sm text-gray-400 hover:text-white transition disabled:opacity-50"
+            >Cancel</button>
+
+            <button
+                type="submit" :disabled="loading" :class="mode === 'client' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-purple-700 hover:bg-purple-600'"
+                class="px-4 py-2 text-sm text-white rounded font-bold transition shadow-lg w-28 flex items-center justify-center gap-2 disabled:opacity-60"
+            >
+              <span x-show="!loading" x-text="mode === 'client' ? 'Connect' : 'Listen'"></span>
+              <svg x-show="loading" class="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none" style="display:none" >
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-dasharray="31.4 31.4" />
+              </svg>
+            </button>
         </div>
     </form>
 </div>
@@ -95,32 +118,124 @@
 {{end}}
 
 {{define "FormBuilderModal"}}
-<div x-show="modal === 'form'" @click.away="modal = ''" class="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-[600px] max-h-[80vh] flex flex-col">
-    <div class="flex items-center justify-between p-4 border-b border-gray-800">
+<div 
+    x-show="modal === 'form'" 
+    x-data="{
+        tagMap: {{ getAllFieldNamesAsJSON .Router }},
+        fields: [],
+        
+        initFromRaw() {
+            let raw = document.getElementById('message-input').value.trim();
+            this.fields = [];
+            
+            // Clean up trailing delimiter if it exists
+            if (raw.endsWith('|')) { raw = raw.slice(0, -1); }
+            
+            if (!raw) {
+                // If textarea is empty, provide a sensible starter template
+                this.fields = [
+                    { tag: '35', value: '' },
+                    { tag: '49', value: '' },
+                    { tag: '56', value: '' }
+                ];
+                return;
+            }
+            
+            // Parse existing string into fields array
+            raw.split('|').forEach(pair => {
+                let parts = pair.split('=');
+                if (parts.length >= 2) {
+                    let tag = parts.shift().trim();
+                    let val = parts.join('=').trim(); // re-join in case value contains an '='
+                    this.fields.push({ tag: tag, value: val });
+                }
+            });
+        },
+        
+        addField() { this.fields.push({ tag: '', value: '' }); },
+        
+        removeField(index) { this.fields.splice(index, 1); },
+        
+        applyToEditor() {
+            // Re-serialize valid fields back into the FIX format
+            let fixString = this.fields
+                .filter(f => f.tag.trim() !== '' && f.value.trim() !== '')
+                .map(f => f.tag.trim() + '=' + f.value.trim())
+                .join('|');
+                
+            let ta = document.getElementById('message-input');
+            if (ta) {
+                ta.value = fixString + (fixString ? '|' : ''); // Optional: append trailing pipe
+                ta.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            
+            modal = '';
+        },
+        
+        getTagName(tag) {
+            if (!tag.trim()) return '...';
+            return this.tagMap[tag] || 'Unknown Tag';
+        }
+    }"
+    
+    x-init="$watch('modal', value => { if (value === 'form') initFromRaw() })"
+    
+    @click.away="modal = ''" 
+    class="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-[600px] max-h-[80vh] flex flex-col z-50 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
+>
+    <div class="flex items-center justify-between p-4 border-b border-gray-800 shrink-0">
         <div>
             <h3 class="text-white font-bold text-lg">Form Builder</h3>
-            <p class="text-xs text-gray-400 font-mono mt-1">Generating: 35=D (NewOrderSingle)</p>
+            <p class="text-xs text-gray-400 font-mono mt-1">Syncing with raw message</p>
         </div>
         <button @click="modal = ''" class="text-gray-500 hover:text-white transition">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
         </button>
     </div>
-    <div class="p-4 overflow-y-auto flex-1 space-y-3 bg-[#0a0d12]">
-        <div class="text-xs text-gray-500 uppercase font-bold tracking-wider mb-2">Standard Header</div>
-        <div class="flex items-center hover:bg-gray-900 p-1.5 rounded transition"><span class="w-48 text-sm text-gray-400 font-mono">35 (MsgType)</span><input type="text" value="D" class="flex-1 bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-sm text-white font-mono focus:border-blue-500 focus:outline-none"></div>
-        <div class="flex items-center hover:bg-gray-900 p-1.5 rounded transition"><span class="w-48 text-sm text-gray-400 font-mono">49 (SenderCompID)</span><input type="text" value="CLIENT1" class="flex-1 bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-sm text-white font-mono focus:border-blue-500 focus:outline-none"></div>
-        
-        <div class="text-xs text-gray-500 uppercase font-bold tracking-wider mt-4 mb-2 border-t border-gray-800 pt-4">Message Body</div>
-        <div class="flex items-center hover:bg-gray-900 p-1.5 rounded transition"><span class="w-48 text-sm text-gray-400 font-mono">11 (ClOrdID)</span><input type="text" value="ORD-9921" class="flex-1 bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-sm text-white font-mono focus:border-blue-500 focus:outline-none"></div>
-        <div class="flex items-center hover:bg-gray-900 p-1.5 rounded transition"><span class="w-48 text-sm text-gray-400 font-mono">55 (Symbol)</span><input type="text" value="AAPL" class="flex-1 bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-sm text-white font-mono focus:border-blue-500 focus:outline-none"></div>
-        <div class="flex items-center hover:bg-gray-900 p-1.5 rounded transition"><span class="w-48 text-sm text-gray-400 font-mono">54 (Side)</span><input type="text" value="1" class="flex-1 bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-sm text-white font-mono focus:border-blue-500 focus:outline-none"></div>
-        <div class="flex items-center hover:bg-gray-900 p-1.5 rounded transition"><span class="w-48 text-sm text-gray-400 font-mono">38 (OrderQty)</span><input type="text" value="100" class="flex-1 bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-sm text-white font-mono focus:border-blue-500 focus:outline-none"></div>
-        
-        <button class="w-full mt-4 py-2 border border-dashed border-gray-700 text-gray-500 hover:text-white hover:border-gray-500 rounded text-sm transition font-bold">+ Add Custom Field</button>
+
+    <div class="p-4 overflow-y-auto flex-1 bg-[#0a0d12] space-y-1">
+        <template x-for="(field, index) in fields" :key="index">
+            <div class="flex items-center space-x-3 hover:bg-gray-900 p-1.5 rounded transition group">
+                
+                <div class="w-48 flex items-center space-x-2 shrink-0">
+                    <input x-model="field.tag" type="text" placeholder="Tag"
+                        class="w-12 bg-gray-950 border border-gray-700 rounded px-1.5 py-1 text-sm text-blue-300 font-mono 
+                          focus:border-blue-500 focus:outline-none text-center placeholder-gray-700" 
+                    >
+                    <span 
+                        class="text-xs font-mono truncate max-w-[130px]" 
+                        x-text="getTagName(field.tag)" 
+                        :class="!tagMap[field.tag] && field.tag.trim() !== '' ? 'text-yellow-600 italic' : 'text-gray-500'"
+                    ></span>
+                </div>
+                
+                <input 
+                    x-model="field.value" type="text" placeholder="Value"
+                    class="flex-1 bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-sm text-white font-mono focus:border-blue-500 focus:outline-none placeholder-gray-800" 
+                >
+                
+                <button @click="removeField(index)" class="opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-400 transition p-1" title="Remove Field" >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                </button>
+                
+            </div>
+        </template>
+
+        <button @click="addField()" class="w-full mt-4 py-2 border border-dashed border-gray-700 text-gray-500 hover:text-white hover:border-gray-500 rounded text-sm transition font-bold cursor-pointer flex justify-center items-center space-x-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+            </svg>
+            <span>Add Field</span>
+        </button>
     </div>
-    <div class="p-4 border-t border-gray-800 flex justify-end space-x-3 bg-gray-900">
-        <button @click="modal = ''" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition">Cancel</button>
-        <button @click="modal = ''" class="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded font-bold transition shadow-lg">Apply to Raw String</button>
+
+    <div class="p-4 border-t border-gray-800 flex justify-end space-x-3 bg-gray-900 shrink-0">
+        <button @click="modal = ''" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition cursor-pointer">Cancel</button>
+        <button @click="applyToEditor()" class="px-6 py-2 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded font-bold transition shadow-lg cursor-pointer">Apply to Message</button>
     </div>
 </div>
 {{end}}
