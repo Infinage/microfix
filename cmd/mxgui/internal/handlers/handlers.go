@@ -283,3 +283,41 @@ func (app *Application) handleAPIAliasNameCheck(w http.ResponseWriter, r *http.R
 
 	fmt.Fprint(w, `<span id="alias-check" class="text-[10px] text-green-400 mt-1">Alias available</span>`)
 }
+
+func (app *Application) handleAPIAddAlias(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		toast(w, app.templ, "error", "Failed to parse form")
+		return
+	}
+
+	aliasName := r.Form.Get("aliasName")
+	aliasValue := r.Form.Get("aliasValue")
+	if aliasName == "" || aliasValue == "" {
+		toast(w, app.templ, "error", "Alias name / template cannot be empty")
+		return
+	}
+
+	app.Store.Set("ALIAS."+aliasName, aliasValue)
+	w.Header().Set("HX-Trigger", "close-modal, refresh-alias")
+	toast(w, app.templ, "success", "Alias saved")
+}
+
+func (app *Application) handleAPIListAlias(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Query().Get("from") == "settings" {
+		app.templ.ExecuteTemplate(w, "AliasesSettings", map[string]any{"Aliases": app.Store.Config().Alias})
+	} else {
+		app.templ.ExecuteTemplate(w, "AliasesStream", map[string]any{"Aliases": app.Store.Config().Alias})
+	}
+}
+
+func (app *Application) handleAPIDeleteAlias(w http.ResponseWriter, r *http.Request) {
+	aliasName := r.PathValue("aliasName")
+	_, ok, _ := app.Store.Unset("ALIAS." + aliasName)
+	if !ok {
+		toast(w, app.templ, "error", "Alias not found!")
+		return
+	}
+
+	w.Header().Set("HX-Trigger", "refresh-alias")
+	toast(w, app.templ, "success", "Alias deleted!")
+}

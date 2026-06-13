@@ -5,6 +5,7 @@ import (
 	"embed"
 	"html/template"
 	"net/http"
+	"os"
 
 	"github.com/infinage/microfix/pkg/session"
 	"github.com/infinage/microfix/pkg/store"
@@ -64,24 +65,45 @@ func NewApplication(assets embed.FS) (*Application, error) {
 func (app *Application) routes() *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.Handle("GET /assets/", http.FileServerFS(app.assets))
+
 	mux.HandleFunc("GET /{$}", app.handleHome)
+
 	mux.HandleFunc("GET /api/header", app.handleAPIHeader)
 	mux.HandleFunc("POST /api/connect", app.handleAPIConnect)
 	mux.HandleFunc("GET /api/reset", app.handleAPIReset)
 	mux.HandleFunc("GET /api/disconnect", app.handleAPIDisconnect)
 	mux.HandleFunc("GET /api/logs", app.handleAPILogs)
-	mux.HandleFunc("GET /api/alias", app.handleAPIGetAlias)
 	mux.HandleFunc("GET /api/sample", app.handleAPISample)
 	mux.HandleFunc("POST /api/send", app.handleAPISend)
 	mux.HandleFunc("GET /api/finalize", app.handleAPIFinalize)
 	mux.HandleFunc("GET /api/validate", app.handleAPIValidate)
+
 	mux.HandleFunc("GET /api/dictionary/message/{id}", app.handleAPIDictionaryMessage)
 	mux.HandleFunc("GET /api/dictionary/field/{tag}", app.handleAPIDictionaryField)
-	mux.HandleFunc("GET /api/alias/name-check", app.handleAPIAliasNameCheck)
+
+	mux.HandleFunc("GET /api/alias/get", app.handleAPIGetAlias)
+	mux.HandleFunc("GET /api/alias/list", app.handleAPIListAlias)
+	mux.HandleFunc("DELETE /api/alias/delete/{aliasName}", app.handleAPIDeleteAlias)
+	mux.HandleFunc("POST /api/alias/add", app.handleAPIAddAlias)
+	mux.HandleFunc("GET /api/alias/check/name", app.handleAPIAliasNameCheck)
+
 	return mux
 }
 
+// Returns true if config exists and save successful
+func (app *Application) SaveConfig() bool {
+	st := app.Store
+	savePath := st.ConfigPath()
+	if _, err := os.Stat(savePath); err == nil {
+		if err = st.DumpConfig(savePath); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
 func (app *Application) Start() error {
+	defer app.SaveConfig()
 	mux := app.routes()
 	if err := http.ListenAndServe(":3000", mux); err != nil {
 		return err

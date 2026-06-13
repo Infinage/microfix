@@ -110,24 +110,30 @@
 </div>
 {{end}}
 
+{{define "AliasesStream"}}
+<div hx-trigger="refresh-alias from:body" hx-get="/api/alias/list" hx-vals='{"from": "stream"}'>
+  <select 
+   name="alias"
+    hx-get="/api/alias/get"
+    hx-target="#message-input"
+    x-model="selectedAlias" 
+    @change="selectedMsgType = ''" 
+    :class="selectedAlias !== '' ? 'border-blue-500' : 'border-gray-700'" 
+    class="bg-gray-950 border text-gray-300 text-sm rounded px-3 py-1.5 outline-none focus:border-blue-500 font-mono transition"
+  >
+      <option disabled value="">-- Select Alias --</option>
+      {{range $alias, $_ := .Aliases}}
+        <option value={{$alias}}>Alias: {{$alias}}</option>
+      {{end}}
+  </select>
+</div>
+{{end}}
+
 {{define "SendMessageForm"}}
 <div x-data="{ mode: 'alias', selectedAlias: '', selectedMsgType: '' }" class="bg-gray-900/40 border-b border-gray-800 flex flex-col shrink-0 p-4">
     <div class="flex justify-between items-center mb-3">
         <div class="flex space-x-3 items-center">
-            <select 
-             name="alias"
-              hx-get="/api/alias"
-              hx-target="#message-input"
-              x-model="selectedAlias" 
-              @change="selectedMsgType = ''" 
-              :class="selectedAlias !== '' ? 'border-blue-500' : 'border-gray-700'" 
-              class="bg-gray-950 border text-gray-300 text-sm rounded px-3 py-1.5 outline-none focus:border-blue-500 font-mono transition"
-            >
-                <option disabled value="">-- Select Alias --</option>
-                {{range $alias, $_ := .Aliases}}
-                  <option value={{$alias}}>Alias: {{$alias}}</option>
-                {{end}}
-            </select>
+            {{template "AliasesStream" .}}
 
             <span class="text-gray-600 font-bold text-xs">OR</span>
 

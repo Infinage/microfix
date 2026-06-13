@@ -1,19 +1,21 @@
 {{define "AddAliasModal"}}
-<div x-show="modal === 'alias'" style="display: none;" @click.away="modal = ''" class="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-[500px] p-5">
-  <form @close-modal.window="modal = ''">
+<div 
+  x-show="modal === 'alias'" style="display: none;" 
+  x-data="{
+    aliasName: '', aliasValue: '',
+    resetForm() { this.aliasName = ''; this.aliasValue = ''; }
+  }"
+  @click.away="modal = ''" class="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-[500px] p-5">
+  <form hx-post="/api/alias/add" @close-modal.window="resetForm(); modal = '';">
     <h3 class="text-white font-bold text-lg mb-4">Add New Message Alias</h3>
     <div class="space-y-4">
         <div>
             <label class="text-xs text-gray-400 font-bold uppercase tracking-wider">Alias Name</label>
             <input 
-              name="aliasName"
-              type="text" placeholder="e.g. CancelReq" 
-              hx-trigger="input delay:300ms"
+              x-model="aliasName" name="aliasName" type="text" placeholder="e.g. CancelReq" 
+              hx-trigger="input delay:300ms" autocomplete="off" hx-get="/api/alias/check/name" 
+              hx-indicator="#spinner" hx-target="#alias-check" hx-swap="outerHTML" required
               class="w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 text-white font-mono mt-1 focus:border-blue-500 focus:outline-none"
-              hx-get="/api/alias/name-check" 
-              hx-indicator="#spinner" 
-              hx-target="#alias-check" 
-              hx-swap="outerHTML"
             >
             <div class="flex items-center gap-2 mt-1">
               <span id="alias-check" class="text-[10px] text-gray-500 mt-1">This name will appear in the Stream dropdown.</span>
@@ -24,7 +26,10 @@
         </div>
         <div>
             <label class="text-xs text-gray-400 font-bold uppercase tracking-wider">FIX Payload Template</label>
-            <textarea required spellcheck="false" placeholder="35=F|41=ORD123|11=CXL123|..." class="w-full bg-gray-950 border border-gray-700 rounded p-3 text-blue-300 font-mono mt-1 h-28 resize-none focus:border-blue-500 focus:outline-none shadow-inner"></textarea>
+            <textarea 
+              name="aliasValue" required spellcheck="false" placeholder="35=F|41=ORD123|11=CXL123|..." x-model="aliasValue"
+              class="w-full bg-gray-950 border border-gray-700 rounded p-3 text-blue-300 font-mono mt-1 h-28 resize-none focus:border-blue-500 focus:outline-none shadow-inner"
+            ></textarea>
         </div>
     </div>
     <div class="mt-6 flex justify-end space-x-3">
