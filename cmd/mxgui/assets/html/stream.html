@@ -7,7 +7,13 @@
   data-log-type="{{$LogType}}" {{/* Required for alpine JS filtering */}}
   class="log-entry group relative flex items-start space-x-4 p-2 rounded border-l-2 {{$theme.Border}} hover:bg-gray-800/50 transition 
     {{if $clickable}}cursor-pointer{{end}}"
-  {{if $clickable}}@click="inspectorOpen = true"{{end}}
+  {{if $clickable}}
+    @open-inspector-tab.window="inspectorOpen = true"
+    hx-get="/api/inspect"
+    hx-vals='{"message": "{{.Content}}"}'
+    hx-target="#msg-inspector"
+    hx-swap="outerHTML"
+  {{end}}
 >
   <span class="text-gray-500 shrink-0">{{.Timestamp.Format "2006-01-02 15:04:05.000"}}</span> 
   <span class="{{$theme.Text}} font-bold shrink-0 w-12 text-sm">{{$LogType}}</span>

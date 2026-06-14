@@ -5,25 +5,34 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
 
+	"github.com/infinage/microfix/cmd/mxgui/internal/inspector"
 	"github.com/infinage/microfix/pkg/message"
 	"github.com/infinage/microfix/pkg/spec"
 )
 
+func renderTemplate(templ *template.Template, w io.Writer, templateName string, data any) {
+	err := templ.ExecuteTemplate(w, templateName, data)
+	if err != nil {
+		fmt.Printf("Failed to render '%s': %s\n", templateName, err.Error())
+	}
+}
+
 func toast(w http.ResponseWriter, templ *template.Template, typeStr, msg string) {
 	w.Header().Set("HX-Reswap", "none")
-	templ.ExecuteTemplate(w, "Toast", map[string]string{"type": typeStr, "message": msg})
+	renderTemplate(templ, w, "Toast", map[string]string{"type": typeStr, "message": msg})
 }
 
 func (app *Application) handleHome(w http.ResponseWriter, r *http.Request) {
 	snap := app.Session.Status()
 	cfg := app.Store.Config()
 
-	app.templ.ExecuteTemplate(w, "index.html", map[string]any{
+	renderTemplate(app.templ, w, "index.html", map[string]any{
 		"Snapshot": snap,
 		"Config":   cfg,
 		"Router":   app.Session.Router(),
@@ -75,7 +84,7 @@ func (app *Application) handleAPIReset(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *Application) handleAPIHeader(w http.ResponseWriter, r *http.Request) {
-	app.templ.ExecuteTemplate(w, "Header", map[string]any{
+	renderTemplate(app.templ, w, "Header", map[string]any{
 		"Snapshot": app.Session.Status(),
 		"Config":   app.Store.Config(),
 	})
@@ -111,7 +120,7 @@ func (app *Application) handleAPILogs(w http.ResponseWriter, r *http.Request) {
 
 			// Parse and print the logs
 			var buf bytes.Buffer
-			app.templ.ExecuteTemplate(&buf, "LogEntry", log)
+			renderTemplate(app.templ, &buf, "LogEntry", log)
 			logMarkup := strings.ReplaceAll(buf.String(), "\n", " ")
 			fmt.Fprintf(w, "data: %s\n\n", logMarkup)
 			flusher.Flush()
@@ -183,7 +192,7 @@ func (app *Application) handleAPIFinalize(w http.ResponseWriter, r *http.Request
 func (app *Application) handleAPIValidate(w http.ResponseWriter, r *http.Request) {
 	msgRaw := r.URL.Query().Get("validate-input")
 	if len(msgRaw) < 4 {
-		app.templ.ExecuteTemplate(w, "ValidationReport", []string{"Structural Error: Input must be at least 4 chars long"})
+		renderTemplate(app.templ, w, "ValidationReport", []string{"Structural Error: Input must be at least 4 chars long"})
 		return
 	}
 
@@ -192,13 +201,13 @@ func (app *Application) handleAPIValidate(w http.ResponseWriter, r *http.Request
 	msg, err := message.MessageFromString(msgRaw, delim)
 	if err != nil {
 		errMsg := fmt.Sprintf("Structural Error: Invalid fix string input - %s", err.Error())
-		app.templ.ExecuteTemplate(w, "ValidationReport", []string{errMsg})
+		renderTemplate(app.templ, w, "ValidationReport", []string{errMsg})
 		return
 	}
 
 	// Spec Dictionary Validation
 	result, _ := app.Session.Router().Validate(&msg, spec.ValidationStrict)
-	app.templ.ExecuteTemplate(w, "ValidationReport", result)
+	renderTemplate(app.templ, w, "ValidationReport", result)
 }
 
 func (app *Application) handleAPIDictionaryMessage(w http.ResponseWriter, r *http.Request) {
@@ -235,7 +244,7 @@ func (app *Application) handleAPIDictionaryMessage(w http.ResponseWriter, r *htt
 		"Entries":   flattenedMsgSpec,
 	}
 
-	app.templ.ExecuteTemplate(w, "DictionaryMessageDetail", msgDetail)
+	renderTemplate(app.templ, w, "DictionaryMessageDetail", msgDetail)
 }
 
 func (app *Application) handleAPIDictionaryField(w http.ResponseWriter, r *http.Request) {
@@ -269,7 +278,7 @@ func (app *Application) handleAPIDictionaryField(w http.ResponseWriter, r *http.
 	}
 
 	dictFieldDetail := map[string]any{"FieldDef": fieldDef, "UsedIn": usedIn}
-	app.templ.ExecuteTemplate(w, "DictionaryFieldDetail", dictFieldDetail)
+	renderTemplate(app.templ, w, "DictionaryFieldDetail", dictFieldDetail)
 }
 
 func (app *Application) handleAPIAliasNameCheck(w http.ResponseWriter, r *http.Request) {
@@ -308,9 +317,9 @@ func (app *Application) handleAPIAddAlias(w http.ResponseWriter, r *http.Request
 
 func (app *Application) handleAPIListAlias(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Query().Get("from") == "settings" {
-		app.templ.ExecuteTemplate(w, "AliasesSettings", map[string]any{"Aliases": app.Store.Config().Alias})
+		renderTemplate(app.templ, w, "AliasesSettings", map[string]any{"Aliases": app.Store.Config().Alias})
 	} else {
-		app.templ.ExecuteTemplate(w, "AliasesStream", map[string]any{"Aliases": app.Store.Config().Alias})
+		renderTemplate(app.templ, w, "AliasesStream", map[string]any{"Aliases": app.Store.Config().Alias})
 	}
 }
 
@@ -377,10 +386,10 @@ func (app *Application) handleAPILoadConfig(w http.ResponseWriter, r *http.Reque
 		}
 
 		// Notify reload successful
-		app.templ.ExecuteTemplate(w, "Toast", map[string]string{"type": "success", "message": "Reload successful"})
+		renderTemplate(app.templ, w, "Toast", map[string]string{"type": "success", "message": "Reload successful"})
 	}
 
-	app.templ.ExecuteTemplate(w, "ConfigForm", map[string]any{"Config": app.Store.Config()})
+	renderTemplate(app.templ, w, "ConfigForm", map[string]any{"Config": app.Store.Config()})
 }
 
 func (app *Application) handleAPIDumpConfig(w http.ResponseWriter, r *http.Request) {
@@ -429,5 +438,23 @@ func (app *Application) handleAPIConfigSpecPathCheck(w http.ResponseWriter, r *h
 		checkResults["Text"] = "File not found or invalid path"
 	}
 
-	app.templ.ExecuteTemplate(w, "SpecPathCheck", checkResults)
+	renderTemplate(app.templ, w, "SpecPathCheck", checkResults)
+}
+
+func (app *Application) handleAPIInspect(w http.ResponseWriter, r *http.Request) {
+	raw := r.URL.Query().Get("message")
+	_, err := message.MessageFromString(raw, "|")
+	if err != nil {
+		toast(w, app.templ, "error", "Failed to parse message")
+		return
+	}
+
+	vmode := spec.ValidationStrict
+	if !app.Store.Config().FixValidateStrict {
+		vmode = spec.ValidationBasic
+	}
+
+	w.Header().Set("HX-Trigger", "open-inspector-tab")
+	inspectViewData := inspector.NewInspectView(raw, app.Session.Router(), vmode)
+	renderTemplate(app.templ, w, "MessageInspector", inspectViewData)
 }

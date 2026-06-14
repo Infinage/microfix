@@ -92,6 +92,8 @@ func (app *Application) routes() *http.ServeMux {
 	mux.HandleFunc("POST /api/config/import", app.handleAPILoadConfig)
 	mux.HandleFunc("GET /api/config/export", app.handleAPIDumpConfig)
 	mux.HandleFunc("GET /api/config/check/specpath", app.handleAPIConfigSpecPathCheck)
+
+	mux.HandleFunc("GET /api/inspect", app.handleAPIInspect)
 	return mux
 }
 
