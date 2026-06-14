@@ -1,153 +1,288 @@
+{{define "tooltip"}}
+<div class="group relative inline-block cursor-help text-gray-500 hover:text-gray-300 ml-2">
+  <span class="flex h-4 w-4 items-center justify-center rounded-full border border-current text-[10px] font-bold select-none">?</span>
+  
+  <div class="absolute left-full top-1/2 z-50 ml-2 w-56 -translate-y-1/2 scale-95 rounded bg-gray-800 p-2 text-xs text-gray-200 opacity-0 transition-all pointer-events-none group-hover:scale-100 group-hover:opacity-100 shadow-xl border border-gray-700">
+    {{.}} 
+    <div class="absolute top-1/2 -left-1 h-2 w-2 -translate-y-1/2 rotate-45 bg-gray-800 border-b border-l border-gray-700"></div>
+  </div>
+</div>
+{{end}}
+
+{{define "SpecPathCheck"}}
+<div class="group relative flex justify-center items-center cursor-default">
+  <svg class="w-5 h-5 text-{{.Color}}-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{.PathData}}"></path>
+  </svg>
+  <div class="absolute bottom-full left-1/2 z-50 mb-2 w-max -translate-x-1/2 scale-95 rounded bg-gray-800 p-2 text-xs text-{{.Color}}-400 opacity-0 transition-all pointer-events-none group-hover:scale-100 group-hover:opacity-100 border border-gray-700 shadow-lg font-sans">
+    {{.Text}}
+    <div class="absolute top-full left-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-gray-800 border-b border-r border-gray-700"></div>
+  </div>
+</div>
+{{end}}
+
+{{define "ConfigForm"}}
+<form id="config-form" hx-post="/api/config" hx-swap="none" class="space-y-8">
+  <section>
+    <h3 class="text-white font-bold text-lg mb-3 flex items-center space-x-2">
+      <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1">
+        </path>
+      </svg>
+      <span>Connection</span>
+    </h3>
+    <div class="bg-gray-900 border border-gray-800 rounded-lg shadow-sm">
+      <table class="w-full text-left text-sm font-mono">
+        <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition [&:first-child>td:first-child]:rounded-tl-lg [&:first-child>td:last-child]:rounded-tr-lg">
+          <td class="p-4 text-gray-400 font-bold w-1/3">
+            IpAddr 
+            {{template "tooltip" "The IPv4 address or hostname. Acts as the bind interface in Server mode, or the target destination in Client mode."}}
+          </td>
+          <td class="p-4">
+            <input type="text" name="IpAddr" value="{{.Config.IpAddr}}" 
+              class="bg-gray-950 border border-gray-700 rounded px-3 py-1.5 
+                text-white font-mono w-full max-w-md focus:border-blue-500 focus:outline-none"
+            >
+          </td>
+        </tr>
+        <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
+          <td class="p-4 text-gray-400 font-bold">
+            Port
+            {{template "tooltip" "The TCP port number used to establish the FIX session socket."}}
+          </td>
+          <td class="p-4">
+            <input type="number" name="Port" value="{{.Config.Port}}" 
+              class="bg-gray-950 border border-gray-700 rounded px-3 py-1.5 
+                text-white font-mono w-32 focus:border-blue-500 focus:outline-none"
+            >
+          </td>
+        </tr>
+        <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
+          <td class="p-4 text-gray-400 font-bold">
+            SenderCompID
+            {{template "tooltip" "Your local institution's assigned identification string (Tag 49)."}}
+          </td>
+          <td class="p-4">
+            <input type="text" name="SenderCompID" value="{{.Config.SenderCompID}}" 
+              class="bg-gray-950 border border-gray-700 rounded px-3 py-1.5 text-white 
+                font-mono w-full max-w-md focus:border-blue-500 focus:outline-none"
+            >
+          </td>
+        </tr>
+        <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
+          <td class="p-4 text-gray-400 font-bold">
+            TargetCompID
+            {{template "tooltip" "The counterparty's assigned identification string (Tag 56)."}}
+          </td>
+          <td class="p-4">
+            <input type="text" name="TargetCompID" value="{{.Config.TargetCompID}}" 
+              class="bg-gray-950 border border-gray-700 rounded px-3 py-1.5 text-white 
+                font-mono w-full max-w-md focus:border-blue-500 focus:outline-none"
+            >
+          </td>
+        </tr>
+        <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
+          <td class="p-4 text-gray-400 font-bold">
+            HeartbeatInt <span class="text-gray-600 text-[10px] font-sans font-normal ml-1">(Sec)</span>
+            {{template "tooltip" "Time in seconds between Heartbeat (0) messages to monitor link status (Tag 108)."}}
+          </td>
+          <td class="p-4">
+            <input type="number" name="HeartbeatInt" value="{{.Config.HeartbeatInt}}" 
+              class="bg-gray-950 border border-gray-700 rounded px-3 py-1.5 text-white 
+                font-mono w-24 focus:border-blue-500 focus:outline-none"
+            >
+          </td>
+        </tr>
+        <tr class="hover:bg-gray-800/30 transition [&:last-child>td:first-child]:rounded-bl-lg [&:last-child>td:last-child]:rounded-br-lg">
+          <td class="p-4 text-gray-400 font-bold">
+            DefaultTimeoutSec
+            {{template "tooltip" "Maximum seconds to wait for a network response or expected sequence message before dropping the connection."}}
+          </td>
+          <td class="p-4">
+            <input type="number" name="DefaultTimeoutSec" value="{{.Config.DefaultTimeoutSec}}" 
+              class="bg-gray-950 border border-gray-700 rounded px-3 py-1.5 text-white 
+                font-mono w-24 focus:border-blue-500 focus:outline-none"
+            >
+          </td>
+        </tr>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h3 class="text-white font-bold text-lg mb-3 flex items-center space-x-2">
+      <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4">
+        </path>
+      </svg>
+      <span>Dictionary Specifications</span>
+    </h3>
+    <div class="bg-gray-900 border border-gray-800 rounded-lg shadow-sm">
+      <table class="w-full text-left text-sm font-mono">
+        <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition [&:first-child>td:first-child]:rounded-tl-lg [&:first-child>td:last-child]:rounded-tr-lg">
+          <td class="p-4 text-gray-400 font-bold w-1/3">
+            SessionSpec <span class="text-gray-600 text-[10px] font-sans font-normal ml-1">(XML Path)</span>
+            {{template "tooltip" "Path to the XML DataDictionary defining the FIX version header, trailer, and admin messages (e.g., FIXT11)."}}
+          </td>
+          <td class="p-4">
+            <div class="flex items-center space-x-3">
+              <input type="text" name="SessionSpec" value="{{.Config.SessionSpec}}" 
+                hx-get="/api/config/check/specpath" hx-indicator="#session-spec-spinner" hx-swap="innerHTML"
+                hx-vals='{"from": "session-spec"}' hx-trigger="input delay:300ms" hx-target="#session-spec-status"
+                class="bg-gray-950 border border-gray-700 rounded px-3 py-1.5 text-white font-mono w-full max-w-md 
+                  focus:border-blue-500 focus:outline-none placeholder-gray-700" placeholder="FIX44.xml"
+              >
+
+              <div id="session-spec-status" class="w-5 h-5 flex items-center justify-center shrink-0"></div>
+            
+              <svg id="session-spec-spinner" class="htmx-indicator animate-spin w-5 h-5 text-blue-500 shrink-0" 
+                viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="31.4 31.4" opacity="0.3"></circle>
+                  <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" stroke-width="3" stroke-linecap="round"></path>
+              </svg>
+            </div>
+          </td>
+        </tr>
+        <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
+          <td class="p-4 text-gray-400 font-bold">
+            ApplicationSpec <span class="text-gray-600 text-[10px] font-sans font-normal ml-1">(XML Path)</span>
+            {{template "tooltip" "Path to the XML DataDictionary for business messages. Only required for FIX 5.0 and above (FIXT)."}}
+          </td>
+          <td class="p-4">
+            <div class="flex items-center space-x-3">
+              <input type="text" name="ApplicationSpec" value="{{.Config.ApplicationSpec}}" 
+                hx-get="/api/config/check/specpath" hx-indicator="#application-spec-spinner" hx-swap="innerHTML"
+                hx-vals='{"from": "application-spec"}' hx-trigger="input delay:300ms" hx-target="#application-spec-status"
+                class="bg-gray-950 border border-gray-700 rounded px-3 py-1.5 text-white 
+                  font-mono w-full max-w-md focus:border-blue-500 focus:outline-none placeholder-gray-700" placeholder="Optional App Dict..."
+              >
+
+              <div id="application-spec-status" class="w-5 h-5 flex items-center justify-center shrink-0"></div>
+            
+              <svg id="application-spec-spinner" class="htmx-indicator animate-spin w-5 h-5 text-blue-500 shrink-0" 
+                viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="31.4 31.4" opacity="0.3"></circle>
+                  <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" stroke-width="3" stroke-linecap="round"></path>
+              </svg>
+            </div>
+          </td>
+        </tr>
+        <tr class="hover:bg-gray-800/30 transition [&:last-child>td:first-child]:rounded-bl-lg [&:last-child>td:last-child]:rounded-br-lg">
+          <td class="p-4 text-gray-400 font-bold">
+            SpecDisplayOptFields
+            {{template "tooltip" "Toggles whether optional FIX fields are visible in the UI when constructing or inspecting messages."}}
+          </td>
+          <td class="p-4">
+              <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" name="SpecDisplayOptFields" value="true" class="sr-only peer" {{if .Config.SpecDisplayOptFields}}checked{{end}}>
+                  <div class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full 
+                    peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white 
+                    after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"
+                  ></div>
+              </label>
+          </td>
+        </tr>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h3 class="text-white font-bold text-lg mb-3 flex items-center space-x-2">
+      <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+      <span>Validation & Behavior</span>
+    </h3>
+    <div class="bg-gray-900 border border-gray-800 rounded-lg shadow-sm">
+      <table class="w-full text-left text-sm font-mono">
+        <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition [&:first-child>td:first-child]:rounded-tl-lg [&:first-child>td:last-child]:rounded-tr-lg">
+          <td class="p-4 text-gray-400 font-bold w-1/3">
+            FixValidateStrict
+            {{template "tooltip" "Enforces strict XML dictionary validation. Rejects incoming messages and blocks outgoing messages that fail structure checks."}}
+          </td>
+          <td class="p-4">
+            <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" name="FixValidateStrict" value="true" class="sr-only peer" {{if .Config.FixValidateStrict}}checked{{end}}>
+                <div class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full 
+                  peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] 
+                  after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all 
+                  peer-checked:bg-blue-600"></div>
+            </label>
+          </td>
+        </tr>
+        <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
+          <td class="p-4 text-gray-400 font-bold">
+            FixSampleOptional
+            {{template "tooltip" "Includes optional dictionary fields when auto-generating sample payload templates in the Form Builder."}}
+          </td>
+          <td class="p-4">
+            <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" name="FixSampleOptional" value="true" class="sr-only peer" {{if .Config.FixSampleOptional}}checked{{end}}>
+                <div class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full 
+                  peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] 
+                  after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+            </label>
+          </td>
+        </tr>
+        <tr class="hover:bg-gray-800/30 transition [&:last-child>td:first-child]:rounded-bl-lg [&:last-child>td:last-child]:rounded-br-lg">
+          <td class="p-4 text-gray-400 font-bold">
+            SkipLatencyCheck
+            {{template "tooltip" "Disables the SendingTime (Tag 52) latency check. Useful for testing against delayed networks or historical logs."}}
+          </td>
+          <td class="p-4">
+            <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" name="SkipLatencyCheckInValidate" value="true" class="sr-only peer" {{if .Config.SkipLatencyCheckInValidate}}checked{{end}}>
+                <div class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full 
+                  peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white 
+                  after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"
+                ></div>
+            </label>
+          </td>
+        </tr>
+      </table>
+    </div>
+  </section>
+  
+  <div class="pt-4 flex justify-end space-x-4 items-center">
+      <button type="button" hx-post="/api/config/import" hx-target="#config-form" hx-swap="outerHTML" 
+          class="text-gray-400 hover:text-white px-4 py-2 text-sm font-bold transition cursor-pointer"
+      >Discard Changes</button>
+      <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded font-bold transition shadow-lg text-sm cursor-pointer">
+          Apply &amp; Save Configuration
+      </button>
+  </div>
+</form>
+{{end}}
+
 {{define "Config"}}
 <div x-show="settingsTab === 'config'" style="display:none;" class="pb-10">
     <div class="flex justify-between items-center mb-8">
         <div>
             <h2 class="text-2xl font-bold text-white mb-1">Session Configuration</h2>
-            <p class="text-gray-400 text-sm">Modify global connection parameters. These apply upon the next connection.</p>
+            <p class="text-gray-400 text-sm">Modify global connection parameters. These apply upon the next restart.</p>
         </div>
-        <div class="flex space-x-3">
-            <button class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-4 py-2 
-                rounded text-sm transition font-bold shadow-sm cursor-pointer"
-            >Load from File...</button>
-            <button class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-4 py-2 
-                rounded text-sm transition font-bold shadow-sm cursor-pointer"
-            >Save to File...</button>
+        
+        <div class="flex space-x-3 items-center">
+            <input type="file" id="config-upload" name="configFile" accept=".mxrc" class="hidden"
+                   hx-post="/api/config/import" 
+                   hx-encoding="multipart/form-data" 
+                   hx-target="#config-form" 
+                   hx-swap="outerHTML">
+            <button type="button" @click="document.getElementById('config-upload').click()" 
+                class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-4 py-2 
+                rounded text-sm transition font-bold shadow-sm cursor-pointer flex items-center space-x-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                <span>Load...</span>
+            </button>
+
+            <a href="/api/config/export" download="config.mxrc" 
+                class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-4 py-2 
+                rounded text-sm transition font-bold shadow-sm cursor-pointer flex items-center space-x-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                <span>Save...</span>
+            </a>
         </div>
     </div>
     
-    <form hx-post="/api/config" hx-swap="none" class="space-y-8">
-        
-        <section>
-            <h3 class="text-white font-bold text-lg mb-3 flex items-center space-x-2">
-                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1">
-                  </path>
-                </svg>
-                <span>Connection</span>
-            </h3>
-            <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden shadow-sm">
-                <table class="w-full text-left text-sm font-mono">
-                    <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
-                        <td class="p-4 text-gray-400 font-bold w-1/3">IpAddr</td>
-                        <td class="p-4">
-                          <input type="text" name="IpAddr" value="{{.Config.IpAddr}}" 
-                            class="bg-gray-950 border border-gray-700 rounded px-3 py-1.5 
-                              text-white font-mono w-full max-w-md focus:border-blue-500 focus:outline-none"
-                          >
-                        </td>
-                    </tr>
-                    <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
-                        <td class="p-4 text-gray-400 font-bold">Port</td>
-                        <td class="p-4">
-                          <input type="number" name="Port" value="{{.Config.Port}}" 
-                            class="bg-gray-950 border border-gray-700 rounded px-3 py-1.5 
-                              text-white font-mono w-32 focus:border-blue-500 focus:outline-none"
-                          >
-                        </td>
-                    </tr>
-                    <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
-                        <td class="p-4 text-gray-400 font-bold">SenderCompID</td>
-                        <td class="p-4"><input type="text" name="SenderCompID" value="{{.Config.SenderCompID}}" 
-                          class="bg-gray-950 border border-gray-700 rounded px-3 py-1.5 text-white 
-                            font-mono w-full max-w-md focus:border-blue-500 focus:outline-none"
-                        ></td>
-                    </tr>
-                    <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
-                        <td class="p-4 text-gray-400 font-bold">TargetCompID</td>
-                        <td class="p-4"><input type="text" name="TargetCompID" value="{{.Config.TargetCompID}}" 
-                          class="bg-gray-950 border border-gray-700 rounded px-3 py-1.5 text-white 
-                            font-mono w-full max-w-md focus:border-blue-500 focus:outline-none"
-                        ></td>
-                    </tr>
-                    <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
-                        <td class="p-4 text-gray-400 font-bold">HeartbeatInt <span class="text-gray-600 text-[10px] font-sans font-normal ml-1">(Sec)</span></td>
-                        <td class="p-4"><input type="number" name="HeartbeatInt" value="{{.Config.HeartbeatInt}}" 
-                          class="bg-gray-950 border border-gray-700 rounded px-3 py-1.5 text-white font-mono w-24 focus:border-blue-500 focus:outline-none"
-                        ></td>
-                    </tr>
-                    <tr class="hover:bg-gray-800/30 transition">
-                        <td class="p-4 text-gray-400 font-bold">DefaultTimeoutSec</td>
-                        <td class="p-4"><input type="number" name="DefaultTimeoutSec" value="{{.Config.DefaultTimeoutSec}}" 
-                          class="bg-gray-950 border border-gray-700 rounded px-3 py-1.5 text-white font-mono w-24 focus:border-blue-500 focus:outline-none"
-                        ></td>
-                    </tr>
-                </table>
-            </div>
-        </section>
-
-        <section>
-            <h3 class="text-white font-bold text-lg mb-3 flex items-center space-x-2">
-                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4">
-                  </path>
-                </svg>
-                <span>Dictionary Specifications</span>
-            </h3>
-            <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden shadow-sm">
-                <table class="w-full text-left text-sm font-mono">
-                    <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
-                        <td class="p-4 text-gray-400 font-bold w-1/3">SessionSpec <span class="text-gray-600 text-[10px] font-sans font-normal ml-1">(XML Path)</span></td>
-                        <td class="p-4"><input type="text" name="SessionSpec" value="{{.Config.SessionSpec}}" class="bg-gray-950 border border-gray-700 rounded px-3 py-1.5 text-white font-mono w-full max-w-md focus:border-blue-500 focus:outline-none placeholder-gray-700" placeholder="FIX44.xml"></td>
-                    </tr>
-                    <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
-                        <td class="p-4 text-gray-400 font-bold">ApplicationSpec <span class="text-gray-600 text-[10px] font-sans font-normal ml-1">(XML Path)</span></td>
-                        <td class="p-4"><input type="text" name="ApplicationSpec" value="{{.Config.ApplicationSpec}}" class="bg-gray-950 border border-gray-700 rounded px-3 py-1.5 text-white font-mono w-full max-w-md focus:border-blue-500 focus:outline-none placeholder-gray-700" placeholder="Optional App Dict..."></td>
-                    </tr>
-                    <tr class="hover:bg-gray-800/30 transition">
-                        <td class="p-4 text-gray-400 font-bold">SpecDisplayOptFields</td>
-                        <td class="p-4">
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" name="SpecDisplayOptFields" value="true" class="sr-only peer" {{if .Config.SpecDisplayOptFields}}checked{{end}}>
-                                <div class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
-                            </label>
-                        </td>
-                    </tr>
-                </table>
-            </div>
-        </section>
-
-        <section>
-            <h3 class="text-white font-bold text-lg mb-3 flex items-center space-x-2">
-                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                <span>Validation & Behavior</span>
-            </h3>
-            <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden shadow-sm">
-                <table class="w-full text-left text-sm font-mono">
-                    <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
-                        <td class="p-4 text-gray-400 font-bold w-1/3">FixValidateStrict</td>
-                        <td class="p-4">
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" name="FixValidateStrict" value="true" class="sr-only peer" {{if .Config.FixValidateStrict}}checked{{end}}>
-                                <div class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
-                            </label>
-                        </td>
-                    </tr>
-                    <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
-                        <td class="p-4 text-gray-400 font-bold">FixSampleOptional</td>
-                        <td class="p-4">
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" name="FixSampleOptional" value="true" class="sr-only peer" {{if .Config.FixSampleOptional}}checked{{end}}>
-                                <div class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
-                            </label>
-                        </td>
-                    </tr>
-                    <tr class="hover:bg-gray-800/30 transition">
-                        <td class="p-4 text-gray-400 font-bold">SkipLatencyCheck</td>
-                        <td class="p-4">
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" name="SkipLatencyCheckInValidate" value="true" class="sr-only peer" {{if .Config.SkipLatencyCheckInValidate}}checked{{end}}>
-                                <div class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
-                            </label>
-                        </td>
-                    </tr>
-                </table>
-            </div>
-        </section>
-        
-        <div class="pt-4 flex justify-end">
-            <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded font-bold transition shadow-lg text-sm cursor-pointer">Apply & Save Configuration</button>
-        </div>
-    </form>
+    {{template "ConfigForm" .}}
 </div>
 {{end}}
 
@@ -176,7 +311,7 @@
             {{range $aliasName, $aliasValue := .Aliases}}
               <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
                   <td class="p-4 text-blue-400 font-bold">{{$aliasName}}</td>
-                  <td class="p-4 text-gray-300 truncate max-w-md">{{$aliasValue}}</td>
+                  <td class="p-4 text-gray-300 truncate max-w-md">{{replaceSOH $aliasValue}}</td>
                   <td 
                     class="p-4 text-right text-gray-500 hover:text-red-400 cursor-pointer transition"
                     hx-confirm="Are you sure you want to delete?" 

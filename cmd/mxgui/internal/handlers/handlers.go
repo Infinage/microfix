@@ -2,9 +2,11 @@ package gui
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -127,8 +129,9 @@ func (app *Application) handleAPIGetAlias(w http.ResponseWriter, r *http.Request
 }
 
 func (app *Application) handleAPISample(w http.ResponseWriter, r *http.Request) {
+	cfg := app.Store.Config()
 	msgType := r.URL.Query().Get("msgtype")
-	msg, err := app.Session.Router().Sample(msgType, spec.SampleOptions{})
+	msg, err := app.Session.Router().Sample(msgType, spec.SampleOptions{IncludeOptional: cfg.FixSampleOptional})
 	if err == nil {
 		w.Write([]byte(msg.String("|")))
 	} else {
@@ -142,8 +145,8 @@ func (app *Application) handleAPISend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msgRaw := r.Form.Get("message")
-	raw := r.Form.Get("raw") == "yes"
+	msgRaw := r.FormValue("message")
+	raw := r.FormValue("raw") == "yes"
 
 	delim := msgRaw[len(msgRaw)-1:]
 	msg, err := message.MessageFromString(msgRaw, delim)
@@ -210,8 +213,8 @@ func (app *Application) handleAPIDictionaryMessage(w http.ResponseWriter, r *htt
 		return
 	}
 
-	includeOptFields := app.Store.Config().SpecDisplayOptFields
-	sampleMsg, err := router.Sample(msgId, spec.SampleOptions{IncludeOptional: includeOptFields})
+	cfg := app.Store.Config()
+	sampleMsg, err := router.Sample(msgId, spec.SampleOptions{IncludeOptional: cfg.FixSampleOptional})
 
 	if err != nil {
 		toast(w, app.templ, "error", fmt.Sprintf("MsgId [%v] not found", msgId))
@@ -219,7 +222,7 @@ func (app *Application) handleAPIDictionaryMessage(w http.ResponseWriter, r *htt
 	}
 
 	var flattenedMsgSpec []FieldInfo
-	if err = flattenMessageSpec(&flattenedMsgSpec, msgEntry, sp, includeOptFields); err != nil {
+	if err = flattenMessageSpec(&flattenedMsgSpec, msgEntry, sp, cfg.SpecDisplayOptFields); err != nil {
 		toast(w, app.templ, "error", fmt.Sprintf("Unexpected error, please try again: %s", err.Error()))
 		return
 	}
@@ -290,14 +293,15 @@ func (app *Application) handleAPIAddAlias(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	aliasName := r.Form.Get("aliasName")
-	aliasValue := r.Form.Get("aliasValue")
+	aliasName := r.FormValue("aliasName")
+	aliasValue := r.FormValue("aliasValue")
 	if aliasName == "" || aliasValue == "" {
 		toast(w, app.templ, "error", "Alias name / template cannot be empty")
 		return
 	}
 
 	app.Store.Set("ALIAS."+aliasName, aliasValue)
+	app.SaveConfig()
 	w.Header().Set("HX-Trigger", "close-modal, refresh-alias")
 	toast(w, app.templ, "success", "Alias saved")
 }
@@ -318,6 +322,112 @@ func (app *Application) handleAPIDeleteAlias(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	app.SaveConfig()
 	w.Header().Set("HX-Trigger", "refresh-alias")
 	toast(w, app.templ, "success", "Alias deleted!")
+}
+
+func (app *Application) handleAPISaveConfig(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		toast(w, app.templ, "error", "Failed to parse form")
+		return
+	}
+
+	for _, fieldName := range []string{
+		"IpAddr",
+		"Port",
+		"SenderCompID",
+		"TargetCompID",
+		"HeartbeatInt",
+		"DefaultTimeoutSec",
+		"SessionSpec",
+		"ApplicationSpec",
+		"SpecDisplayOptFields",
+		"FixValidateStrict",
+		"FixSampleOptional",
+		"SkipLatencyCheckInValidate",
+	} {
+		val := r.FormValue(fieldName)
+		if _, _, err := app.Store.Set("CFG."+fieldName, val); err != nil {
+			errMsg := fmt.Sprintf("Failed to update [%s]: [%s]", fieldName, err.Error())
+			toast(w, app.templ, "error", errMsg)
+			return
+		}
+	}
+
+	if !app.SaveConfig() {
+		toast(w, app.templ, "error", "Config save failed")
+		return
+	}
+
+	toast(w, app.templ, "success", "Config save successful")
+}
+
+func (app *Application) handleAPILoadConfig(w http.ResponseWriter, r *http.Request) {
+	_, _, err := r.FormFile("configFile")
+	if err == nil {
+		// TODO: File uploaded, cannot get the full filepath
+		toast(w, app.templ, "error", "File upload not supported at the moment")
+		return
+	} else {
+		// No file provided, 'discard' action
+		if err = app.Store.LoadConfig(app.Store.ConfigPath()); err != nil {
+			toast(w, app.templ, "error", "Failed to reload from disk")
+			return
+		}
+
+		// Notify reload successful
+		app.templ.ExecuteTemplate(w, "Toast", map[string]string{"type": "success", "message": "Reload successful"})
+	}
+
+	app.templ.ExecuteTemplate(w, "ConfigForm", map[string]any{"Config": app.Store.Config()})
+}
+
+func (app *Application) handleAPIDumpConfig(w http.ResponseWriter, r *http.Request) {
+	data, err := json.MarshalIndent(app.Store.Config(), "", "  ")
+	if err != nil {
+		toast(w, app.templ, "error", "Failed to dump config")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Disposition", "attachment; filename=\"config.mxrc\"")
+	w.Write(data)
+}
+
+func (app *Application) handleAPIConfigSpecPathCheck(w http.ResponseWriter, r *http.Request) {
+	specPath := ""
+	if r.URL.Query().Get("from") == "session-spec" {
+		specPath = r.URL.Query().Get("SessionSpec")
+	} else {
+		specPath = r.URL.Query().Get("ApplicationSpec")
+	}
+
+	// Clear icon if empty
+	if specPath == "" {
+		w.Write([]byte(""))
+		return
+	}
+
+	// Embedded dictionary paths
+	validSpecs := map[string]any{
+		"FIX40": nil, "FIX41": nil, "FIX42": nil, "FIX43": nil, "FIX44": nil,
+		"FIX50": nil, "FIX50SP1": nil, "FIX50SP2": nil, "FIXT11": nil,
+	}
+
+	var checkResults = make(map[string]string)
+	_, err := os.Stat(specPath)
+	_, ok1 := validSpecs[specPath]
+	_, ok2 := validSpecs[strings.TrimSuffix(specPath, ".xml")]
+	if ok1 || ok2 || err == nil {
+		checkResults["Color"] = "green"
+		checkResults["PathData"] = "M5 13l4 4L19 7"
+		checkResults["Text"] = "Valid dictionary found"
+	} else {
+		checkResults["Color"] = "red"
+		checkResults["PathData"] = "M6 18L18 6M6 6l12 12"
+		checkResults["Text"] = "File not found or invalid path"
+	}
+
+	app.templ.ExecuteTemplate(w, "SpecPathCheck", checkResults)
 }

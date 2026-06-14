@@ -174,7 +174,9 @@ func (cfg *Config) setField(key, value string) (string, error) {
 		}
 
 	case reflect.Bool:
-		if b, err := strconv.ParseBool(value); err == nil {
+		if value == "" {
+			field.SetBool(false)
+		} else if b, err := strconv.ParseBool(value); err == nil {
 			field.SetBool(b)
 		} else {
 			return oldVal, fmt.Errorf("Invalid boolean '%s'", value)

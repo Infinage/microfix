@@ -129,7 +129,15 @@ func TestConfig_StrictFieldReflection(t *testing.T) {
 
 		oldVal, err = cfg.setField("FixValidateStrict", "false")
 		if err != nil || oldVal != "true" {
-			t.Errorf("SetField FixValidateStrict failed: %v, old: %s", err, oldVal)
+			t.Errorf("SetField FixValidateStrict (false) failed: %v, old: %s", err, oldVal)
+		}
+		if cfg.FixValidateStrict != false {
+			t.Errorf("FixValidateStrict not updated properly, got: %v", cfg.FixValidateStrict)
+		}
+
+		oldVal, err = cfg.setField("FixValidateStrict", "")
+		if err != nil || oldVal != "false" {
+			t.Errorf("SetField FixValidateStrict (empty) failed: %v, old: %s", err, oldVal)
 		}
 		if cfg.FixValidateStrict != false {
 			t.Errorf("FixValidateStrict not updated properly, got: %v", cfg.FixValidateStrict)

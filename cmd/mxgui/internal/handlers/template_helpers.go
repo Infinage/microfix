@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"strings"
 
 	"github.com/infinage/microfix/pkg/spec"
 	"github.com/infinage/microfix/pkg/store"
@@ -18,10 +19,19 @@ type Theme struct {
 
 // Return appl spec if available else session spec
 func getSpecName(config store.Config) string {
-	if config.ApplicationSpec != "" {
-		return fmt.Sprintf("%s [%s]", config.SessionSpec, config.ApplicationSpec)
+	sessSpec, appSpec := config.SessionSpec, config.ApplicationSpec
+
+	sessSpec = strings.TrimSuffix(sessSpec, ".xml")
+	appSpec = strings.TrimSuffix(appSpec, ".xml")
+
+	if appSpec != "" {
+		return fmt.Sprintf("%s [%s]", sessSpec, appSpec)
 	}
-	return config.SessionSpec
+	return sessSpec
+}
+
+func replaceSOH(raw string) string {
+	return strings.ReplaceAll(raw, "\x01", "|")
 }
 
 func getThemeForEngineState(state string) Theme {

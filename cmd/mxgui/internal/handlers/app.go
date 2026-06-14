@@ -40,6 +40,7 @@ func NewApplication(assets embed.FS) (*Application, error) {
 		"getThemeForLogType":     getThemeForLogType,
 		"toTitle":                toTitle,
 		"getAllFieldNamesAsJSON": getAllFieldNamesAsJSON,
+		"replaceSOH":             replaceSOH,
 	}
 
 	templ, err := template.New("").Funcs(templHelpers).ParseFS(assets, "assets/html/*html")
@@ -87,6 +88,10 @@ func (app *Application) routes() *http.ServeMux {
 	mux.HandleFunc("POST /api/alias/add", app.handleAPIAddAlias)
 	mux.HandleFunc("GET /api/alias/check/name", app.handleAPIAliasNameCheck)
 
+	mux.HandleFunc("POST /api/config", app.handleAPISaveConfig)
+	mux.HandleFunc("POST /api/config/import", app.handleAPILoadConfig)
+	mux.HandleFunc("GET /api/config/export", app.handleAPIDumpConfig)
+	mux.HandleFunc("GET /api/config/check/specpath", app.handleAPIConfigSpecPathCheck)
 	return mux
 }
 
