@@ -2,49 +2,35 @@
 <div x-show="inspectorTab === 'decoded'">
     <table class="w-full text-sm text-left border-collapse font-mono">
         <tbody>
-            <tr class="bg-gray-900/50 border-y border-gray-800"><td colspan="3" class="px-3 py-2 text-xs text-gray-500 font-sans font-bold uppercase tracking-widest">Header</td></tr>
-            <tr class="border-b border-gray-800/50 hover:bg-gray-800"><td class="px-3 py-2 text-gray-500 w-12">35</td><td class="px-3 py-2 text-gray-300 w-40 truncate">MsgType</td><td class="px-3 py-2 text-blue-400 font-bold" x-text="selectedMsg === 'msg1' ? 'A' : '3'"></td></tr>
-            <tr class="border-b border-gray-800/50 hover:bg-gray-800 transition">
-                <td class="px-2 py-1.5 text-gray-500 w-10">35</td>
-                <td class="px-2 py-1.5 text-gray-300 w-32 truncate">MsgType</td>
-                <td class="px-2 py-1.5 text-blue-400 font-bold">D <span class="text-gray-600 font-sans text-[9px] font-normal">(NewOrderSingle)</span></td>
+            <tr class="bg-gray-900/50 border-y border-gray-800">
+              <td colspan="3" class="px-3 py-2 text-xs text-gray-500 font-sans font-bold uppercase tracking-widest">Header</td>
             </tr>
+            <tbody class="border-b border-gray-800">
+                {{template "RenderNodes" .Header}}
+            </tbody>
+            
+            <tr class="bg-gray-900/50 border-y border-gray-800">
+              <td colspan="3" class="px-3 py-2 text-xs text-gray-500 font-sans font-bold uppercase tracking-widest">Body</td>
+            </tr>
+            <tbody>
+                {{template "RenderNodes" .Body}}
+            </tbody>
 
             <tr class="bg-gray-900/50 border-y border-gray-800">
-                <td colspan="3" class="px-3 py-2 text-xs text-gray-500 font-sans font-bold uppercase tracking-widest">
-                    Body
-                </td>
+              <td colspan="3" class="px-3 py-2 text-xs text-gray-500 font-sans font-bold uppercase tracking-widest">Trailer</td>
             </tr>
-            
-            <tr class="border-b border-gray-800/50 hover:bg-gray-800 transition">
-                <td class="px-2 py-1.5 text-gray-500">55</td>
-                <td class="px-2 py-1.5 text-gray-300 truncate">Symbol</td>
-                <td class="px-2 py-1.5 text-white">AAPL</td>
-            </tr>
-            
-            <tr class="bg-gray-900/20 border-t border-gray-800 cursor-pointer hover:bg-gray-800">
-                <td class="px-2 py-1.5 text-gray-500">268</td>
-                <td class="px-2 py-1.5 text-gray-300 flex items-center space-x-1">
-                    <span class="text-[8px]">▼</span> <span>NoMDEntries</span>
-                </td>
-                <td class="px-2 py-1.5 text-purple-400 font-bold">2 <span class="text-gray-600 font-sans text-[9px] font-normal">entries</span></td>
-            </tr>
-            <tr class="border-b border-gray-800/30 bg-[#0a0d12]">
-                <td class="px-2 py-1"></td>
-                <td colspan="2" class="pl-4 py-1 border-l-2 border-gray-800">
-                    <div class="text-[12px] text-gray-500 mb-1">Entry 1</div>
-                    <div class="flex mb-1 hover:bg-gray-800"><span class="w-10 text-gray-500">269</span> <span class="w-24 text-gray-400">MDEntryType</span> <span class="text-white">0 (Bid)</span></div>
-                    <div class="flex hover:bg-gray-800"><span class="w-10 text-gray-500">270</span> <span class="w-24 text-gray-400">MDEntryPx</span> <span class="text-white">150.50</span></div>
-                </td>
-            </tr>
-            <tr class="border-b border-gray-800/30 bg-[#0a0d12]">
-                <td class="px-2 py-1"></td>
-                <td colspan="2" class="pl-4 py-1 border-l-2 border-gray-800">
-                    <div class="text-[12px] text-gray-500 mb-1">Entry 2</div>
-                    <div class="flex mb-1 hover:bg-gray-800"><span class="w-10 text-gray-500">269</span> <span class="w-24 text-gray-400">MDEntryType</span> <span class="text-white">1 (Ask)</span></div>
-                    <div class="flex hover:bg-gray-800"><span class="w-10 text-gray-500">270</span> <span class="w-24 text-gray-400">MDEntryPx</span> <span class="text-white">151.20</span></div>
-                </td>
-            </tr>
+            <tbody>
+                {{template "RenderNodes" .Trailer}}
+            </tbody>
+
+            {{if .LeftOvers}}
+              <tr class="bg-gray-900/50 border-y border-gray-800">
+                <td colspan="3" class="px-3 py-2 text-xs text-gray-500 font-sans font-bold uppercase tracking-widest">Leftovers</td>
+              </tr>
+              <tbody>
+                  {{template "RenderNodes" .LeftOvers}}
+              </tbody>
+            {{end}}
         </tbody>
     </table>
 </div>
@@ -52,20 +38,43 @@
 
 {{define "MessageInspectValidate"}}
 <div x-show="inspectorTab === 'validation'" style="display:none;" class="space-y-4">
-    <div x-show="selectedMsg !== 'msg2'" class="text-green-400 text-sm font-mono bg-green-900/10 p-4 rounded border border-green-900/30">
+  {{if .IsValid}}
+    <div class="text-green-400 text-sm font-mono bg-green-900/10 p-4 rounded border border-green-900/30">
         No validation errors detected. Structure and sequence are correct.
     </div>
-    <div x-show="selectedMsg === 'msg2'" class="text-red-400 text-sm font-mono bg-red-900/10 p-4 rounded border border-red-900/30">
-        <div class="font-bold text-base mb-2">RejectError: MsgSeqNum (34)</div>
-        <div class="text-gray-400 leading-relaxed">Expected sequence <span class="text-white">142</span>, but received <span class="text-white">143</span>.</div>
+  {{else}}
+    <div class="border border-red-900/40 rounded overflow-hidden bg-[#0a0d12] shadow-sm">
+      <div class="bg-red-950/30 px-4 py-2 border-b border-red-900/40 flex items-center space-x-2">
+          <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            ></path>
+          </svg>
+          <span class="text-xs font-bold text-red-400 uppercase tracking-wider font-sans">
+            Validation Errors ({{if .Observations}}{{len .Observations}}{{end}})
+          </span>
+      </div>
+      <ul class="divide-y divide-gray-800/60">
+          {{range .Observations}}
+          <li class="flex items-start space-x-3 px-4 py-3 hover:bg-gray-800/30 transition">
+              <span class="text-red-500/50 mt-1 shrink-0 font-mono text-[10px]">►</span>
+              <span class="text-sm font-mono text-gray-300 leading-relaxed">{{.}}</span>
+          </li>
+          {{end}}
+      </ul>
     </div>
+  {{end}}
 </div>
 {{end}}
 
 {{define "MessageInspectDiff"}}
 <div x-show="inspectorTab === 'diff'" style="display:none;" class="flex flex-col h-full">
     <p class="text-[12px] text-gray-400 mb-2">Paste another raw message below to diff against the selected stream message.</p>
-    <textarea spellcheck="false" class="w-full bg-[#0a0d12] border border-gray-800 rounded p-3 font-mono text-sm text-gray-300 resize-none h-24 focus:border-blue-500" placeholder="Paste target FIX string to diff..."></textarea>
+    <textarea 
+      spellcheck="false" 
+      class="w-full bg-[#0a0d12] border border-gray-800 rounded p-3 font-mono text-sm text-gray-300 resize-none h-24 focus:border-blue-500" 
+      placeholder="Paste target FIX string to diff..."
+    ></textarea>
     <div class="mt-4 border border-gray-800 rounded overflow-hidden">
         <table class="w-full text-[12px] text-left font-mono">
             <tr class="bg-gray-900 text-gray-500"><th class="px-2 py-1">Tag</th><th class="px-2 py-1">Selected</th><th class="px-2 py-1">Target</th></tr>
@@ -74,6 +83,46 @@
         </table>
     </div>
 </div>
+{{end}}
+
+{{define "RenderNodes"}}
+  {{range .}}
+    {{if .IsGroup}}
+      <tbody x-data="{ expanded: true }" class="border-t border-gray-800">
+          <tr class="hover:bg-gray-800 cursor-pointer transition" @click="expanded = !expanded">
+              <td class="px-2 py-1.5 text-gray-500">{{.Tag}}</td>
+              <td class="px-2 py-1.5 text-gray-300 flex items-center space-x-1">
+                  <span class="text-[8px] transition-transform" :class="expanded ? 'rotate-0' : '-rotate-90'">▼</span> 
+                  <span>{{.Name}}</span>
+              </td>
+              <td class="px-2 py-1.5 text-purple-400 font-bold">{{.Value}} <span class="text-gray-600 font-sans text-[9px]">entries</span></td>
+          </tr>
+          
+          <template x-if="expanded">
+            {{range $index, $entryNodes := .Children}}
+                <tr class="bg-[#0a0d12]">
+                    <td class="px-2 py-1"></td>
+                    <td colspan="2" class="pl-4 py-1 border-l-2 border-gray-800">
+                        <div class="text-[10px] text-gray-600 mb-1 font-sans uppercase tracking-wider">Entry {{$index}}</div>
+                        <table class="w-full">
+                            {{template "RenderNodes" $entryNodes}}
+                        </table>
+                    </td>
+                </tr>
+            {{end}}
+          </template>
+      </tbody>
+    {{else}}
+      <tr class="border-b border-gray-800/30 hover:bg-gray-800 transition">
+          <td class="px-2 py-1.5 text-gray-500 w-12">{{.Tag}}</td>
+          <td class="px-2 py-1.5 text-gray-300 w-40 truncate">{{.Name}}</td>
+          <td class="px-2 py-1.5 text-white">
+              {{.Value}} 
+              {{if .EnumDesc}}<span class="text-gray-600 font-sans text-[9px] font-normal ml-1">({{.EnumDesc}})</span>{{end}}
+          </td>
+      </tr>
+    {{end}}
+  {{end}}
 {{end}}
 
 {{define "MessageInspector"}}
@@ -98,15 +147,32 @@
                 <div class="text-xs text-gray-500 font-mono mt-1">{{.Timestamp.Format "2006-01-02 15:04:05.000"}} &bull; {{if .RawFix}}{{len .RawFix}}{{else}}0{{end}} Bytes</div>
             </div>
             <div class="flex space-x-3 items-center">
-                <div x-show="selectedMsg !== 'msg2'" class="text-green-400 flex items-center space-x-1 font-bold text-xs uppercase">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                    <span>Valid</span>
-                </div>
-                <div x-show="selectedMsg === 'msg2'" class="text-red-500 flex items-center space-x-1 cursor-pointer font-bold text-xs uppercase hover:text-red-400" @click="inspectorTab = 'validation'">
-                    <span>⚠ Error</span>
-                </div>
+                {{if .IsValid}}
+                  <div 
+                    class="text-green-400 flex items-center space-x-1 font-bold text-xs uppercase"
+                  >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                      </svg>
+                      <span>Valid</span>
+                  </div>
+                {{else}}
+                  <div
+                      class="text-red-500 flex items-center space-x-1 cursor-pointer font-bold text-xs uppercase hover:text-red-400 transition"
+                      @click="inspectorTab = 'validation'"
+                  >
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                          d="M12 9v4m0 4h.01M10.29 3.86l-7.82 13.54A1 1 0 003.34 19h17.32a1 1 0 00.87-1.6L13.71 3.86a1 1 0 00-1.74 0z">
+                        </path>
+                    </svg>
+                    <span>Error</span>
+                  </div>
+                {{end}}
                 <button @click="inspectorOpen = false" class="text-gray-500 hover:text-white transition">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
                 </button>
             </div>
         </div>
@@ -123,7 +189,7 @@
                 copied = 'raw';
                 setTimeout(() => copied = '', 1500);
               "
-              class="text-xs bg-gray-900 border border-gray-700 hover:bg-gray-800 text-gray-300 px-3 py-1.5 rounded transition"
+              class="text-xs bg-gray-900 border border-gray-700 hover:bg-gray-800 text-gray-300 px-3 py-1.5 rounded transition cursor-pointer"
             >Copy Raw</button>
 
             <button 
@@ -132,7 +198,7 @@
                 copied = 'json';
                 setTimeout(() => copied = '', 1500);
               "
-              class="text-xs bg-gray-900 border border-gray-700 hover:bg-gray-800 text-gray-300 px-3 py-1.5 rounded transition"
+              class="text-xs bg-gray-900 border border-gray-700 hover:bg-gray-800 text-gray-300 px-3 py-1.5 rounded transition cursor-pointer"
             >Copy JSON</button>
 
             <span
@@ -147,9 +213,15 @@
 
     <div class="flex border-b border-gray-800 bg-[#0a0d12] px-2 shrink-0">
         <button @click="inspectorTab = 'decoded'" :class="inspectorTab === 'decoded' ? 'text-white border-b-2 border-blue-500' : 'text-gray-500 hover:text-gray-300'" class="px-4 py-3 text-xs uppercase font-bold tracking-wider transition">Decoded</button>
-        <button @click="inspectorTab = 'validation'" :class="inspectorTab === 'validation' ? 'text-white border-b-2 border-blue-500' : 'text-gray-500 hover:text-gray-300'" class="px-4 py-3 text-xs uppercase font-bold tracking-wider transition flex items-center space-x-1">
+        <button 
+          @click="inspectorTab = 'validation'" 
+          :class="inspectorTab === 'validation' ? 'text-white border-b-2 border-blue-500' : 'text-gray-500 hover:text-gray-300'" 
+          class="px-4 py-3 text-xs uppercase font-bold tracking-wider transition flex items-center space-x-1"
+        >
             <span>Validation</span>
-            <span x-show="selectedMsg === 'msg2'" class="bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px]">1</span>
+            {{if not .IsValid}}
+              <span class="bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px]">{{if .Observations}}{{len .Observations}}{{end}}</span>
+            {{end}}
         </button>
         <button @click="inspectorTab = 'diff'" :class="inspectorTab === 'diff' ? 'text-white border-b-2 border-blue-500' : 'text-gray-500 hover:text-gray-300'" class="px-4 py-3 text-xs uppercase font-bold tracking-wider transition">Diff</button>
     </div>
