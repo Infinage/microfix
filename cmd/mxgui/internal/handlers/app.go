@@ -73,7 +73,7 @@ func (app *Application) routes() *http.ServeMux {
 	mux.HandleFunc("POST /api/connect", app.handleAPIConnect)
 	mux.HandleFunc("GET /api/reset", app.handleAPIReset)
 	mux.HandleFunc("GET /api/disconnect", app.handleAPIDisconnect)
-	mux.HandleFunc("GET /api/logs", app.handleAPILogs)
+	mux.HandleFunc("GET /api/logs/stream", app.handleAPILogs)
 	mux.HandleFunc("GET /api/sample", app.handleAPISample)
 	mux.HandleFunc("POST /api/send", app.handleAPISend)
 	mux.HandleFunc("GET /api/finalize", app.handleAPIFinalize)
@@ -94,8 +94,9 @@ func (app *Application) routes() *http.ServeMux {
 	mux.HandleFunc("GET /api/config/check/specpath", app.handleAPIConfigSpecPathCheck)
 
 	mux.HandleFunc("GET /api/inspect", app.handleAPIInspect)
-
 	mux.HandleFunc("POST /api/diff", app.handleAPIMessageDiff)
+	mux.HandleFunc("POST /api/script/upload", app.handleAPIScriptUpload)
+	mux.HandleFunc("GET /api/script/stream", app.handleAPIScriptStream)
 	return mux
 }
 

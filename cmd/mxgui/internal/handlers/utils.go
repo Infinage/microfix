@@ -14,6 +14,18 @@ type FieldInfo struct {
 	SampleValues string
 }
 
+type sseWriter struct {
+	stream chan string
+}
+
+func (w *sseWriter) Write(p []byte) (int, error) {
+	if text := strings.TrimSpace(string(p)); text != "" {
+		html := fmt.Sprintf(`<div class="text-blue-400">&gt; %s</div>`, text)
+		w.stream <- html
+	}
+	return len(p), nil
+}
+
 func toTitle(input string) string {
 	if len(input) == 0 {
 		return input
