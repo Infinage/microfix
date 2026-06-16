@@ -1,4 +1,4 @@
-{{define "MessageInspectDecode"}}
+{{define "partials/stream/inspector/decode"}}
 <div x-show="inspectorTab === 'decoded'">
     <table class="w-full text-sm text-left border-collapse font-mono">
         <tbody>
@@ -6,21 +6,21 @@
               <td colspan="3" class="px-3 py-2 text-xs text-gray-500 font-sans font-bold uppercase tracking-widest">Header</td>
             </tr>
             <tbody class="border-b border-gray-800">
-                {{template "RenderNodes" .Header}}
+                {{template "partials/stream/inspector/render_nodes" .Header}}
             </tbody>
             
             <tr class="bg-gray-900/50 border-y border-gray-800">
               <td colspan="3" class="px-3 py-2 text-xs text-gray-500 font-sans font-bold uppercase tracking-widest">Body</td>
             </tr>
             <tbody>
-                {{template "RenderNodes" .Body}}
+                {{template "partials/stream/inspector/render_nodes" .Body}}
             </tbody>
 
             <tr class="bg-gray-900/50 border-y border-gray-800">
               <td colspan="3" class="px-3 py-2 text-xs text-gray-500 font-sans font-bold uppercase tracking-widest">Trailer</td>
             </tr>
             <tbody>
-                {{template "RenderNodes" .Trailer}}
+                {{template "partials/stream/inspector/render_nodes" .Trailer}}
             </tbody>
 
             {{if .LeftOvers}}
@@ -28,7 +28,7 @@
                 <td colspan="3" class="px-3 py-2 text-xs text-gray-500 font-sans font-bold uppercase tracking-widest">Leftovers</td>
               </tr>
               <tbody>
-                  {{template "RenderNodes" .LeftOvers}}
+                  {{template "partials/stream/inspector/render_nodes" .LeftOvers}}
               </tbody>
             {{end}}
         </tbody>
@@ -36,7 +36,7 @@
 </div>
 {{end}}
 
-{{define "MessageInspectValidate"}}
+{{define "partials/stream/inspector/validate"}}
 <div x-show="inspectorTab === 'validation'" style="display:none;" class="space-y-4">
   {{if .IsValid}}
     <div class="text-green-400 text-sm font-mono bg-green-900/10 p-4 rounded border border-green-900/30">
@@ -67,7 +67,7 @@
 </div>
 {{end}}
 
-{{define "MessageInspectDiff"}}
+{{define "partials/stream/inspector/diff"}}
 <div x-show="inspectorTab === 'diff'" style="display:none;" class="flex flex-col h-full overflow-hidden">
     <p class="text-[12px] text-gray-400 mb-2">Paste another raw message below to diff against the selected stream message.</p>
     
@@ -82,12 +82,12 @@
     </form>
 
     <div id="diff-output" class="mt-4 flex-1 min-h-0">
-        {{template "DiffEmptyState"}}
+        {{template "partials/stream/inspector/diff_empty"}}
     </div>
 </div>
 {{end}}
 
-{{define "DiffEmptyState"}}
+{{define "partials/stream/inspector/diff_empty"}}
 <div class="h-full border border-gray-800/50 border-dashed rounded flex flex-col items-center justify-center text-gray-500 space-y-3 bg-[#0a0d12]/50">
     <svg class="w-8 h-8 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" 
@@ -98,7 +98,7 @@
 </div>
 {{end}}
 
-{{define "DiffMalformed"}}
+{{define "partials/stream/inspector/diff_malformed"}}
 <div class="h-full border border-red-900/40 bg-[#0a0d12] rounded p-4 flex items-start space-x-3 text-red-400 shadow-sm">
     <svg class="w-5 h-5 shrink-0 mt-0.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
@@ -112,7 +112,7 @@
 </div>
 {{end}}
 
-{{define "DiffOutput"}}
+{{define "partials/stream/inspector/diff_output"}}
 <div class="border border-gray-800 rounded h-full overflow-y-auto shadow-inner bg-[#0a0d12]">
     <table class="w-full text-[12px] text-left font-mono whitespace-nowrap">
         <thead class="bg-gray-900 text-gray-500 sticky top-0 z-10 shadow-sm border-b border-gray-800">
@@ -156,7 +156,7 @@
 </div>
 {{end}}
 
-{{define "RenderNodes"}}
+{{define "partials/stream/inspector/render_nodes"}}
   {{range .}}
     {{if .IsGroup}}
       <tbody x-data="{ expanded: true }" class="border-t border-gray-800">
@@ -176,7 +176,7 @@
                     <td colspan="2" class="pl-4 py-1 border-l-2 border-gray-800">
                         <div class="text-[10px] text-gray-600 mb-1 font-sans uppercase tracking-wider">Entry {{$index}}</div>
                         <table class="w-full">
-                            {{template "RenderNodes" $entryNodes}}
+                            {{template "partials/stream/inspector/render_nodes" $entryNodes}}
                         </table>
                     </td>
                 </tr>
@@ -196,7 +196,7 @@
   {{end}}
 {{end}}
 
-{{define "MessageInspector"}}
+{{define "partials/stream/inspector"}}
 <aside 
   id="msg-inspector"
   x-show="inspectorOpen" 
@@ -298,9 +298,9 @@
     </div>
 
     <div class="flex-1 overflow-y-auto p-4">
-      {{template "MessageInspectDecode" .}}
-      {{template "MessageInspectValidate" .}}
-      {{template "MessageInspectDiff" .}}
+      {{template "partials/stream/inspector/decode" .}}
+      {{template "partials/stream/inspector/validate" .}}
+      {{template "partials/stream/inspector/diff" .}}
     </div>
 </aside>
 {{end}}

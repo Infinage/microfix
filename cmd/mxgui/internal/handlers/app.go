@@ -43,7 +43,10 @@ func NewApplication(assets embed.FS) (*Application, error) {
 		"replaceSOH":             replaceSOH,
 	}
 
-	templ, err := template.New("").Funcs(templHelpers).ParseFS(assets, "assets/html/*html")
+	var err error
+	templ := template.New("").Funcs(templHelpers)
+
+	templ, err = templ.ParseFS(assets, "assets/html/pages/*html", "assets/html/partials/*/*html")
 	if err != nil {
 		return nil, err
 	}

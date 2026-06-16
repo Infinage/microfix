@@ -29,7 +29,7 @@ func renderTemplate(templ *template.Template, w io.Writer, templateName string, 
 
 func toast(w http.ResponseWriter, templ *template.Template, typeStr, msg string) {
 	w.Header().Set("HX-Reswap", "none")
-	renderTemplate(templ, w, "Toast", map[string]string{"type": typeStr, "message": msg})
+	renderTemplate(templ, w, "partials/global/toast", map[string]string{"type": typeStr, "message": msg})
 }
 
 func (app *Application) handleHome(w http.ResponseWriter, r *http.Request) {
@@ -88,7 +88,7 @@ func (app *Application) handleAPIReset(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *Application) handleAPIHeader(w http.ResponseWriter, r *http.Request) {
-	renderTemplate(app.templ, w, "Header", map[string]any{
+	renderTemplate(app.templ, w, "partials/global/header", map[string]any{
 		"Snapshot": app.Session.Status(),
 		"Config":   app.Store.Config(),
 	})
@@ -124,7 +124,7 @@ func (app *Application) handleAPILogs(w http.ResponseWriter, r *http.Request) {
 
 			// Parse and print the logs
 			var buf bytes.Buffer
-			renderTemplate(app.templ, &buf, "LogEntry", log)
+			renderTemplate(app.templ, &buf, "partials/stream/logs/entry", log)
 			logMarkup := strings.ReplaceAll(buf.String(), "\n", " ")
 			fmt.Fprintf(w, "data: %s\n\n", logMarkup)
 			flusher.Flush()
@@ -196,7 +196,7 @@ func (app *Application) handleAPIFinalize(w http.ResponseWriter, r *http.Request
 func (app *Application) handleAPIValidate(w http.ResponseWriter, r *http.Request) {
 	msgRaw := r.URL.Query().Get("validate-input")
 	if len(msgRaw) < 4 {
-		renderTemplate(app.templ, w, "ValidationReport", []string{"Structural Error: Input must be at least 4 chars long"})
+		renderTemplate(app.templ, w, "partials/toolbox/validate/report", []string{"Structural Error: Input must be at least 4 chars long"})
 		return
 	}
 
@@ -205,13 +205,13 @@ func (app *Application) handleAPIValidate(w http.ResponseWriter, r *http.Request
 	msg, err := message.MessageFromString(msgRaw, delim)
 	if err != nil {
 		errMsg := fmt.Sprintf("Structural Error: Invalid fix string input - %s", err.Error())
-		renderTemplate(app.templ, w, "ValidationReport", []string{errMsg})
+		renderTemplate(app.templ, w, "partials/toolbox/validate/report", []string{errMsg})
 		return
 	}
 
 	// Spec Dictionary Validation
 	result, _ := app.Session.Router().Validate(&msg, spec.ValidationStrict)
-	renderTemplate(app.templ, w, "ValidationReport", result)
+	renderTemplate(app.templ, w, "partials/toolbox/validate/report", result)
 }
 
 func (app *Application) handleAPIDictionaryMessage(w http.ResponseWriter, r *http.Request) {
@@ -248,7 +248,7 @@ func (app *Application) handleAPIDictionaryMessage(w http.ResponseWriter, r *htt
 		"Entries":   flattenedMsgSpec,
 	}
 
-	renderTemplate(app.templ, w, "DictionaryMessageDetail", msgDetail)
+	renderTemplate(app.templ, w, "partials/dictionary/message", msgDetail)
 }
 
 func (app *Application) handleAPIDictionaryField(w http.ResponseWriter, r *http.Request) {
@@ -282,7 +282,7 @@ func (app *Application) handleAPIDictionaryField(w http.ResponseWriter, r *http.
 	}
 
 	dictFieldDetail := map[string]any{"FieldDef": fieldDef, "UsedIn": usedIn}
-	renderTemplate(app.templ, w, "DictionaryFieldDetail", dictFieldDetail)
+	renderTemplate(app.templ, w, "partials/dictionary/field", dictFieldDetail)
 }
 
 func (app *Application) handleAPIAliasNameCheck(w http.ResponseWriter, r *http.Request) {
@@ -321,9 +321,9 @@ func (app *Application) handleAPIAddAlias(w http.ResponseWriter, r *http.Request
 
 func (app *Application) handleAPIListAlias(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Query().Get("from") == "settings" {
-		renderTemplate(app.templ, w, "AliasesSettings", map[string]any{"Aliases": app.Store.Config().Alias})
+		renderTemplate(app.templ, w, "partials/settings/alias", map[string]any{"Aliases": app.Store.Config().Alias})
 	} else {
-		renderTemplate(app.templ, w, "AliasesStream", map[string]any{"Aliases": app.Store.Config().Alias})
+		renderTemplate(app.templ, w, "partials/stream/send_form/aliases", map[string]any{"Aliases": app.Store.Config().Alias})
 	}
 }
 
@@ -390,10 +390,10 @@ func (app *Application) handleAPILoadConfig(w http.ResponseWriter, r *http.Reque
 		}
 
 		// Notify reload successful
-		renderTemplate(app.templ, w, "Toast", map[string]string{"type": "success", "message": "Reload successful"})
+		renderTemplate(app.templ, w, "partials/global/toast", map[string]string{"type": "success", "message": "Reload successful"})
 	}
 
-	renderTemplate(app.templ, w, "ConfigForm", map[string]any{"Config": app.Store.Config()})
+	renderTemplate(app.templ, w, "partials/settings/config/form", map[string]any{"partials/settings/config": app.Store.Config()})
 }
 
 func (app *Application) handleAPIDumpConfig(w http.ResponseWriter, r *http.Request) {
@@ -442,7 +442,7 @@ func (app *Application) handleAPIConfigSpecPathCheck(w http.ResponseWriter, r *h
 		checkResults["Text"] = "File not found or invalid path"
 	}
 
-	renderTemplate(app.templ, w, "SpecPathCheck", checkResults)
+	renderTemplate(app.templ, w, "partials/settings/config/spec_path_check", checkResults)
 }
 
 func (app *Application) handleAPIInspect(w http.ResponseWriter, r *http.Request) {
@@ -460,7 +460,7 @@ func (app *Application) handleAPIInspect(w http.ResponseWriter, r *http.Request)
 
 	w.Header().Set("HX-Trigger", "open-inspector-tab")
 	inspectViewData := inspector.NewInspectView(raw, app.Session.Router(), vmode)
-	renderTemplate(app.templ, w, "MessageInspector", inspectViewData)
+	renderTemplate(app.templ, w, "partials/stream/inspector", inspectViewData)
 }
 
 func (app *Application) handleAPIMessageDiff(w http.ResponseWriter, r *http.Request) {
@@ -469,23 +469,23 @@ func (app *Application) handleAPIMessageDiff(w http.ResponseWriter, r *http.Requ
 	// Empty input
 	targetStr = strings.TrimSpace(targetStr)
 	if targetStr == "" {
-		renderTemplate(app.templ, w, "DiffEmptyState", nil)
+		renderTemplate(app.templ, w, "partials/stream/inspector/diff_empty", nil)
 		return
 	}
 
 	// Invalid input
 	if len(sourceStr) < 4 || len(targetStr) < 4 {
-		renderTemplate(app.templ, w, "DiffMalformed", map[string]string{"Error": "Input must be at least 4 chars long"})
+		renderTemplate(app.templ, w, "partials/stream/inspector/diff_malformed", map[string]string{"Error": "Input must be at least 4 chars long"})
 		return
 	}
 	source, err := message.MessageFromString(sourceStr, sourceStr[len(sourceStr)-1:])
 	if err != nil {
-		renderTemplate(app.templ, w, "DiffMalformed", map[string]string{"Error": fmt.Sprintf("Malformed source string: %s", err.Error())})
+		renderTemplate(app.templ, w, "partials/stream/inspector/diff_malformed", map[string]string{"Error": fmt.Sprintf("Malformed source string: %s", err.Error())})
 		return
 	}
 	target, err := message.MessageFromString(targetStr, targetStr[len(targetStr)-1:])
 	if err != nil {
-		renderTemplate(app.templ, w, "DiffMalformed", map[string]string{"Error": fmt.Sprintf("Malformed target string: %s", err.Error())})
+		renderTemplate(app.templ, w, "partials/stream/inspector/diff_malformed", map[string]string{"Error": fmt.Sprintf("Malformed target string: %s", err.Error())})
 		return
 	}
 
@@ -497,7 +497,7 @@ func (app *Application) handleAPIMessageDiff(w http.ResponseWriter, r *http.Requ
 			diffs[idx].Name = fdef.Name
 		}
 	}
-	renderTemplate(app.templ, w, "DiffOutput", diffs)
+	renderTemplate(app.templ, w, "partials/stream/inspector/diff_output", diffs)
 }
 
 func (app *Application) handleAPIScriptUpload(w http.ResponseWriter, r *http.Request) {

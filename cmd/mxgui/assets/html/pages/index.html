@@ -21,15 +21,15 @@
       sendRaw: false,
   }">
 
-  {{template "Modals" .}}
-  {{template "Header" .}}
+  {{template "partials/global/modals" .}}
+  {{template "partials/global/header" .}}
 
   <div class="flex flex-1 overflow-hidden">
-    {{template "Sidebar" .}}
-    {{template "Stream" .}}
-    {{template "Dictionary" .}}
-    {{template "Toolbox" .}}
-    {{template "Settings" .}}
+    {{template "partials/global/sidebar" .}}
+    {{template "pages/stream" .}}
+    {{template "pages/dictionary" .}}
+    {{template "pages/toolbox" .}}
+    {{template "pages/settings" .}}
   </div>
 
 <div id="toast-container" class="fixed bottom-5 right-5 z-[100] flex flex-col"></div>

@@ -1,0 +1,62 @@
+{{define "pages/dictionary"}}
+<main x-show="view === 'dictionary'" style="display: none;" class="flex-1 flex bg-[#0a0d12] overflow-hidden">
+  <div class="w-80 border-r border-gray-800 bg-gray-950 flex flex-col shrink-0" x-data="{ search: '' }">
+    <div class="p-4 border-b border-gray-800">
+      <input type="text" x-model="search" placeholder="Search Tag or Message..." class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-blue-500 font-mono">
+    </div>
+    
+    <div class="flex-1 overflow-y-auto p-2">
+      <div class="text-xs text-gray-500 font-bold mb-2 uppercase px-2 mt-2 tracking-wider">Messages</div>
+      <ul class="text-sm space-y-1 text-gray-400 mb-6">
+
+        {{range $msgId, $msgSpec := .Router.SessionSpec.Messages}}
+            {{$displayText := print "[Sess] " $msgSpec.Name " (" $msgId ")"}}
+            <li x-show="'{{$displayText}}'.toLowerCase().includes(search.toLowerCase())"
+              hx-get="/api/dictionary/message/{{$msgId}}" 
+              hx-target="#dict-details"
+              class="px-3 py-2 hover:bg-gray-900 hover:text-white rounded cursor-pointer transition"
+          >{{$displayText}}</li>
+        {{end}}
+        {{if not .Router.IsLegacyRouter}}
+            {{range $msgId, $msgSpec := .Router.ApplSpec.Messages}}
+              {{$displayText := print "[App] " $msgSpec.Name " (" $msgId ")"}}
+              <li x-show="'{{$displayText}}'.toLowerCase().includes(search.toLowerCase())"
+                  hx-get="/api/dictionary/message/{{$msgId}}" 
+                  hx-target="#dict-details"
+                  class="px-3 py-2 hover:bg-gray-900 hover:text-white rounded cursor-pointer transition"
+              >{{$displayText}}</li>
+            {{end}}
+        {{end}}
+      </ul>
+
+      <div class="text-xs text-gray-500 font-bold mb-2 uppercase px-2 tracking-wider border-t border-gray-800 pt-4">Fields</div>
+      <ul class="text-sm space-y-1 text-gray-400">
+        {{range .Router.SessionSpec.Fields}}
+          {{$displayText := print "[App] " .Name " (" .Number ")"}}
+          <li x-show="'{{$displayText}}'.toLowerCase().includes(search.toLowerCase())"
+              hx-get="/api/dictionary/field/{{.Number}}" 
+              hx-target="#dict-details"
+              class="px-3 py-2 hover:bg-gray-900 hover:text-white rounded cursor-pointer transition"
+          >{{$displayText}}</li>
+        {{end}}
+        {{if .Router.IsLegacyRouter}}
+          {{range .Router.ApplSpec.Fields}}
+            {{$displayText := print "[App] " .Name " (" .Number ")"}}
+            <li x-show="'{{$displayText}}'.toLowerCase().includes(search.toLowerCase())"
+                hx-get="/api/dictionary/field/{{.Number}}" 
+                hx-target="#dict-details"
+                class="px-3 py-2 hover:bg-gray-900 hover:text-white rounded cursor-pointer transition"
+            >{{$displayText}}</li>
+          {{end}}
+        {{end}}
+      </ul>
+    </div>
+  </div>
+
+  <div id="dict-details" class="flex-1 p-8 overflow-y-auto">
+    <div class="h-full flex items-center justify-center text-gray-600 font-mono text-sm">
+      Select a message or field from the left to view details.
+    </div>
+  </div>
+</main>
+{{end}}

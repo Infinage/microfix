@@ -1,0 +1,8 @@
+{{define "partials/global/modals"}}
+<div x-show="modal !== ''" style="display: none;" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+  {{template "partials/modals/sequence" .}}
+  {{template "partials/modals/connect" .}}
+  {{template "partials/modals/form_builder" .}}
+  {{template "partials/modals/alias" .}}
+</div>
+{{end}}

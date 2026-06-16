@@ -1,4 +1,4 @@
-{{define "ConnectButton"}}
+{{define "partials/global/header/connect_btn"}}
 <button 
   @click="modal = 'connect'" 
   title="Configure IP/Port"
@@ -14,7 +14,7 @@
 </button>
 {{end}}
 
-{{define "ResetConnectionButton"}}
+{{define "partials/global/header/reset_btn"}}
 <button 
   hx-get="/api/reset" 
   hx-swap="none"
@@ -25,7 +25,7 @@
 </button>
 {{end}}
 
-{{define "DisconnectButton"}}
+{{define "partials/global/header/disconnect_btn"}}
 <button 
     hx-get="/api/disconnect" hx-swap="none"
     class="bg-red-950/40 hover:bg-red-900/60 text-red-400 border border-red-900/50 px-4 py-1.5 rounded text-sm font-semibold transition cursor-pointer">
@@ -33,14 +33,14 @@
 </button>
 {{end}}
 
-{{define "SequenceResetButton"}}
+{{define "partials/global/header/seq_reset_btn"}}
 <div @click="modal = 'seq'" class="flex space-x-4 text-sm font-mono bg-gray-900 px-4 py-1.5 rounded border border-gray-800 cursor-pointer hover:border-gray-600 transition" title="Reset Sequences">
   <div><span class="text-gray-500">IN:</span> <span class="text-green-400 font-bold">{{.Snapshot.InSeqNum}}</span></div>
   <div><span class="text-gray-500">OUT:</span> <span class="text-blue-400 font-bold">{{.Snapshot.OutSeqNum}}</span></div>
 </div>
 {{end}}
 
-{{define "Header"}}
+{{define "partials/global/header"}}
 <header 
     id="main-header" 
     hx-get="/api/header" 
@@ -69,14 +69,14 @@
     
     <div class="flex space-x-4 items-center">
         {{if eq $state "New"}}
-            {{template "ConnectButton" .}}
+            {{template "partials/global/header/connect_btn" .}}
         {{else}}
             {{if ne $state "Closed"}} 
-              {{template "DisconnectButton" .}}
+              {{template "partials/global/header/disconnect_btn" .}}
             {{else}}
-              {{template "ResetConnectionButton" .}}
+              {{template "partials/global/header/reset_btn" .}}
             {{end}}
-            {{template "SequenceResetButton" .}}
+            {{template "partials/global/header/seq_reset_btn" .}}
         {{end}}
     </div>
 </header>

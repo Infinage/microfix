@@ -1,4 +1,4 @@
-{{define "tooltip"}}
+{{define "partials/settings/config/tooltip"}}
 <div class="group relative inline-block cursor-help text-gray-500 hover:text-gray-300 ml-2">
   <span class="flex h-4 w-4 items-center justify-center rounded-full border border-current text-[10px] font-bold select-none">?</span>
   
@@ -9,7 +9,7 @@
 </div>
 {{end}}
 
-{{define "SpecPathCheck"}}
+{{define "partials/settings/config/spec_path_check"}}
 <div class="group relative flex justify-center items-center cursor-default">
   <svg class="w-5 h-5 text-{{.Color}}-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{.PathData}}"></path>
@@ -21,7 +21,7 @@
 </div>
 {{end}}
 
-{{define "ConfigForm"}}
+{{define "partials/settings/config/form"}}
 <form id="config-form" hx-post="/api/config" hx-swap="none" class="space-y-8">
   <section>
     <h3 class="text-white font-bold text-lg mb-3 flex items-center space-x-2">
@@ -36,7 +36,7 @@
         <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition [&:first-child>td:first-child]:rounded-tl-lg [&:first-child>td:last-child]:rounded-tr-lg">
           <td class="p-4 text-gray-400 font-bold w-1/3">
             IpAddr 
-            {{template "tooltip" "The IPv4 address or hostname. Acts as the bind interface in Server mode, or the target destination in Client mode."}}
+            {{template "partials/settings/config/tooltip" "The IPv4 address or hostname. Acts as the bind interface in Server mode, or the target destination in Client mode."}}
           </td>
           <td class="p-4">
             <input type="text" name="IpAddr" value="{{.Config.IpAddr}}" 
@@ -48,7 +48,7 @@
         <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
           <td class="p-4 text-gray-400 font-bold">
             Port
-            {{template "tooltip" "The TCP port number used to establish the FIX session socket."}}
+            {{template "partials/settings/config/tooltip" "The TCP port number used to establish the FIX session socket."}}
           </td>
           <td class="p-4">
             <input type="number" name="Port" value="{{.Config.Port}}" 
@@ -60,7 +60,7 @@
         <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
           <td class="p-4 text-gray-400 font-bold">
             SenderCompID
-            {{template "tooltip" "Your local institution's assigned identification string (Tag 49)."}}
+            {{template "partials/settings/config/tooltip" "Your local institution's assigned identification string (Tag 49)."}}
           </td>
           <td class="p-4">
             <input type="text" name="SenderCompID" value="{{.Config.SenderCompID}}" 
@@ -72,7 +72,7 @@
         <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
           <td class="p-4 text-gray-400 font-bold">
             TargetCompID
-            {{template "tooltip" "The counterparty's assigned identification string (Tag 56)."}}
+            {{template "partials/settings/config/tooltip" "The counterparty's assigned identification string (Tag 56)."}}
           </td>
           <td class="p-4">
             <input type="text" name="TargetCompID" value="{{.Config.TargetCompID}}" 
@@ -84,7 +84,7 @@
         <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
           <td class="p-4 text-gray-400 font-bold">
             HeartbeatInt <span class="text-gray-600 text-[10px] font-sans font-normal ml-1">(Sec)</span>
-            {{template "tooltip" "Time in seconds between Heartbeat (0) messages to monitor link status (Tag 108)."}}
+            {{template "partials/settings/config/tooltip" "Time in seconds between Heartbeat (0) messages to monitor link status (Tag 108)."}}
           </td>
           <td class="p-4">
             <input type="number" name="HeartbeatInt" value="{{.Config.HeartbeatInt}}" 
@@ -96,7 +96,7 @@
         <tr class="hover:bg-gray-800/30 transition [&:last-child>td:first-child]:rounded-bl-lg [&:last-child>td:last-child]:rounded-br-lg">
           <td class="p-4 text-gray-400 font-bold">
             DefaultTimeoutSec
-            {{template "tooltip" "Maximum seconds to wait for a network response or expected sequence message before dropping the connection."}}
+            {{template "partials/settings/config/tooltip" "Maximum seconds to wait for a network response or expected sequence message before dropping the connection."}}
           </td>
           <td class="p-4">
             <input type="number" name="DefaultTimeoutSec" value="{{.Config.DefaultTimeoutSec}}" 
@@ -122,7 +122,7 @@
         <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition [&:first-child>td:first-child]:rounded-tl-lg [&:first-child>td:last-child]:rounded-tr-lg">
           <td class="p-4 text-gray-400 font-bold w-1/3">
             SessionSpec <span class="text-gray-600 text-[10px] font-sans font-normal ml-1">(XML Path)</span>
-            {{template "tooltip" "Path to the XML DataDictionary defining the FIX version header, trailer, and admin messages (e.g., FIXT11)."}}
+            {{template "partials/settings/config/tooltip" "Path to the XML DataDictionary defining the FIX version header, trailer, and admin messages (e.g., FIXT11)."}}
           </td>
           <td class="p-4">
             <div class="flex items-center space-x-3">
@@ -146,7 +146,7 @@
         <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
           <td class="p-4 text-gray-400 font-bold">
             ApplicationSpec <span class="text-gray-600 text-[10px] font-sans font-normal ml-1">(XML Path)</span>
-            {{template "tooltip" "Path to the XML DataDictionary for business messages. Only required for FIX 5.0 and above (FIXT)."}}
+            {{template "partials/settings/config/tooltip" "Path to the XML DataDictionary for business messages. Only required for FIX 5.0 and above (FIXT)."}}
           </td>
           <td class="p-4">
             <div class="flex items-center space-x-3">
@@ -170,7 +170,7 @@
         <tr class="hover:bg-gray-800/30 transition [&:last-child>td:first-child]:rounded-bl-lg [&:last-child>td:last-child]:rounded-br-lg">
           <td class="p-4 text-gray-400 font-bold">
             SpecDisplayOptFields
-            {{template "tooltip" "Toggles whether optional FIX fields are visible in the UI when constructing or inspecting messages."}}
+            {{template "partials/settings/config/tooltip" "Toggles whether optional FIX fields are visible in the UI when constructing or inspecting messages."}}
           </td>
           <td class="p-4">
               <label class="relative inline-flex items-center cursor-pointer">
@@ -196,7 +196,7 @@
         <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition [&:first-child>td:first-child]:rounded-tl-lg [&:first-child>td:last-child]:rounded-tr-lg">
           <td class="p-4 text-gray-400 font-bold w-1/3">
             FixValidateStrict
-            {{template "tooltip" "Enforces strict XML dictionary validation. Rejects incoming messages and blocks outgoing messages that fail structure checks."}}
+            {{template "partials/settings/config/tooltip" "Enforces strict XML dictionary validation. Rejects incoming messages and blocks outgoing messages that fail structure checks."}}
           </td>
           <td class="p-4">
             <label class="relative inline-flex items-center cursor-pointer">
@@ -211,7 +211,7 @@
         <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
           <td class="p-4 text-gray-400 font-bold">
             FixSampleOptional
-            {{template "tooltip" "Includes optional dictionary fields when auto-generating sample payload templates in the Form Builder."}}
+            {{template "partials/settings/config/tooltip" "Includes optional dictionary fields when auto-generating sample payload templates in the Form Builder."}}
           </td>
           <td class="p-4">
             <label class="relative inline-flex items-center cursor-pointer">
@@ -225,7 +225,7 @@
         <tr class="hover:bg-gray-800/30 transition [&:last-child>td:first-child]:rounded-bl-lg [&:last-child>td:last-child]:rounded-br-lg">
           <td class="p-4 text-gray-400 font-bold">
             SkipLatencyCheck
-            {{template "tooltip" "Disables the SendingTime (Tag 52) latency check. Useful for testing against delayed networks or historical logs."}}
+            {{template "partials/settings/config/tooltip" "Disables the SendingTime (Tag 52) latency check. Useful for testing against delayed networks or historical logs."}}
           </td>
           <td class="p-4">
             <label class="relative inline-flex items-center cursor-pointer">
@@ -252,7 +252,7 @@
 </form>
 {{end}}
 
-{{define "Config"}}
+{{define "partials/settings/config"}}
 <div x-show="settingsTab === 'config'" style="display:none;" class="pb-10">
     <div class="flex justify-between items-center mb-8">
         <div>
@@ -282,93 +282,6 @@
         </div>
     </div>
     
-    {{template "ConfigForm" .}}
+    {{template "partials/settings/config/form" .}}
 </div>
-{{end}}
-
-{{define "AliasesSettings"}}
-<div x-show="settingsTab === 'aliases'" hx-trigger="refresh-alias from:body" hx-get="/api/alias/list" hx-vals='{"from": "settings"}'>
-    <div class="flex justify-between items-center mb-6">
-        <div>
-            <h2 class="text-2xl font-bold text-white mb-2">Message Aliases</h2>
-            <p class="text-gray-400 text-sm">Map custom names to raw FIX template strings for rapid testing in the Stream view.</p>
-        </div>
-        <button @click="modal = 'alias'" class="cursor-pointer bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm transition 
-            font-bold shadow-lg flex items-center space-x-2"
-        >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-            <span>Add Alias</span>
-        </button>
-    </div>
-    
-    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
-        <table class="w-full text-left text-sm font-mono">
-            <tr class="text-gray-500 border-b border-gray-800 bg-gray-950 uppercase text-xs tracking-wider">
-                <th class="p-4">Alias Name</th>
-                <th class="p-4">Template String</th>
-                <th class="p-4 text-right">Actions</th>
-            </tr>
-            {{range $aliasName, $aliasValue := .Aliases}}
-              <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
-                  <td class="p-4 text-blue-400 font-bold">{{$aliasName}}</td>
-                  <td class="p-4 text-gray-300 truncate max-w-md">{{replaceSOH $aliasValue}}</td>
-                  <td 
-                    class="p-4 text-right text-gray-500 hover:text-red-400 cursor-pointer transition"
-                    hx-confirm="Are you sure you want to delete?" 
-                    hx-delete="/api/alias/delete/{{$aliasName}}"
-                  >Delete</td>
-              </tr>
-            {{end}}
-        </table>
-    </div>
-</div>
-{{end}}
-
-{{define "About"}}
-    <div x-show="settingsTab === 'about'" style="display:none;">
-        <div class="flex items-center space-x-4 mb-6">
-            <div class="w-16 h-16 bg-blue-900/30 border border-blue-500/50 rounded-xl flex items-center justify-center">
-                <span class="text-2xl font-bold text-blue-400">MX</span>
-            </div>
-            <div>
-                <h4 class="text-2xl font-bold text-white tracking-wider">MICRO<span class="text-blue-500">FIX</span></h4>
-                <p class="text-sm font-fix text-gray-400">Version 1.0.0-alpha</p>
-            </div>
-        </div>
-        
-        <div class="space-y-6 text-sm text-gray-300 leading-relaxed">
-            <p>Microfix is a high-performance, lightweight FIX protocol workstation. It provides real-time protocol streaming, multiplexing, and robust dictionary validation without the overhead of heavy Java engines.</p>
-            
-            <div class="bg-gray-900 border border-gray-800 p-4 rounded-lg space-y-2">
-                <h5 class="text-white font-bold mb-2">Quick Shortcuts</h5>
-                <div class="flex justify-between border-b border-gray-800 pb-2"><span class="text-gray-400">Send Message</span><span class="font-fix text-blue-400 bg-blue-950 px-2 py-0.5 rounded">⌘ + Enter</span></div>
-                <div class="flex justify-between border-b border-gray-800 pb-2 pt-2"><span class="text-gray-400">Close Inspector</span><span class="font-fix text-blue-400 bg-blue-950 px-2 py-0.5 rounded">ESC</span></div>
-                <div class="flex justify-between pt-2"><span class="text-gray-400">Global Command Palette</span><span class="font-fix text-blue-400 bg-blue-950 px-2 py-0.5 rounded">⌘ + K</span></div>
-            </div>
-
-            <div class="pt-4 flex space-x-4">
-                <button class="text-blue-400 hover:underline">Documentation &rarr;</button>
-                <a class="text-blue-400 hover:underline" href='https://github.com/infinage/microfix'>GitHub Repository &rarr;</a>
-            </div>
-        </div>
-    </div>
-{{end}}
-
-{{define "Settings"}}
-    <main x-show="view === 'settings'" style="display: none;" class="flex-1 flex bg-[#0a0d12] overflow-hidden">
-        <div class="w-64 border-r border-gray-800 bg-gray-950 p-4 flex flex-col shrink-0">
-            <h2 class="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4">Workspace</h2>
-            <div class="space-y-2">
-                <button @click="settingsTab = 'about'" :class="settingsTab === 'about' ? 'bg-gray-800 text-white' : 'text-gray-400 hover:bg-gray-900'" class="w-full text-left px-4 py-2 text-sm rounded font-bold transition">About &amp; Help</button>
-                <button @click="settingsTab = 'config'" :class="settingsTab === 'config' ? 'bg-gray-800 text-white' : 'text-gray-400 hover:bg-gray-900'" class="w-full text-left px-4 py-2 text-sm rounded font-bold transition">Session Config</button>
-                <button @click="settingsTab = 'aliases'" :class="settingsTab === 'aliases' ? 'bg-gray-800 text-white' : 'text-gray-400 hover:bg-gray-900'" class="w-full text-left px-4 py-2 text-sm rounded font-bold transition">Aliases</button>
-            </div>
-        </div>
-        
-        <div class="flex-1 p-10 overflow-y-auto">
-          {{template "Config" .}}
-          {{template "AliasesSettings" .}}
-          {{template "About" .}}
-        </div>
-    </main>
 {{end}}
