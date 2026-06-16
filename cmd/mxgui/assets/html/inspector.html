@@ -68,20 +68,91 @@
 {{end}}
 
 {{define "MessageInspectDiff"}}
-<div x-show="inspectorTab === 'diff'" style="display:none;" class="flex flex-col h-full">
+<div x-show="inspectorTab === 'diff'" style="display:none;" class="flex flex-col h-full overflow-hidden">
     <p class="text-[12px] text-gray-400 mb-2">Paste another raw message below to diff against the selected stream message.</p>
-    <textarea 
-      spellcheck="false" 
-      class="w-full bg-[#0a0d12] border border-gray-800 rounded p-3 font-mono text-sm text-gray-300 resize-none h-24 focus:border-blue-500" 
-      placeholder="Paste target FIX string to diff..."
-    ></textarea>
-    <div class="mt-4 border border-gray-800 rounded overflow-hidden">
-        <table class="w-full text-[12px] text-left font-mono">
-            <tr class="bg-gray-900 text-gray-500"><th class="px-2 py-1">Tag</th><th class="px-2 py-1">Selected</th><th class="px-2 py-1">Target</th></tr>
-            <tr class="bg-red-900/20 border-b border-gray-800"><td class="px-2 py-1.5 text-gray-400">34</td><td class="px-2 py-1.5 text-red-300 line-through">142</td><td class="px-2 py-1.5 text-green-400 font-bold">143</td></tr>
-            <tr class="bg-green-900/20 border-b border-gray-800"><td class="px-2 py-1.5 text-gray-400">11</td><td class="px-2 py-1.5 text-gray-500 italic">none</td><td class="px-2 py-1.5 text-green-400 font-bold">ORD123</td></tr>
-        </table>
+    
+    <form hx-post="/api/diff" hx-trigger="input from:textarea delay:400ms" hx-target="#diff-output" class="shrink-0">
+        <input type="hidden" name="source" value="{{.RawFix}}">
+        <textarea 
+          name="target"
+          spellcheck="false" 
+          class="w-full bg-[#0a0d12] border border-gray-800 rounded p-3 font-mono text-sm text-gray-300 resize-none h-24 focus:border-blue-500 focus:outline-none transition-colors" 
+          placeholder="Paste target FIX string to diff..."
+        ></textarea>
+    </form>
+
+    <div id="diff-output" class="mt-4 flex-1 min-h-0">
+        {{template "DiffEmptyState"}}
     </div>
+</div>
+{{end}}
+
+{{define "DiffEmptyState"}}
+<div class="h-full border border-gray-800/50 border-dashed rounded flex flex-col items-center justify-center text-gray-500 space-y-3 bg-[#0a0d12]/50">
+    <svg class="w-8 h-8 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" 
+        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z">
+      </path>
+    </svg>
+    <span class="font-mono text-xs tracking-wider uppercase opacity-70">Awaiting Target Message</span>
+</div>
+{{end}}
+
+{{define "DiffMalformed"}}
+<div class="h-full border border-red-900/40 bg-[#0a0d12] rounded p-4 flex items-start space-x-3 text-red-400 shadow-sm">
+    <svg class="w-5 h-5 shrink-0 mt-0.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
+      </path>
+    </svg>
+    <div>
+        <div class="text-sm font-bold font-sans">Malformed Message</div>
+        <div class="text-[11px] font-mono text-red-500/70 mt-1 leading-relaxed break-all">{{.Error}}</div>
+    </div>
+</div>
+{{end}}
+
+{{define "DiffOutput"}}
+<div class="border border-gray-800 rounded h-full overflow-y-auto shadow-inner bg-[#0a0d12]">
+    <table class="w-full text-[12px] text-left font-mono whitespace-nowrap">
+        <thead class="bg-gray-900 text-gray-500 sticky top-0 z-10 shadow-sm border-b border-gray-800">
+            <tr>
+                <th class="px-3 py-2 font-semibold">Tag</th>
+                <th class="px-3 py-2 font-semibold">Name</th>
+                <th class="px-3 py-2 font-semibold">Selected</th>
+                <th class="px-3 py-2 font-semibold">Target</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-800/50">
+            {{range .}}
+                {{if eq .Status 0}} <tr class="hover:bg-gray-800/30 transition">
+                        <td class="px-3 py-1.5 text-gray-500">{{.Tag}}</td>
+                        <td class="px-3 py-1.5 text-gray-500 text-[10px] truncate max-w-[100px]" title="{{.Name}}">{{.Name}}</td>
+                        <td class="px-3 py-1.5 text-gray-400 truncate max-w-[150px]">{{.Source}}</td>
+                        <td class="px-3 py-1.5 text-gray-400 truncate max-w-[150px]">{{.Target}}</td>
+                    </tr>
+                {{else if eq .Status 1}} <tr class="bg-blue-900/10 hover:bg-blue-900/20 transition">
+                        <td class="px-3 py-1.5 text-blue-400 font-bold">{{.Tag}}</td>
+                        <td class="px-3 py-1.5 text-blue-400/50 text-[10px] truncate max-w-[100px]" title="{{.Name}}">{{.Name}}</td>
+                        <td class="px-3 py-1.5 text-red-400 line-through opacity-70 truncate max-w-[150px]">{{.Source}}</td>
+                        <td class="px-3 py-1.5 text-green-400 font-bold truncate max-w-[150px]">{{.Target}}</td>
+                    </tr>
+                {{else if eq .Status 2}} <tr class="bg-green-900/10 hover:bg-green-900/20 transition">
+                        <td class="px-3 py-1.5 text-green-500 font-bold">{{.Tag}}</td>
+                        <td class="px-3 py-1.5 text-green-500/50 text-[10px] truncate max-w-[100px]" title="{{.Name}}">{{.Name}}</td>
+                        <td class="px-3 py-1.5 text-gray-600 italic text-[10px]">none</td>
+                        <td class="px-3 py-1.5 text-green-400 font-bold truncate max-w-[150px]">{{.Target}}</td>
+                    </tr>
+                {{else if eq .Status 3}} <tr class="bg-red-900/10 hover:bg-red-900/20 transition">
+                        <td class="px-3 py-1.5 text-red-500 font-bold">{{.Tag}}</td>
+                        <td class="px-3 py-1.5 text-red-500/50 text-[10px] truncate max-w-[100px]" title="{{.Name}}">{{.Name}}</td>
+                        <td class="px-3 py-1.5 text-red-400 font-bold truncate max-w-[150px]">{{.Source}}</td>
+                        <td class="px-3 py-1.5 text-gray-600 italic text-[10px]">none</td>
+                    </tr>
+                {{end}}
+            {{end}}
+        </tbody>
+    </table>
 </div>
 {{end}}
 

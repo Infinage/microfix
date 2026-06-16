@@ -94,6 +94,8 @@ func (app *Application) routes() *http.ServeMux {
 	mux.HandleFunc("GET /api/config/check/specpath", app.handleAPIConfigSpecPathCheck)
 
 	mux.HandleFunc("GET /api/inspect", app.handleAPIInspect)
+
+	mux.HandleFunc("POST /api/diff", app.handleAPIMessageDiff)
 	return mux
 }
 
