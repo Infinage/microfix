@@ -66,6 +66,27 @@ func NewApplication(assets embed.FS) (*Application, error) {
 	}, nil
 }
 
+// Returns true if config exists and save successful
+func (app *Application) SaveConfig() bool {
+	st := app.Store
+	savePath := st.ConfigPath()
+	if _, err := os.Stat(savePath); err == nil {
+		if err = st.DumpConfig(savePath); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
+func (app *Application) Start() error {
+	defer app.SaveConfig()
+	mux := app.routes()
+	if err := http.ListenAndServe(":3000", mux); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (app *Application) routes() *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.Handle("GET /assets/", http.FileServerFS(app.assets))
@@ -101,25 +122,4 @@ func (app *Application) routes() *http.ServeMux {
 	mux.HandleFunc("POST /api/script/upload", app.handleAPIScriptUpload)
 	mux.HandleFunc("GET /api/script/stream", app.handleAPIScriptStream)
 	return mux
-}
-
-// Returns true if config exists and save successful
-func (app *Application) SaveConfig() bool {
-	st := app.Store
-	savePath := st.ConfigPath()
-	if _, err := os.Stat(savePath); err == nil {
-		if err = st.DumpConfig(savePath); err == nil {
-			return true
-		}
-	}
-	return false
-}
-
-func (app *Application) Start() error {
-	defer app.SaveConfig()
-	mux := app.routes()
-	if err := http.ListenAndServe(":3000", mux); err != nil {
-		return err
-	}
-	return nil
 }
