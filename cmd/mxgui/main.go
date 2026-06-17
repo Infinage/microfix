@@ -14,9 +14,10 @@ var assets embed.FS
 func main() {
 	app, err := gui.NewApplication(assets)
 	if err != nil {
-		fmt.Printf("Failed to start application: %v\n", err)
+		fmt.Printf("Failed to init application: %v\n", err)
 		os.Exit(1)
 	}
-	app.Start()
+
+	app.StartWeb()
 	fmt.Println("Closing application")
 }

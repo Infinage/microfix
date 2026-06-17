@@ -3,12 +3,15 @@ package gui
 import (
 	"context"
 	"embed"
+	"fmt"
 	"html/template"
+	"net"
 	"net/http"
 	"os"
 
 	"github.com/infinage/microfix/pkg/session"
 	"github.com/infinage/microfix/pkg/store"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 type Application struct {
@@ -16,6 +19,7 @@ type Application struct {
 	Store   *store.Store
 	Ctx     context.Context
 
+	port    int
 	assets embed.FS
 	templ  *template.Template
 }
@@ -78,12 +82,48 @@ func (app *Application) SaveConfig() bool {
 	return false
 }
 
-func (app *Application) Start() error {
+func (app *Application) StartWails() error {
 	defer app.SaveConfig()
+
+	// Config wails with middleware to intercept all requests
 	mux := app.routes()
-	if err := http.ListenAndServe(":3000", mux); err != nil {
+	wailsApp := application.New(application.Options{
+		Name: "Microfix",
+		Description: "High-performance FIX Protocol client",
+		Assets: application.AssetOptions{
+			Middleware: func(next http.Handler) http.Handler {
+				return mux
+			},
+		},
+	})
+
+	// Start a new window
+	wailsApp.Window.New()
+
+	// Blocks until UI closes
+	if err := wailsApp.Run(); err != nil {
+		return err
+    }
+
+	return nil
+}
+
+func (app *Application) StartWeb() error {
+	defer app.SaveConfig()
+
+	listener, err := net.Listen("tcp", ":0")
+	if err != nil {
 		return err
 	}
+
+	defer listener.Close()
+	app.port = listener.Addr().(*net.TCPAddr).Port
+	fmt.Println("Listening on port: ", app.port)
+
+	if err = http.Serve(listener, app.routes()); err != nil {
+		return err
+	}
+
 	return nil
 }
 
