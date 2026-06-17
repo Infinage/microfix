@@ -18,6 +18,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	app.StartWeb()
+	app.StartWeb(":3000") // ":0" for randomized port
+	//app.StartWails()
+
 	fmt.Println("Closing application")
 }

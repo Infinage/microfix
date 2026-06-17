@@ -19,7 +19,7 @@ type Application struct {
 	Store   *store.Store
 	Ctx     context.Context
 
-	port    int
+	port   int
 	assets embed.FS
 	templ  *template.Template
 }
@@ -83,12 +83,10 @@ func (app *Application) SaveConfig() bool {
 }
 
 func (app *Application) StartWails() error {
-	defer app.SaveConfig()
-
 	// Config wails with middleware to intercept all requests
 	mux := app.routes()
 	wailsApp := application.New(application.Options{
-		Name: "Microfix",
+		Name: "MicroFix",
 		Description: "High-performance FIX Protocol client",
 		Assets: application.AssetOptions{
 			Middleware: func(next http.Handler) http.Handler {
@@ -100,6 +98,11 @@ func (app *Application) StartWails() error {
 	// Start a new window
 	wailsApp.Window.New()
 
+	// Cleanup on WailsApp exit
+	wailsApp.OnShutdown(func() {
+		app.SaveConfig()
+	})
+
 	// Blocks until UI closes
 	if err := wailsApp.Run(); err != nil {
 		return err
@@ -108,17 +111,17 @@ func (app *Application) StartWails() error {
 	return nil
 }
 
-func (app *Application) StartWeb() error {
+func (app *Application) StartWeb(port string) error {
 	defer app.SaveConfig()
 
-	listener, err := net.Listen("tcp", ":0")
+	listener, err := net.Listen("tcp", port)
 	if err != nil {
 		return err
 	}
 
 	defer listener.Close()
 	app.port = listener.Addr().(*net.TCPAddr).Port
-	fmt.Println("Listening on port: ", app.port)
+	fmt.Println("Listening on port:", app.port)
 
 	if err = http.Serve(listener, app.routes()); err != nil {
 		return err

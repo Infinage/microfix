@@ -15,7 +15,10 @@
     hx-swap="outerHTML"
   {{end}}
 >
-  <span class="text-gray-500 shrink-0">{{.Timestamp.Format "2006-01-02 15:04:05.000"}}</span> 
+  <span class="text-gray-500 shrink-0 whitespace-nowrap">
+    <span class="hidden lg:inline">{{.Timestamp.Format "2006-01-02"}}</span>
+    <span>{{.Timestamp.Format "15:04:05.000"}}</span>
+  </span>
   <span class="{{$theme.Text}} font-bold shrink-0 w-12 text-sm">{{$LogType}}</span>
   <span class="text-gray-300 break-all leading-relaxed font-mono text-sm pr-24">{{.Content}}</span>
 
@@ -91,7 +94,9 @@
     @htmx:after-settle="applyFilters()" 
     class="flex-1 flex flex-col min-w-0 min-h-0"
 >
-    <div class="bg-gray-950 px-4 py-2 border-b border-gray-800 flex items-center justify-between shrink-0">
+    <div class="bg-gray-950 px-4 py-2 border-b border-gray-800 flex items-center 
+      justify-between gap-x-2 shrink-0"
+    >
         <input 
             type="text" 
             x-model="regexStr" 
@@ -105,9 +110,24 @@
             <button @click="toggleFilter('OUT')" :class="activeFilters.includes('OUT') ? 'ring-2 ring-blue-500' : ''" class="text-xs font-bold px-3 py-1.5 rounded border border-blue-900/50 bg-blue-900/20 text-blue-400 transition">OUT</button>
             <div class="w-px h-5 bg-gray-800 mx-2"></div>
             
-            <button @click="toggleFilter('Admin')" :class="activeFilters.includes('Admin') ? 'ring-2 ring-gray-400' : ''" class="text-xs font-bold px-3 py-1.5 rounded border border-gray-700 bg-gray-800 text-gray-300 transition">Admin</button>
-            <button @click="toggleFilter('App')" :class="activeFilters.includes('App') ? 'ring-2 ring-gray-400' : ''" class="text-xs font-bold px-3 py-1.5 rounded border border-gray-700 bg-gray-800 text-gray-300 transition">App</button>
-            <button @click="toggleFilter('Error')" :class="activeFilters.includes('Error') ? 'ring-2 ring-red-500' : ''" class="text-xs font-bold px-3 py-1.5 rounded border border-gray-700 bg-gray-800 text-red-400 transition">Errors</button>
+            <button 
+              @click="toggleFilter('Admin')" 
+              :class="activeFilters.includes('Admin') ? 'ring-2 ring-gray-400' : ''" 
+              class="text-xs font-bold px-3 py-1.5 rounded border border-gray-700 bg-gray-800 
+                text-gray-300 transition hidden sm:inline"
+            >Admin</button>
+            <button 
+              @click="toggleFilter('App')" 
+              :class="activeFilters.includes('App') ? 'ring-2 ring-gray-400' : ''" 
+              class="text-xs font-bold px-3 py-1.5 rounded border border-gray-700 bg-gray-800 
+                text-gray-300 transition hidden sm:inline"
+            >App</button>
+            <button 
+              @click="toggleFilter('Error')" 
+              :class="activeFilters.includes('Error') ? 'ring-2 ring-red-500' : ''" 
+              class="text-xs font-bold px-3 py-1.5 rounded border border-gray-700 bg-gray-800 
+                text-red-400 transition"
+            >Errors</button>
             <div class="w-px h-5 bg-gray-800 mx-2"></div>
             
             <button 

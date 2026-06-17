@@ -1,19 +1,162 @@
+{{define "partials/global/sidebar/toggle_btn"}}
+<div class="px-5 mb-6 flex items-center" :class="sidebarOpen ? 'justify-between' : 'justify-center'">
+    <span 
+      x-show="sidebarOpen" 
+      class="text-xs font-bold text-gray-500 uppercase tracking-widest whitespace-nowrap"
+    >Menu</span>
+    <button 
+      @click="sidebarOpen = !sidebarOpen" 
+      class="text-gray-500 hover:text-white transition focus:outline-none shrink-0" 
+      title="Toggle Sidebar"
+    >
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16">
+        </path>
+      </svg>
+    </button>
+</div>
+{{end}}
+
+{{define "partials/global/sidebar/stream_btn"}}
+<button 
+  @click="view = 'stream'" 
+  :class="view === 'stream' ? 'bg-gray-900/80 border-r-2 border-blue-500 text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-900/50 border-r-2 border-transparent'" 
+  class="w-full flex items-center px-5 py-3 transition group" title="Live Stream"
+>
+  <svg class="w-6 h-6 shrink-0 group-hover:text-blue-400 transition" :class="view === 'stream' ? 'text-blue-500' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z">
+    </path>
+  </svg>
+  <span x-show="sidebarOpen" class="ml-4 font-bold text-sm whitespace-nowrap">Live Stream</span>
+</button>
+{{end}}
+
+{{define "partials/global/sidebar/dictionary_btn"}}
+<button @click="view = 'dictionary'" 
+  :class="view === 'dictionary' ? 'bg-gray-900/80 border-r-2 border-blue-500 text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-900/50 border-r-2 border-transparent'" 
+  class="w-full flex items-center px-5 py-3 transition group" 
+  title="Dictionary & Specs"
+>
+  <svg class="w-6 h-6 shrink-0 group-hover:text-blue-400 transition" :class="view === 'dictionary' ? 'text-blue-500' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+      d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253">
+    </path>
+  </svg>
+  <span x-show="sidebarOpen" class="ml-4 font-bold text-sm whitespace-nowrap">Dictionary</span>
+</button>
+{{end}}
+
+{{define "partials/global/sidebar/automation_btn"}}
+<div class="w-full">
+    <!-- Set expandedMenu to 'toolbox'. If it already is 'toolbox', collapse it ('') -->
+    <button @click="sidebarOpen = true; expandedMenu = expandedMenu === 'toolbox' ? '' : 'toolbox'" 
+      :class="view === 'toolbox' ? 'text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-900/50'" 
+      class="w-full flex items-center justify-between px-5 py-3 transition group border-r-2 border-transparent" 
+      title="Automation Tools"
+    >
+      <div class="flex items-center">
+          <svg 
+            class="w-6 h-6 shrink-0 group-hover:text-blue-400 transition" 
+            :class="view === 'toolbox' ? 'text-blue-500' : ''" 
+            fill="none" stroke="currentColor" viewBox="0 0 24 24"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+              d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z">
+            </path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+            </path>
+          </svg>
+          <span x-show="sidebarOpen" class="ml-4 font-bold text-sm whitespace-nowrap">Automation Tools</span>
+      </div>
+      <svg x-show="sidebarOpen" :class="expandedMenu === 'toolbox' ? 'rotate-180' : ''" 
+        class="w-4 h-4 shrink-0 transition-transform text-gray-600" 
+        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
+        </path>
+      </svg>
+    </button>
+    
+    <!-- Toolbox Sub-items -->
+    <div x-show="expandedMenu === 'toolbox' && sidebarOpen" x-collapse class="pl-14 pr-4 space-y-1 py-1">
+        <button 
+          @click="view = 'toolbox'; toolboxTab = 'scripts'" 
+          :class="view === 'toolbox' && toolboxTab === 'scripts' ? 'text-blue-400 bg-blue-900/20' : 'text-gray-400 hover:text-white hover:bg-gray-800/50'" 
+          class="w-full text-left px-3 py-1.5 text-xs font-bold rounded transition whitespace-nowrap overflow-hidden text-ellipsis"
+        >Script Runner</button>
+        <button 
+          @click="view = 'toolbox'; toolboxTab = 'finalize'" 
+          :class="view === 'toolbox' && toolboxTab === 'finalize' ? 'text-blue-400 bg-blue-900/20' : 'text-gray-400 hover:text-white hover:bg-gray-800/50'" 
+          class="w-full text-left px-3 py-1.5 text-xs font-bold rounded transition whitespace-nowrap overflow-hidden text-ellipsis"
+        >FIX Finalize</button>
+        <button 
+          @click="view = 'toolbox'; toolboxTab = 'validate'" 
+          :class="view === 'toolbox' && toolboxTab === 'validate' ? 'text-blue-400 bg-blue-900/20' : 'text-gray-400 hover:text-white hover:bg-gray-800/50'" 
+          class="w-full text-left px-3 py-1.5 text-xs font-bold rounded transition whitespace-nowrap overflow-hidden text-ellipsis"
+        >Validate Message</button>
+    </div>
+</div>
+{{end}}
+
+{{define "partials/global/sidebar/settings_btn"}}
+<!-- Set expandedMenu to 'settings'. If it already is 'settings', collapse it ('') -->
+<button 
+  @click="sidebarOpen = true; expandedMenu = expandedMenu === 'settings' ? '' : 'settings'" 
+  :class="view === 'settings' ? 'text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-900/50'" 
+  class="w-full flex items-center justify-between px-5 py-3 transition group border-r-2 border-transparent" 
+  title="Workspace Settings"
+>
+  <div class="flex items-center">
+    <svg class="w-6 h-6 shrink-0 group-hover:text-blue-400 transition" :class="view === 'settings' ? 'text-blue-500' : ''" 
+      fill="none" stroke="currentColor" viewBox="0 0 24 24"
+    >
+      <path stroke-linecap="round" stroke-linejoin="round" 
+      stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+    >
+      </path>
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z">
+      </path>
+    </svg>
+    <span x-show="sidebarOpen" class="ml-4 font-bold text-sm whitespace-nowrap">Settings</span>
+  </div>
+  <svg x-show="sidebarOpen" :class="expandedMenu === 'settings' ? 'rotate-180' : ''" 
+    class="w-4 h-4 shrink-0 transition-transform text-gray-600" fill="none" stroke="currentColor" 
+    viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"
+  ></path></svg>
+</button>
+
+<!-- Settings Sub-items -->
+<div x-show="expandedMenu === 'settings' && sidebarOpen" x-collapse class="pl-14 pr-4 space-y-1 py-1 mb-2">
+    <button @click="view = 'settings'; settingsTab = 'about'" :class="view === 'settings' && settingsTab === 'about' ? 'text-blue-400 bg-blue-900/20' : 'text-gray-400 hover:text-white hover:bg-gray-800/50'" class="w-full text-left px-3 py-1.5 text-xs font-bold rounded transition whitespace-nowrap overflow-hidden text-ellipsis">About &amp; Help</button>
+    <button @click="view = 'settings'; settingsTab = 'config'" :class="view === 'settings' && settingsTab === 'config' ? 'text-blue-400 bg-blue-900/20' : 'text-gray-400 hover:text-white hover:bg-gray-800/50'" class="w-full text-left px-3 py-1.5 text-xs font-bold rounded transition whitespace-nowrap overflow-hidden text-ellipsis">Session Config</button>
+    <button @click="view = 'settings'; settingsTab = 'aliases'" :class="view === 'settings' && settingsTab === 'aliases' ? 'text-blue-400 bg-blue-900/20' : 'text-gray-400 hover:text-white hover:bg-gray-800/50'" class="w-full text-left px-3 py-1.5 text-xs font-bold rounded transition whitespace-nowrap overflow-hidden text-ellipsis">Aliases</button>
+</div>
+{{end}}
+
 {{define "partials/global/sidebar"}}
-<aside class="w-16 bg-gray-950 border-r border-gray-800 flex flex-col items-center py-4 space-y-6 shrink-0 z-10">
-    <button @click="view = 'stream'" :class="view === 'stream' ? 'text-blue-400' : 'text-gray-500 hover:text-gray-300'" title="Live Stream" class="transition">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-    </button>
-    <button @click="view = 'dictionary'" :class="view === 'dictionary' ? 'text-blue-400' : 'text-gray-500 hover:text-gray-300'" title="Dictionary & Specs" class="transition">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
-    </button>
-    <button @click="view = 'toolbox'" :class="view === 'toolbox' ? 'text-blue-400' : 'text-gray-500 hover:text-gray-300'" title="Fix toolbox" class="transition">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-    </button>
-    
-    <div class="flex-1"></div>
-    
-    <button @click="view = 'settings'" :class="view === 'settings' ? 'text-blue-400' : 'text-gray-500 hover:text-gray-300'" title="Settings & Help" class="transition">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-    </button>
+<aside 
+    x-data="{ expandedMenu: '' }"
+    x-effect="if (!sidebarOpen) expandedMenu = ''"
+    @click.outside="sidebarOpen = false"
+    :class="sidebarOpen ? 'w-64' : 'w-16'" 
+    class="bg-gray-950 border-r border-gray-800 flex flex-col py-4 transition-all duration-300 ease-in-out shrink-0 z-10 overflow-y-auto overflow-x-hidden"
+>
+     <!-- Toggle Sidebar -->
+    {{template "partials/global/sidebar/toggle_btn" .}}
+
+    <div class="space-y-1 flex-1">
+        <!-- Live Stream -->
+        {{template "partials/global/sidebar/stream_btn" .}}
+
+        <!-- Dictionary -->
+        {{template "partials/global/sidebar/dictionary_btn" .}}
+
+        <!-- Automation Tools (Accordion) -->
+        {{template "partials/global/sidebar/automation_btn" .}}
+    </div>
+
+    <!-- Settings (Accordion at the bottom) -->
+    <div class="w-full mt-auto">
+      {{template "partials/global/sidebar/settings_btn" .}}
+    </div>
 </aside>
 {{end}}
