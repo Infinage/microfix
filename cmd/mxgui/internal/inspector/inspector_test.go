@@ -3,23 +3,53 @@ package inspector
 import (
 	"encoding/json"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/infinage/microfix/pkg/message"
 	"github.com/infinage/microfix/pkg/spec"
 )
 
-func TestWalkSpecBasic_ParsesUntilEnd(t *testing.T) {
-	router, err := spec.NewDefaultRouter("FIX44")
-	if err != nil {
-		t.Fatalf("Failed to load router: %v", err.Error())
+// --- Global Router Cache ---
+var (
+	cachedRouters = make(map[string]*spec.Router)
+	routerMutex   sync.Mutex
+)
+
+// getTestRouter loads a router once per version and reuses it for all subsequent test calls.
+func getTestRouter(t *testing.T, version string) *spec.Router {
+	routerMutex.Lock()
+	defer routerMutex.Unlock()
+
+	if r, ok := cachedRouters[version]; ok {
+		return r
 	}
+
+	r, err := spec.NewDefaultRouter(version)
+	if err != nil {
+		t.Fatalf("Failed to load router %s: %v", version, err)
+	}
+	cachedRouters[version] = r
+	return r
+}
+
+// --- Mocks ---
+func fieldFn(fields map[uint16]spec.FieldDef) func(uint16) (spec.FieldDef, bool) {
+	return func(u uint16) (spec.FieldDef, bool) {
+		fDef, ok := fields[u]
+		return fDef, ok
+	}
+}
+
+// --- Tests ---
+
+func TestWalkSpecBasic_ParsesUntilEnd(t *testing.T) {
+	router := getTestRouter(t, "FIX44")
 
 	// Message: 11=ID1, 39=0 (Enum for New)
 	msg := message.Message{{Tag: 11, Value: "ID1"}, {Tag: 39, Value: "0"}}
 
-	// Basic assertions
-	if pos, nodes := walkSpecBasic(&msg, 0, router, nil); pos != 2 {
+	if pos, nodes := walkSpecBasic(&msg, 0, router.Field, nil); pos != 2 {
 		t.Fatalf("Expected to parse all 2 fields, stopped at index %d", pos)
 	} else if len(nodes) != 2 {
 		t.Fatalf("Expected 2 nodes, got %d", len(nodes))
@@ -32,16 +62,9 @@ func TestWalkSpecBasic_ParsesUntilEnd(t *testing.T) {
 }
 
 func TestWalkSpecBasic_StopsOnNotInContext(t *testing.T) {
-	router, err := spec.NewDefaultRouter("FIX44")
-	if err != nil {
-		t.Fatalf("Failed to load router: %v", err.Error())
-	}
-
-	// Simulate checking the Body, but hitting a Trailer tag (e.g., 10 CheckSum)
+	router := getTestRouter(t, "FIX44")
 	notInContext := map[uint16]int{10: 0}
 
-	// Message: 11=ID1, 37=ORDER1, 10=092, 39=0
-	// It should stop processing the moment it sees Tag 10.
 	msg := message.Message{
 		{Tag: 11, Value: "ID1"},
 		{Tag: 37, Value: "ORDER1"},
@@ -49,8 +72,7 @@ func TestWalkSpecBasic_StopsOnNotInContext(t *testing.T) {
 		{Tag: 39, Value: "0"},
 	}
 
-	// It should consume indices 0 and 1, and halt on index 2 (Tag 10) WITHOUT consuming it.
-	if pos, nodes := walkSpecBasic(&msg, 0, router, notInContext); pos != 2 {
+	if pos, nodes := walkSpecBasic(&msg, 0, router.Field, notInContext); pos != 2 {
 		t.Fatalf("Expected to stop exactly at index 2, but stopped at %d", pos)
 	} else if len(nodes) != 2 {
 		t.Fatalf("Expected exactly 2 nodes parsed before hitting out-of-context tag, got %d", len(nodes))
@@ -60,28 +82,23 @@ func TestWalkSpecBasic_StopsOnNotInContext(t *testing.T) {
 }
 
 func TestWalkSpecBasic_HandlesUnknownTags(t *testing.T) {
-	router, err := spec.NewDefaultRouter("FIX44")
-	if err != nil {
-		t.Fatalf("Failed to load router: %v", err.Error())
-	}
+	router := getTestRouter(t, "FIX44")
 
-	// Message includes a completely unknown custom tag (9999)
 	msg := message.Message{{Tag: 11, Value: "ID1"}, {Tag: 9999, Value: "CUSTOM_DATA"}}
 
-	if pos, nodes := walkSpecBasic(&msg, 0, router, nil); pos != 2 {
+	if pos, nodes := walkSpecBasic(&msg, 0, router.Field, nil); pos != 2 {
 		t.Fatalf("Expected to parse all 2 fields, stopped at index %d", pos)
 	} else if len(nodes) != 2 {
 		t.Fatalf("Expected 2 nodes, got %d", len(nodes))
 	} else if unknownNode := nodes[1]; unknownNode.Tag != 9999 || unknownNode.Value != "CUSTOM_DATA" {
 		t.Errorf("Expected node for 9999=CUSTOM_DATA, got %d=%s", unknownNode.Tag, unknownNode.Value)
 	} else if unknownNode.Name != "" || unknownNode.EnumDesc != "" {
-		t.Errorf("Expected unknown tag to have empty Name and EnumDesc, got Name='%s' EnumDesc='%s'",
+		t.Errorf("Expected unknown tag to have empty Name/EnumDesc, got Name='%s' EnumDesc='%s'",
 			unknownNode.Name, unknownNode.EnumDesc)
 	}
 }
 
 func TestWalkSpec_StandardFields(t *testing.T) {
-	// Setup a mock dictionary
 	fields := map[uint16]spec.FieldDef{
 		35: {Name: "MsgType", Enums: []spec.EnumDef{{Enum: "A", Description: "Logon"}}},
 		49: {Name: "SenderCompID"},
@@ -89,13 +106,11 @@ func TestWalkSpec_StandardFields(t *testing.T) {
 		10: {Name: "CheckSum"},
 	}
 
-	// Setup context with BOTH Lookup map and Entries slice populated
 	context := spec.Entry{
 		Lookup:  map[uint16]int{35: 0, 49: 1, 56: 2},
 		Entries: []spec.Entry{{Name: "MsgType"}, {Name: "SenderCompID"}, {Name: "TargetCompID"}},
 	}
 
-	// Message: 35=A, 49=1, 56=1, 10=1 (10 should trigger a break)
 	msg := message.Message{
 		{Tag: 35, Value: "A"},
 		{Tag: 49, Value: "CLIENT"},
@@ -103,8 +118,7 @@ func TestWalkSpec_StandardFields(t *testing.T) {
 		{Tag: 10, Value: "092"},
 	}
 
-	// Check assertions
-	if pos, nodes := walkSpec(&msg, 0, context, fields); pos != 3 {
+	if pos, nodes := walkSpec(&msg, 0, context, fieldFn(fields)); pos != 3 {
 		t.Fatalf("Expected to stop at index 3 (Tag 10), but stopped at %d", pos)
 	} else if len(nodes) != 3 {
 		t.Fatalf("Expected 3 parsed nodes, got %d", len(nodes))
@@ -114,7 +128,6 @@ func TestWalkSpec_StandardFields(t *testing.T) {
 }
 
 func TestWalkSpec_RepeatingGroup(t *testing.T) {
-	// Setup mock dictionary
 	fields := map[uint16]spec.FieldDef{
 		268: {Name: "NoMDEntries"},
 		269: {Name: "MDEntryType", Enums: []spec.EnumDef{{Enum: "0", Description: "Bid"}, {Enum: "1", Description: "Ask"}}},
@@ -122,7 +135,6 @@ func TestWalkSpec_RepeatingGroup(t *testing.T) {
 		10:  {Name: "CheckSum"},
 	}
 
-	// Setup nested group context
 	groupContext := spec.Entry{
 		Lookup:  map[uint16]int{269: 0, 270: 1},
 		Entries: []spec.Entry{{Name: "MDEntryType"}, {Name: "MDEntryPx"}},
@@ -139,7 +151,6 @@ func TestWalkSpec_RepeatingGroup(t *testing.T) {
 		},
 	}
 
-	// Message: 268=2 (Group of 2), 269=0, 270=150, 269=1, 270=151, 10=092
 	msg := message.Message{
 		{Tag: 268, Value: "2"},
 		{Tag: 269, Value: "0"},
@@ -149,8 +160,7 @@ func TestWalkSpec_RepeatingGroup(t *testing.T) {
 		{Tag: 10, Value: "092"},
 	}
 
-	// It should consume the group tag + 4 group fields, stopping at index 5 (Tag 10)
-	pos, nodes := walkSpec(&msg, 0, mainContext, fields)
+	pos, nodes := walkSpec(&msg, 0, mainContext, fieldFn(fields))
 	if pos != 5 {
 		t.Fatalf("Expected to stop at index 5, but stopped at %d", pos)
 	} else if len(nodes) != 1 {
@@ -161,7 +171,6 @@ func TestWalkSpec_RepeatingGroup(t *testing.T) {
 		t.Fatalf("Expected 2 repeating entries, got %d", size)
 	}
 
-	// Verify deep nesting content
 	groupNode := nodes[0]
 	if groupNode.Children[1][0].Tag != 269 || groupNode.Children[1][0].EnumDesc != "Ask" {
 		t.Errorf("Expected second entry's first tag to be 269 Ask, got Tag %d %s",
@@ -176,11 +185,9 @@ func TestWalkSpec_PreventsMutationAndInfiniteLoops(t *testing.T) {
 		Entries: []spec.Entry{{Name: "ClOrdID"}},
 	}
 
-	// Malformed message with repeating tag in the same context block
-	// Should trigger context break due to `consumed` map
 	msg := message.Message{{Tag: 11, Value: "ID_1"}, {Tag: 11, Value: "ID_2"}}
 
-	if pos, nodes := walkSpec(&msg, 0, context, fields); pos != 1 {
+	if pos, nodes := walkSpec(&msg, 0, context, fieldFn(fields)); pos != 1 {
 		t.Fatalf("Expected parser to stop at index 1 due to duplicate tag, stopped at %d", pos)
 	} else if len(nodes) != 1 {
 		t.Fatalf("Expected exactly 1 node parsed, got %d", len(nodes))
@@ -199,7 +206,6 @@ func TestFieldNode_JSON_Flat(t *testing.T) {
 }
 
 func TestFieldNode_JSON_Group(t *testing.T) {
-	// Represents 268=2, with two entries
 	node := FieldNode{
 		Tag:     268,
 		IsGroup: true,
@@ -212,7 +218,6 @@ func TestFieldNode_JSON_Group(t *testing.T) {
 	mp := make(map[uint16]any)
 	node.json(&mp)
 
-	// Validate the structure
 	if entries, ok := mp[268].([]map[uint16]any); !ok {
 		t.Fatalf("Expected tag 268 to contain a slice of maps, got %T", mp[268])
 	} else if len(entries) != 2 {
@@ -225,7 +230,6 @@ func TestFieldNode_JSON_Group(t *testing.T) {
 }
 
 func TestInspectView_JSON_FullMessage(t *testing.T) {
-	// Construct a mock view that mimics a fully parsed FIX tree
 	view := InspectView{
 		Header: []FieldNode{
 			{Tag: 8, Value: "FIXT.1.1"},
@@ -243,21 +247,17 @@ func TestInspectView_JSON_FullMessage(t *testing.T) {
 		},
 	}
 
-	// Generate the raw map & verify cross-section merging
 	resultMap := view.json()
 	if resultMap[8] != "FIXT.1.1" || resultMap[55] != "AAPL" || resultMap[10] != "123" || resultMap[9999] != "CUSTOM" {
 		t.Fatal("Failed to merge all sections (Header, Body, Trailer, Leftovers) into the root map")
 	}
 
-	// Marshal to JSON to prove uint16 keys become strings correctly
 	jsonBytes, err := json.Marshal(resultMap)
 	if err != nil {
 		t.Fatalf("Failed to marshal map to JSON: %v", err)
 	}
 
 	jsonStr := string(jsonBytes)
-
-	// Assert specific string matches in the final JSON
 	expectedStrings := []string{
 		`"8":"FIXT.1.1"`,
 		`"35":"W"`,
@@ -270,6 +270,35 @@ func TestInspectView_JSON_FullMessage(t *testing.T) {
 	for _, expected := range expectedStrings {
 		if !strings.Contains(jsonStr, expected) {
 			t.Errorf("Final JSON string is missing expected substring: %s\nGot: %s", expected, jsonStr)
+		}
+	}
+}
+
+func TestInspectView_NoMemorySpike(t *testing.T) {
+	router := getTestRouter(t, "FIXT11")
+
+	testCases := []string{
+		// Sequence Reset
+		"8=FIXT.1.1|9=80|35=6|49=CLIENT|56=SERVER|34=2|52=20260618-06:28:16.226|23=STRING|28=N|54=1|27=S|10=011|",
+
+		// New Order Single
+		"8=FIXT.1.1|9=120|35=D|49=CLIENT|56=SERVER|34=3|52=20260618-06:30:00.000|11=ID1|21=1|55=AAPL|54=1|38=100|40=1|10=123|",
+
+		// Execution Report with potential loops if parser fails
+		"8=FIXT.1.1|9=130|35=8|49=SERVER|56=CLIENT|34=4|52=20260618-06:30:05.000|37=EXEC1|17=EXEC1|150=0|39=0|55=AAPL|54=1|151=100|14=0|10=045|",
+	}
+
+	for i, raw := range testCases {
+		iview := NewInspectView(raw, router, spec.ValidationStrict)
+
+		// Just verify the JSON compiles and the process doesn't hang or crash
+		if iview.JSON == "" {
+			t.Errorf("Test case %d failed to output JSON representation.", i)
+		}
+
+		// Log observations just to confirm standard behavior on malformed tags
+		if !iview.IsValid {
+			t.Logf("Case %d observations: %v", i, iview.Observations)
 		}
 	}
 }

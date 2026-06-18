@@ -2145,11 +2145,6 @@
       padding-inline: calc(var(--spacing) * 8);
     }
   }
-  .md\:inline {
-    @media (width >= 48rem) {
-      display: inline;
-    }
-  }
   .lg\:inline {
     @media (width >= 64rem) {
       display: inline;

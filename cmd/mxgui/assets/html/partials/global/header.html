@@ -34,7 +34,11 @@
 {{end}}
 
 {{define "partials/global/header/seq_reset_btn"}}
-<div @click="modal = 'seq'" class="flex space-x-4 text-sm font-mono bg-gray-900 px-4 py-1.5 rounded border border-gray-800 cursor-pointer hover:border-gray-600 transition" title="Reset Sequences">
+<div 
+  @click="modal = 'seq'; inSeq = {{.Snapshot.InSeqNum}}; outSeq = {{.Snapshot.OutSeqNum}}" 
+  class="flex space-x-4 text-sm font-mono bg-gray-900 px-4 py-1.5 rounded border border-gray-800 cursor-pointer hover:border-gray-600 transition" 
+  title="Reset Sequences"
+>
   <div><span class="text-gray-500">IN:</span> <span class="text-green-400 font-bold">{{.Snapshot.InSeqNum}}</span></div>
   <div><span class="text-gray-500">OUT:</span> <span class="text-blue-400 font-bold">{{.Snapshot.OutSeqNum}}</span></div>
 </div>

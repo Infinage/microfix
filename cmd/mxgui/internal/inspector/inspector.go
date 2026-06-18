@@ -102,22 +102,22 @@ func NewInspectView(raw string, router *spec.Router, vmode spec.ValidationMode) 
 	// Create the grouping for header
 	var pos int
 	header, trailer := router.SessionSpec().Header, router.SessionSpec().Trailer
-	pos, result.Header = walkSpec(&msg, pos, header, router.SessionSpec().Fields)
+	pos, result.Header = walkSpec(&msg, pos, header, router.Field)
 
 	// Create grouping for body
 	msgSpec := router.SpecForMsgType(msgType)
 	if msgEntry, ok := msgSpec.Messages[msgType]; ok {
 		result.Name = msgEntry.Name
-		pos, result.Body = walkSpec(&msg, pos, msgEntry, msgSpec.Fields)
+		pos, result.Body = walkSpec(&msg, pos, msgEntry, router.Field)
 	} else {
-		pos, result.Body = walkSpecBasic(&msg, pos, router, trailer.Lookup)
+		pos, result.Body = walkSpecBasic(&msg, pos, router.Field, trailer.Lookup)
 	}
 
 	// Create the grouping for trailer
-	pos, result.Trailer = walkSpec(&msg, pos, trailer, router.SessionSpec().Fields)
+	pos, result.Trailer = walkSpec(&msg, pos, trailer, router.Field)
 
 	// Collect all leftover tags, if any
-	_, result.LeftOvers = walkSpecBasic(&msg, pos, router, nil)
+	_, result.LeftOvers = walkSpecBasic(&msg, pos, router.Field, nil)
 
 	// Build JSON string
 	buf, err := json.Marshal(result.json())
@@ -136,8 +136,7 @@ func NewInspectView(raw string, router *spec.Router, vmode spec.ValidationMode) 
 // Does not intend to validate messages, ignores errors when it can
 // Returns index at which it has stopped processing
 func walkSpec(msg *message.Message, pos int, context spec.Entry,
-	fields map[uint16]spec.FieldDef) (int, []FieldNode) {
-
+	fieldFn func(uint16) (spec.FieldDef, bool)) (int, []FieldNode) {
 	// As we process tags, we remove them from this map to track missing required tags
 	// Clone is required since delete may delete globally from spec
 	localLookup := maps.Clone(context.Lookup)
@@ -150,7 +149,7 @@ func walkSpec(msg *message.Message, pos int, context spec.Entry,
 		// Exit early tag out of context
 		ctxPos, inCtx := localLookup[field.Tag]
 		if !inCtx {
-			if _, inSpec := fields[field.Tag]; inSpec {
+			if _, inSpec := fieldFn(field.Tag); inSpec {
 				// If tag is known but not in context exit
 				break
 			} else {
@@ -165,7 +164,7 @@ func walkSpec(msg *message.Message, pos int, context spec.Entry,
 		delete(localLookup, field.Tag)
 
 		// Extract name and enum desc
-		fdef, ok := fields[field.Tag]
+		fdef, ok := fieldFn(field.Tag)
 		if ok {
 			node.Name = fdef.Name
 			for _, enum := range fdef.Enums {
@@ -182,7 +181,7 @@ func walkSpec(msg *message.Message, pos int, context spec.Entry,
 			if repeat, err := field.AsUint(); err == nil {
 				// We ignore errors, handled by 'router.Validate'
 				for range repeat {
-					nextPos, children := walkSpec(msg, pos+1, nextContext, fields)
+					nextPos, children := walkSpec(msg, pos+1, nextContext, fieldFn)
 					node.Children = append(node.Children, children)
 					pos = nextPos - 1 // Adjust to fit in with group repeat and incr below
 				}
@@ -198,7 +197,9 @@ func walkSpec(msg *message.Message, pos int, context spec.Entry,
 
 // Runs through the message until an out of context tag is hit. Only populates the 'Tag', 'Name', 'Value', 'EnumDesc' fields.
 // Returns the position at which the function has stopped. No grouping or recursion involved here
-func walkSpecBasic(msg *message.Message, pos int, router *spec.Router, notInContext map[uint16]int) (int, []FieldNode) {
+func walkSpecBasic(msg *message.Message, pos int, fieldFn func(uint16) (spec.FieldDef, bool),
+	notInContext map[uint16]int) (int, []FieldNode) {
+
 	var result []FieldNode
 	for pos < len(*msg) {
 		// Out of context tag hit, return
@@ -209,7 +210,7 @@ func walkSpecBasic(msg *message.Message, pos int, router *spec.Router, notInCont
 
 		// If field name and desc available populate it
 		var node = FieldNode{Tag: field.Tag, Value: field.Value}
-		fdef, ok := router.Field(field.Tag)
+		fdef, ok := fieldFn(field.Tag)
 		if ok {
 			node.Name = fdef.Name
 			for _, enum := range fdef.Enums {

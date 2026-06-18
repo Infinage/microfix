@@ -22,6 +22,8 @@ type Application struct {
 	port   int
 	assets embed.FS
 	templ  *template.Template
+
+	isWailsApp bool // conditional rendering of templates
 }
 
 func NewSession(cfg store.Config) (*session.Session, error) {
@@ -85,12 +87,24 @@ func (app *Application) SaveConfig() bool {
 func (app *Application) StartWails() error {
 	// Config wails with middleware to intercept all requests
 	mux := app.routes()
-	wailsApp := application.New(application.Options{
-		Name: "MicroFix",
+	app.isWailsApp = true
+
+	var wailsApp *application.App
+	wailsApp = application.New(application.Options{
+		Name:        "MicroFix",
 		Description: "High-performance FIX Protocol client",
 		Assets: application.AssetOptions{
 			Middleware: func(next http.Handler) http.Handler {
-				return mux
+				return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					switch r.URL.Path {
+					case "/about/repository":
+						wailsApp.Browser.OpenURL("https://github.com/infinage/microfix")
+					case "/about/contact":
+						wailsApp.Browser.OpenURL("mailto:nj.deesa@gmail.com")
+					default:
+						mux.ServeHTTP(w, r)
+					}
+				})
 			},
 		},
 	})
@@ -106,7 +120,7 @@ func (app *Application) StartWails() error {
 	// Blocks until UI closes
 	if err := wailsApp.Run(); err != nil {
 		return err
-    }
+	}
 
 	return nil
 }
@@ -164,5 +178,6 @@ func (app *Application) routes() *http.ServeMux {
 	mux.HandleFunc("POST /api/diff", app.handleAPIMessageDiff)
 	mux.HandleFunc("POST /api/script/upload", app.handleAPIScriptUpload)
 	mux.HandleFunc("GET /api/script/stream", app.handleAPIScriptStream)
+
 	return mux
 }

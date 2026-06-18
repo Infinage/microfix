@@ -24,9 +24,10 @@ func (app *Application) handleHome(w http.ResponseWriter, r *http.Request) {
 	cfg := app.Store.Config()
 
 	renderTemplate(app.templ, w, "index.html", map[string]any{
-		"Snapshot": snap,
-		"Config":   cfg,
-		"Router":   app.Session.Router(),
-		"Aliases":  &cfg.Alias,
+		"Snapshot":    snap,
+		"Config":      cfg,
+		"Router":      app.Session.Router(),
+		"Aliases":     &cfg.Alias,
+		"IsWailsApp":  app.isWailsApp,
 	})
 }
