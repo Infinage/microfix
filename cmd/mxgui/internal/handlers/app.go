@@ -24,6 +24,7 @@ type Application struct {
 	templ  *template.Template
 
 	isWailsApp bool // conditional rendering of templates
+	wails      *application.App
 }
 
 func NewSession(cfg store.Config) (*session.Session, error) {
@@ -87,20 +88,21 @@ func (app *Application) SaveConfig() bool {
 func (app *Application) StartWails() error {
 	// Config wails with middleware to intercept all requests
 	mux := app.routes()
-	app.isWailsApp = true
 
-	var wailsApp *application.App
-	wailsApp = application.New(application.Options{
+	app.isWailsApp = true
+	app.wails = application.New(application.Options{
 		Name:        "MicroFix",
 		Description: "High-performance FIX Protocol client",
 		Assets: application.AssetOptions{
 			Middleware: func(next http.Handler) http.Handler {
 				return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					switch r.URL.Path {
-					case "/about/repository":
-						wailsApp.Browser.OpenURL("https://github.com/infinage/microfix")
-					case "/about/contact":
-						wailsApp.Browser.OpenURL("mailto:nj.deesa@gmail.com")
+					case "/wails/about/repository":
+						app.handleWailsAboutRepository(w, r)
+					case "/wails/about/contact":
+						app.handleWailsAboutMailto(w, r)
+					case "/wails/config/import":
+						app.handleWailsImportConfig(w, r)
 					default:
 						mux.ServeHTTP(w, r)
 					}
@@ -110,15 +112,15 @@ func (app *Application) StartWails() error {
 	})
 
 	// Start a new window
-	wailsApp.Window.New()
+	app.wails.Window.New()
 
 	// Cleanup on WailsApp exit
-	wailsApp.OnShutdown(func() {
+	app.wails.OnShutdown(func() {
 		app.SaveConfig()
 	})
 
 	// Blocks until UI closes
-	if err := wailsApp.Run(); err != nil {
+	if err := app.wails.Run(); err != nil {
 		return err
 	}
 
@@ -170,7 +172,7 @@ func (app *Application) routes() *http.ServeMux {
 	mux.HandleFunc("GET /api/alias/check/name", app.handleAPIAliasNameCheck)
 
 	mux.HandleFunc("POST /api/config", app.handleAPISaveConfig)
-	mux.HandleFunc("POST /api/config/import", app.handleAPILoadConfig)
+	mux.HandleFunc("POST /api/config/reset", app.handleAPIResetConfig)
 	mux.HandleFunc("GET /api/config/export", app.handleAPIDumpConfig)
 	mux.HandleFunc("GET /api/config/check/specpath", app.handleAPIConfigSpecPathCheck)
 

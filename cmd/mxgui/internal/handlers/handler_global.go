@@ -51,8 +51,8 @@ func (app *Application) handleAPIReset(w http.ResponseWriter, r *http.Request) {
 func (app *Application) handleAPIHeader(w http.ResponseWriter, r *http.Request) {
 	// -- Do not cache --
 	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-    w.Header().Set("Pragma", "no-cache")
-    w.Header().Set("Expires", "0")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
 
 	renderTemplate(app.templ, w, "partials/global/header", map[string]any{
 		"Snapshot": app.Session.Status(),

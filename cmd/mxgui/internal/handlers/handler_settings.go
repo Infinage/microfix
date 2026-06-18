@@ -108,24 +108,19 @@ func (app *Application) handleAPISaveConfig(w http.ResponseWriter, r *http.Reque
 	toast(w, app.templ, "success", "Config save successful")
 }
 
-func (app *Application) handleAPILoadConfig(w http.ResponseWriter, r *http.Request) {
-	_, _, err := r.FormFile("configFile")
-	if err == nil {
-		// TODO: File uploaded, cannot get the full filepath
-		toast(w, app.templ, "error", "File upload not supported at the moment")
+func (app *Application) handleAPIResetConfig(w http.ResponseWriter, r *http.Request) {
+	if app.Store.LoadConfig(app.Store.ConfigPath()) != nil {
+		toast(w, app.templ, "error", "Failed to reload from disk")
 		return
-	} else {
-		// No file provided, 'discard' action
-		if err = app.Store.LoadConfig(app.Store.ConfigPath()); err != nil {
-			toast(w, app.templ, "error", "Failed to reload from disk")
-			return
-		}
-
-		// Notify reload successful
-		renderTemplate(app.templ, w, "partials/global/toast", map[string]string{"type": "success", "message": "Reload successful"})
 	}
 
-	renderTemplate(app.templ, w, "partials/settings/config/form", map[string]any{"partials/settings/config": app.Store.Config()})
+	// Notify reload successful - without setting hx-reswap:none
+	data := map[string]string{"type": "success", "message": "Reload successful"}
+	renderTemplate(app.templ, w, "partials/global/toast", data)
+
+	// Reload the config page
+	renderTemplate(app.templ, w, "partials/settings/config/form",
+		map[string]any{"partials/settings/config": app.Store.Config()})
 }
 
 func (app *Application) handleAPIDumpConfig(w http.ResponseWriter, r *http.Request) {
