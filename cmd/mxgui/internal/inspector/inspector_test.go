@@ -118,7 +118,7 @@ func TestWalkSpec_StandardFields(t *testing.T) {
 		{Tag: 10, Value: "092"},
 	}
 
-	if pos, nodes := walkSpec(&msg, 0, context, fieldFn(fields)); pos != 3 {
+	if pos, nodes := walkSpec(&msg, 0, context, nil, fieldFn(fields)); pos != 3 {
 		t.Fatalf("Expected to stop at index 3 (Tag 10), but stopped at %d", pos)
 	} else if len(nodes) != 3 {
 		t.Fatalf("Expected 3 parsed nodes, got %d", len(nodes))
@@ -160,7 +160,7 @@ func TestWalkSpec_RepeatingGroup(t *testing.T) {
 		{Tag: 10, Value: "092"},
 	}
 
-	pos, nodes := walkSpec(&msg, 0, mainContext, fieldFn(fields))
+	pos, nodes := walkSpec(&msg, 0, mainContext, nil, fieldFn(fields))
 	if pos != 5 {
 		t.Fatalf("Expected to stop at index 5, but stopped at %d", pos)
 	} else if len(nodes) != 1 {
@@ -187,7 +187,7 @@ func TestWalkSpec_PreventsMutationAndInfiniteLoops(t *testing.T) {
 
 	msg := message.Message{{Tag: 11, Value: "ID_1"}, {Tag: 11, Value: "ID_2"}}
 
-	if pos, nodes := walkSpec(&msg, 0, context, fieldFn(fields)); pos != 1 {
+	if pos, nodes := walkSpec(&msg, 0, context, nil, fieldFn(fields)); pos != 1 {
 		t.Fatalf("Expected parser to stop at index 1 due to duplicate tag, stopped at %d", pos)
 	} else if len(nodes) != 1 {
 		t.Fatalf("Expected exactly 1 node parsed, got %d", len(nodes))
@@ -300,5 +300,97 @@ func TestInspectView_NoMemorySpike(t *testing.T) {
 		if !iview.IsValid {
 			t.Logf("Case %d observations: %v", i, iview.Observations)
 		}
+	}
+}
+
+func TestWalkSpec_SoftBoundary_OOCBodyTags(t *testing.T) {
+	// Define global dictionary
+	fields := map[uint16]spec.FieldDef{
+		11: {Name: "ClOrdID"},
+		38: {Name: "OrderQty"},
+		// Tag 1137 is globally known but won't be in our body context
+		1137: {Name: "DefaultApplVerID"},
+		// Tag 10 will act as our terminator (Trailer)
+		10: {Name: "CheckSum"},
+	}
+
+	// Define our Body context (only expecting 11 and 38)
+	bodyContext := spec.Entry{
+		Lookup:  map[uint16]int{11: 0, 38: 1},
+		Entries: []spec.Entry{{Name: "ClOrdID"}, {Name: "OrderQty"}},
+	}
+
+	// Define the Trailer tags as our soft-boundary terminator
+	terminateOnlyOn := map[uint16]int{10: 0}
+
+	msg := message.Message{
+		{Tag: 11, Value: "ID1"},
+		{Tag: 1137, Value: "9"}, // OOC Tag (Globally known, but not in Body)
+		{Tag: 38, Value: "100"},
+		{Tag: 10, Value: "092"}, // Terminator
+	}
+
+	if pos, nodes := walkSpec(&msg, 0, bodyContext, terminateOnlyOn, fieldFn(fields)); pos != 3 {
+		// It should stop exactly at index 3 (Tag 10), leaving Tag 10 to be parsed by the Trailer walker.
+		t.Fatalf("Expected parser to stop at index 3 (terminator), got %d", pos)
+	} else if len(nodes) != 3 {
+		// It should have successfully parsed Tag 11, Tag 1137, and Tag 38 into the Body section.
+		t.Fatalf("Expected 3 parsed nodes in body, got %d", len(nodes))
+	} else if nodes[1].Tag != 1137 {
+		// Ensure the OOC tag was proudly included in the Body nodes instead of breaking the loop
+		t.Errorf("Expected OOC tag 1137 to be parsed into body, got %d", nodes[1].Tag)
+	} else if nodes[2].Tag != 38 {
+		// Ensure it continued walking successfully after the OOC tag
+		t.Errorf("Expected tag 38 to be parsed after OOC tag, got %d", nodes[2].Tag)
+	}
+}
+
+func TestInspectView_Integration_OOCAndGroups(t *testing.T) {
+	router := getTestRouter(t, "FIX44")
+
+	// This is a Market Data Snapshot (MsgType=W).
+	// We inject Tag 11 (ClOrdID), which is valid in FIX44 but OUT OF CONTEXT for a Market Data message.
+	// We also include a repeating group (Tag 268) with 2 entries.
+	raw := "8=FIX.4.4|9=100|35=W|49=SENDER|56=TARGET|34=1|55=AAPL|11=OOC_ID|268=2|269=0|270=150.00|269=1|270=151.00|10=123|"
+	view := NewInspectView(raw, router, spec.ValidationNone)
+
+	// Verify Body absorbed the OOC tag
+	var foundOOC bool
+	var foundGroup bool
+	for _, node := range view.Body {
+		if node.Tag == 11 {
+			foundOOC = true
+			if node.Value != "OOC_ID" {
+				t.Errorf("Expected OOC tag value 'OOC_ID', got '%s'", node.Value)
+			}
+		}
+		if node.Tag == 268 {
+			foundGroup = true
+			if !node.IsGroup {
+				t.Error("Expected Tag 268 to be identified as a group")
+			}
+			if len(node.Children) != 2 {
+				t.Errorf("Expected 2 repeating group entries, got %d", len(node.Children))
+			}
+		}
+	}
+
+	if !foundOOC {
+		t.Error("Expected Tag 11 to be absorbed into Body as an OOC tag, but it wasn't.")
+	}
+	if !foundGroup {
+		t.Error("Expected Tag 268 repeating group to be parsed in Body.")
+	}
+
+	// Verify Trailer successfully parsed AFTER the OOC tag and Group
+	if len(view.Trailer) == 0 {
+		t.Fatal("Trailer was completely skipped!")
+	} else if view.Trailer[0].Tag != 10 {
+		t.Errorf("Expected Trailer to start with Tag 10, got %d", view.Trailer[0].Tag)
+	}
+
+	// Verify LeftOvers is empty (everything fell into the correct buckets)
+	if len(view.LeftOvers) > 0 {
+		t.Errorf("Expected 0 leftovers, got %d (First leftover tag: %d)", len(view.LeftOvers), view.LeftOvers[0].Tag)
 	}
 }

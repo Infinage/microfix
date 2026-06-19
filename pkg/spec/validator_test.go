@@ -247,7 +247,9 @@ func TestValidate_FromString(t *testing.T) {
 	})
 
 	t.Run("OutOfContextTag", func(t *testing.T) {
-		raw := "8=FIX.4.4|9=129|35=V|49=S|56=T|34=14|52=20260522-14:33:26.614|262=ABC|263=1|264=0|265=0|146=1|55=USD/INR|460=4|167=SPOT|15=INR|267=2|269=0|269=1|10=102|"
+		raw := "8=FIX.4.4|9=129|35=V|49=S|56=T|34=14|52=20260522-14:33:26.614|262=ABC|263=1|264=0|265=0|" +
+			"146=1|55=USD/INR|460=4|167=SPOT|15=INR|267=2|269=0|269=1|10=102|"
+
 		msg, err := message.MessageFromString(raw, "|")
 		if err != nil {
 			t.Fatalf("Parse error: %v", err)
@@ -259,7 +261,7 @@ func TestValidate_FromString(t *testing.T) {
 		}
 
 		found := slices.ContainsFunc(obs, func(ob string) bool {
-			return strings.Contains(ob, "Context prematurely terminated by unexpected tag [15]")
+			return strings.Contains(ob, "Unexpected out-of-context tag [15]")
 		})
 
 		if !found {
@@ -294,7 +296,7 @@ func TestValidate_GroupOrdering(t *testing.T) {
 			t.Error("Validation should fail when group members are out of order")
 		} else {
 			found := slices.ContainsFunc(obs, func(ob string) bool {
-				return strings.Contains(ob, "Tag 629 immediately following groupno missing or not at first position")
+				return strings.Contains(ob, "Tag 629 immediately following group count missing or not at first position")
 			})
 			if !found {
 				t.Errorf("Expected error not found in observations, got: %v", strings.Join(obs, "; "))
@@ -313,7 +315,7 @@ func TestValidate_GroupOrdering(t *testing.T) {
 			t.Error("Validation should fail when group members are out of order")
 		} else {
 			found := slices.ContainsFunc(obs, func(ob string) bool {
-				return strings.Contains(ob, "Expected group #2 entry #1 to be 628")
+				return strings.Contains(ob, "Expected group #2 entry #1 to be tag [628]")
 			})
 			if !found {
 				t.Errorf("Expected error not found in observations, got: %v", strings.Join(obs, "; "))
@@ -328,13 +330,34 @@ func TestValidate_FIXTMultiplexing(t *testing.T) {
 		t.Fatalf("Failed to load router: %v", err)
 	}
 
-	msg, err := ro.Sample("AE", SampleOptions{})
-	if err != nil {
-		t.Fatalf("Failed to sample message [AE]: %v", err)
-	}
+	t.Run("Round trip", func(t *testing.T) {
+		msg, err := ro.Sample("AE", SampleOptions{})
+		if err != nil {
+			t.Fatalf("Failed to sample message [AE]: %v", err)
+		}
 
-	if obs, ok := ro.Validate(&msg, ValidationStrict); !ok {
-		t.Errorf("Expected round trip sampling and validation to "+
-			"pass, but failed with observations: %v", obs)
-	}
+		if obs, ok := ro.Validate(&msg, ValidationStrict); !ok {
+			t.Errorf("Expected round trip sampling and validation to "+
+				"pass, but failed with observations: %v", obs)
+		}
+	})
+
+	t.Run("Valid messages", func(t *testing.T) {
+		for _, raw := range []string{
+			"8=FIXT.1.1|9=102|35=j|34=2|49=SERVER|52=20260619-10:03:19.561|56=CLIENT|45=2|58=Field Missing (40)|372=AA|380=5|1137=6|10=003|",
+		} {
+			msg, err := message.MessageFromString(raw, "|")
+			if err != nil {
+				t.Fatalf("Failed to parse message: %v", err)
+			}
+
+			if obs, ok := ro.Validate(&msg, ValidationBasic); !ok {
+				// ValidationBasic should ignore OOC tags
+				t.Errorf("Expected message validation to pass, but failed with observations: \n%v", obs)
+			} else if _, ok := ro.Validate(&msg, ValidationStrict); ok {
+				// ValidationStrict should fail OOC tags
+				t.Error("Expected message validation to fail, but passed without observations")
+			}
+		}
+	})
 }

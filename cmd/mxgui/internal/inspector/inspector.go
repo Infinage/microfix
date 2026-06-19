@@ -99,22 +99,22 @@ func NewInspectView(raw string, router *spec.Router, vmode spec.ValidationMode) 
 		}
 	}
 
-	// Create the grouping for header
+	// Create the grouping for header (strict boundary)
 	var pos int
 	header, trailer := router.SessionSpec().Header, router.SessionSpec().Trailer
-	pos, result.Header = walkSpec(&msg, pos, header, router.Field)
+	pos, result.Header = walkSpec(&msg, pos, header, nil, router.Field)
 
-	// Create grouping for body
+	// Create grouping for body (Soft boundary - break on trailer tags)
 	msgSpec := router.SpecForMsgType(msgType)
 	if msgEntry, ok := msgSpec.Messages[msgType]; ok {
 		result.Name = msgEntry.Name
-		pos, result.Body = walkSpec(&msg, pos, msgEntry, router.Field)
+		pos, result.Body = walkSpec(&msg, pos, msgEntry, trailer.Lookup, router.Field)
 	} else {
 		pos, result.Body = walkSpecBasic(&msg, pos, router.Field, trailer.Lookup)
 	}
 
-	// Create the grouping for trailer
-	pos, result.Trailer = walkSpec(&msg, pos, trailer, router.Field)
+	// Create the grouping for trailer (strict boundary)
+	pos, result.Trailer = walkSpec(&msg, pos, trailer, nil, router.Field)
 
 	// Collect all leftover tags, if any
 	_, result.LeftOvers = walkSpecBasic(&msg, pos, router.Field, nil)
@@ -135,7 +135,7 @@ func NewInspectView(raw string, router *spec.Router, vmode spec.ValidationMode) 
 
 // Does not intend to validate messages, ignores errors when it can
 // Returns index at which it has stopped processing
-func walkSpec(msg *message.Message, pos int, context spec.Entry,
+func walkSpec(msg *message.Message, pos int, context spec.Entry, terminateOnlyOn map[uint16]int,
 	fieldFn func(uint16) (spec.FieldDef, bool)) (int, []FieldNode) {
 	// As we process tags, we remove them from this map to track missing required tags
 	// Clone is required since delete may delete globally from spec
@@ -149,14 +149,35 @@ func walkSpec(msg *message.Message, pos int, context spec.Entry,
 		// Exit early tag out of context
 		ctxPos, inCtx := localLookup[field.Tag]
 		if !inCtx {
-			if _, inSpec := fieldFn(field.Tag); inSpec {
-				// If tag is known but not in context exit
-				break
-			} else {
-				// Unknown tag
+			if _, knownGlobally := fieldFn(field.Tag); !knownGlobally {
+				// Completely unknown tag. Render it as flat node and continue.
 				result = append(result, node)
+				pos++
 				continue
 			}
+
+			// Tag is KNOWN globally, but out of context.
+			// Check if it is a hard terminator for this block.
+			_, isTerminal := terminateOnlyOn[field.Tag]
+			if terminateOnlyOn == nil || isTerminal {
+				break // Context cleanly ended
+			}
+
+			// Soft Boundary: Tag is OOC but not a terminator.
+			// Populate its dictionary info, attach it to the current UI block, and continue.
+			if fdef, ok := fieldFn(field.Tag); ok {
+				node.Name = fdef.Name
+				for _, enum := range fdef.Enums {
+					if enum.Enum == node.Value {
+						node.EnumDesc = enum.Description
+						break
+					}
+				}
+			}
+
+			result = append(result, node)
+			pos++
+			continue
 		}
 
 		// Erase from context so that we don't consume same
@@ -181,7 +202,7 @@ func walkSpec(msg *message.Message, pos int, context spec.Entry,
 			if repeat, err := field.AsUint(); err == nil {
 				// We ignore errors, handled by 'router.Validate'
 				for range repeat {
-					nextPos, children := walkSpec(msg, pos+1, nextContext, fieldFn)
+					nextPos, children := walkSpec(msg, pos+1, nextContext, nil, fieldFn)
 					node.Children = append(node.Children, children)
 					pos = nextPos - 1 // Adjust to fit in with group repeat and incr below
 				}

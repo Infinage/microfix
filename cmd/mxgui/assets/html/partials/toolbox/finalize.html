@@ -37,7 +37,7 @@
                   class="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-1.5 rounded transition border border-gray-700 
                     font-bold flex items-center space-x-1.5 cursor-pointer shadow-sm"
                   @click="
-                      navigator.clipboard.writeText(document.getElementById('finalize-output').value.replace(/\|/g, '\n')); 
+                      navigator.clipboard.writeText(document.getElementById('finalize-output').value); 
                       copied = true; setTimeout(() => copied = false, 2000);
                   "
                 >
