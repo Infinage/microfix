@@ -26,7 +26,7 @@ const (
 )
 
 func (s SessionState) String() string {
-	names := []string{"New", "Listening", "LoggingIn", "Connected", "Stale", "Closed"}
+	names := []string{"New", "Listening", "LoggingIn", "Active", "Stale", "Closed"}
 	if s < 0 || int(s) >= len(names) {
 		return "Unknown"
 	}

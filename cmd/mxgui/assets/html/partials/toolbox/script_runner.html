@@ -1,5 +1,6 @@
 {{define "partials/toolbox/script_runner"}}
 <div x-data="{ hasFile: false, fileName: '', running: false }" 
+     @script-upload-error.window="running = false"
      x-show="toolboxTab === 'scripts'" 
      class="flex-1 flex flex-col overflow-hidden">
     

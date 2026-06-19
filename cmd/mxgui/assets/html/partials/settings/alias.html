@@ -28,6 +28,7 @@
                     class="p-4 text-right text-gray-500 hover:text-red-400 cursor-pointer transition"
                     hx-confirm="Are you sure you want to delete?" 
                     hx-delete="/api/alias/delete/{{$aliasName}}"
+                    hx-swap="none"
                   >Delete</td>
               </tr>
             {{end}}

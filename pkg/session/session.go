@@ -233,13 +233,13 @@ func (sess *Session) LastMessage(msgType string, isIncoming bool) *message.Messa
 // Returns a channel that receives all Incoming + Outgoing + Error + Sys events
 // DO NOT close the channel and remember to unsubscribe after use
 func (sess *Session) SubscribeLog() (<-chan Log, func(), error) {
-	if sess.closeRequested.Load() {
-		return nil, nil, fmt.Errorf("Session is closed")
-	}
-
 	// Lock the mutex before creating a new channel
 	sess.logMu.Lock()
 	defer sess.logMu.Unlock()
+
+	if sess.closeRequested.Load() {
+		return nil, nil, fmt.Errorf("Session is closed")
+	}
 
 	// Closure manages the scope
 	ch := make(chan Log, 256)

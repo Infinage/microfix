@@ -11,7 +11,7 @@
   >
       <option disabled value="">-- Select Alias --</option>
       {{range $alias, $_ := .Aliases}}
-        <option value={{$alias}}>Alias: {{$alias}}</option>
+        <option value="{{$alias}}">Alias: {{$alias}}</option>
       {{end}}
   </select>
 </div>
@@ -39,7 +39,7 @@
             >
                 <option disabled value="">-- Select MsgType --</option>
                 {{range $msgId, $msgSpec := .Router.SessionSpec.Messages}}
-                  <option value={{$msgId}}>[Sess] Type: {{$msgId}} ({{$msgSpec.Name}})</option>
+                  <option value="{{$msgId}}">[Sess] Type: {{$msgId}} ({{$msgSpec.Name}})</option>
                 {{end}}
                 {{if not .Router.IsLegacyRouter}}
                     {{range $msgId, $msgSpec := .Router.ApplSpec.Messages}}

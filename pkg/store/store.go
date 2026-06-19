@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 )
 
 // Store is the unified state manager for Microfix.
@@ -13,6 +14,7 @@ type Store struct {
 	cfg        *Config           // Strongly typed and persistent configuration
 	vars       map[string]string // Loosely typed and non-persistent runtime variables
 	configPath string            // Stored path of the config file for auto-saving changes
+	mu         sync.RWMutex      // Concurrent access across GUI
 }
 
 // NewStoreFromPath initializes a Store by loading the configuration from a specific file path.
@@ -43,11 +45,16 @@ func InitStore() Store {
 
 // Config returns a safe, by-value copy of the underlying typed configuration.
 func (c *Store) Config() Config {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	return *c.cfg
 }
 
 // LoadConfig dynamically overwrites the current store's config by loading from the specified path.
 func (c *Store) LoadConfig(filepath string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	newCfg, err := loadConfig(filepath)
 	if err == nil {
 		c.cfg = newCfg
@@ -58,11 +65,15 @@ func (c *Store) LoadConfig(filepath string) error {
 
 // Writes the current configuration state to the specified path.
 func (c *Store) DumpConfig(filepath string) error {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	return c.cfg.dump(filepath)
 }
 
 // Read only copy of path config was loaded from
 func (c *Store) ConfigPath() string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	return c.configPath
 }
 
@@ -70,6 +81,9 @@ func (c *Store) ConfigPath() string {
 // The key must be in the format `PREFIX.Name` (e.g., "CFG.Port", "ENV.USER").
 // It returns the value, a boolean indicating if the key was found, and any potential errors.
 func (c *Store) Get(key string) (string, bool, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
 	prefix, name, err := splitKeyPrefix(key)
 	if err != nil {
 		return "", false, err
@@ -100,6 +114,9 @@ func (c *Store) Get(key string) (string, bool, error) {
 // Set updates a value in the store and returns the previous value, a boolean
 // indicating if it was an update to an existing key, and an error.
 func (c *Store) Set(key, value string) (string, bool, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	prefix, name, err := splitKeyPrefix(key)
 	if err != nil {
 		return "", false, err
@@ -133,6 +150,9 @@ func (c *Store) Set(key, value string) (string, bool, error) {
 // Unset removes a key from loosely typed namespaces (ALIAS, VARS).
 // It returns the deleted value, a boolean indicating if it existed before deletion, and an error.
 func (c *Store) Unset(key string) (string, bool, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	prefix, name, err := splitKeyPrefix(key)
 	if err != nil {
 		return "", false, err

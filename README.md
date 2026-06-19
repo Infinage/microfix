@@ -81,7 +81,7 @@ MFix> connect localhost:3000
 MFix> status
 
 ─── Session Status ──────────────────────────────
-  State      : Connected
+  State      : Active
   Sequence   : In(2) | Out(2)
   Activity   : Last In: 2s ago | Last Out: 2s ago
 ──────────────────────────────────────────────────
@@ -152,7 +152,7 @@ Microfix includes a headless scripting engine designed for testing deterministic
 ```bash
 # Connect and wait for the engine to handle logon
 connect 127.0.0.1:4000
-waitstatus Connected
+waitstatus Active
 
 # Send a New Order Single using dynamic variables
 send -r 35=D|11=$UNIQUE|34=$SEQ_OUT|55=AAPL|54=1|38=100|40=1|59=0|

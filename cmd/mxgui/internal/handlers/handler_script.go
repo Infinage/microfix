@@ -14,7 +14,8 @@ import (
 func (app *Application) handleAPIScriptUpload(w http.ResponseWriter, r *http.Request) {
 	file, _, err := r.FormFile("scriptFile")
 	if err != nil {
-		w.Write([]byte(`<div sse-swap="done" @htmx:load="alert('Upload failed')"></div>`))
+		w.Header().Set("HX-Trigger", "script-upload-error")
+		toast(w, app.templ, "error", "Upload failed, please try again")
 		return
 	}
 	defer file.Close()
@@ -24,7 +25,8 @@ func (app *Application) handleAPIScriptUpload(w http.ResponseWriter, r *http.Req
 	// Create temp file
 	tempFile, err := os.CreateTemp("", "microfix-script-*.mxs")
 	if err != nil {
-		w.Write([]byte(`<div sse-swap="done" @htmx:load="alert('Temp file creation failed')"></div>`))
+		w.Header().Set("HX-Trigger", "script-upload-error")
+		toast(w, app.templ, "error", "Temp file creation failed, please try again")
 		return
 	}
 	defer tempFile.Close()
@@ -42,6 +44,15 @@ func (app *Application) handleAPIScriptUpload(w http.ResponseWriter, r *http.Req
 }
 
 func (app *Application) handleAPIScriptStream(w http.ResponseWriter, r *http.Request) {
+	// Check if flushing is supported
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprintf(w, "event: log\ndata: <div class=\"text-red-500 font-bold mb-2\">Error: HTTP flush not supported by the server/proxy.</div>\n\n")
+		fmt.Fprintf(w, "event: done\ndata: \n\n")
+		return
+	}
+
 	// Singal that output is an event-stream
 	w.Header().Set("Content-Type", "text/event-stream")
 
@@ -131,7 +142,6 @@ func (app *Application) handleAPIScriptStream(w http.ResponseWriter, r *http.Req
 	}()
 
 	// Main Event Loop
-	flusher, _ := w.(http.Flusher)
 	for htmlContent := range sseChan {
 		fmt.Fprintf(w, "event: log\ndata: %s\n\n", htmlContent)
 		flusher.Flush()

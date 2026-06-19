@@ -52,8 +52,10 @@ func (app *Application) handleAPIAddAlias(w http.ResponseWriter, r *http.Request
 }
 
 func (app *Application) handleAPIListAlias(w http.ResponseWriter, r *http.Request) {
+	doNotCache(w) // Force frontend to reload evertime
+
 	if r.URL.Query().Get("from") == "settings" {
-		renderTemplate(app.templ, w, "partials/settings/alias", map[string]any{"Aliases": app.Store.Config().Alias})
+		renderTemplate(app.templ, w, "partials/settings/aliases", map[string]any{"Aliases": app.Store.Config().Alias})
 	} else {
 		renderTemplate(app.templ, w, "partials/stream/send_form/aliases", map[string]any{"Aliases": app.Store.Config().Alias})
 	}

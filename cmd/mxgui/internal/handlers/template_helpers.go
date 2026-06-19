@@ -44,7 +44,7 @@ func getThemeForEngineState(state string) Theme {
 	case "Listening", "LoggingIn":
 		textColor = "text-emerald-400"
 		bgColor = "bg-emerald-500"
-	case "Connected":
+	case "Active":
 		textColor = "text-green-400"
 		bgColor = "bg-green-500"
 	case "Stale":

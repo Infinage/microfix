@@ -22,8 +22,11 @@ func handleExpect(ctx *ScriptContext, args []string) error {
 	}
 	defer unsubscribe()
 
-	// Timeout after configured duration
-	timeout := time.After(time.Duration(ctx.Store.Config().DefaultTimeoutSec) * time.Second)
+	// Timeout after configured duration - if set to 0 assumes no timeout
+	var timeout <-chan time.Time
+	if timeoutSec := ctx.Store.Config().DefaultTimeoutSec; timeoutSec > 0 {
+		timeout = time.After(time.Duration(ctx.Store.Config().DefaultTimeoutSec) * time.Second)
+	}
 
 	for {
 		select {
@@ -97,8 +100,11 @@ func handleWaitStatus(ctx *ScriptContext, args []string) error {
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 
-	// Use a timeout context so the test doesn't hang forever
-	timeout := time.After(5 * time.Second)
+	// Timeout after configured duration - if set to 0 assumes no timeout
+	var timeout <-chan time.Time
+	if timeoutSec := ctx.Store.Config().DefaultTimeoutSec; timeoutSec > 0 {
+		timeout = time.After(time.Duration(ctx.Store.Config().DefaultTimeoutSec) * time.Second)
+	}
 
 	// Case insensitive comparisons
 	targetState := strings.ToLower(args[1])
