@@ -1,21 +1,23 @@
 {{define "partials/modals/sequence"}}
 <div x-show="modal === 'seq'" @click.away="modal = ''" style="display: none;" class="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-80 p-5">
+  <form hx-post="/api/sequence/reset" hx-swap="none" @close-modal.window="modal = ''">
     <h3 class="text-white font-bold text-lg mb-4">Reset Sequence Numbers</h3>
     <div class="space-y-4">
         <div>
             <label class="text-xs text-gray-400 font-bold uppercase tracking-wider">Inbound (Next Expected)</label>
-            <input type="number" x-model="inSeq" class="w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 
+            <input required name="inSeq" type="number" min="0" x-model="inSeq" class="w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 
               text-white font-mono mt-1 focus:border-blue-500 focus:outline-none">
         </div>
         <div>
             <label class="text-xs text-gray-400 font-bold uppercase tracking-wider">Outbound (Next Expected)</label>
-            <input type="number" x-model="outSeq" class="w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 
+            <input required name="outSeq" type="number" min="0" x-model="outSeq" class="w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 
               text-white font-mono mt-1 focus:border-blue-500 focus:outline-none">
         </div>
     </div>
     <div class="mt-6 flex justify-end space-x-3">
         <button @click="modal = ''" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition cursor-pointer">Cancel</button>
-        <button @click="modal = ''" class="px-4 py-2 text-sm bg-red-600 hover:bg-red-500 text-white rounded font-bold transition shadow-lg cursor-pointer">Apply & Reset</button>
+        <button class="px-4 py-2 text-sm bg-red-600 hover:bg-red-500 text-white rounded font-bold transition shadow-lg cursor-pointer">Apply & Reset</button>
     </div>
+  </form>
 </div>
 {{end}}

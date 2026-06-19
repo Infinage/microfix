@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"sync"
 
@@ -30,7 +31,13 @@ func (app *Application) handleAPIScriptUpload(w http.ResponseWriter, r *http.Req
 		return
 	}
 	defer tempFile.Close()
-	io.Copy(tempFile, file)
+
+	_, err = io.Copy(tempFile, file)
+	if err != nil {
+		w.Header().Set("HX-Trigger", "script-upload-error")
+		toast(w, app.templ, "error", "Failed to copy to tempfile, please try again")
+		return
+	}
 
 	html := fmt.Sprintf(`
 		<div hx-ext="sse" sse-connect="/api/script/stream?file=%s&verbose=%t">
@@ -38,7 +45,7 @@ func (app *Application) handleAPIScriptUpload(w http.ResponseWriter, r *http.Req
 			<div sse-swap="done" hx-target="#sse-injector" hx-swap="innerHTML" @htmx:sse-message="running = false">
             </div>
 		</div>
-	`, tempFile.Name(), verbose)
+	`, url.QueryEscape(tempFile.Name()), verbose)
 
 	w.Write([]byte(html))
 }

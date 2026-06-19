@@ -93,13 +93,13 @@ func (sess *Session) Close() {
 	}
 }
 
-// Listen for a client connection, call blocks until accepted
+// Listen waits up to 10 seconds for an incoming client connection
 func (sess *Session) Listen(addr string) error {
 	if sess.started.Load() {
 		return fmt.Errorf("Session has already started, please reinitialize a new session")
 	}
 
-	conn, err := transport.Listen1(addr)
+	conn, err := transport.Listen1(addr, time.Second * 10)
 	if err != nil {
 		return err
 	}

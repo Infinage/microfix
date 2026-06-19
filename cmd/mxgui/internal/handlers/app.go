@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/infinage/microfix/pkg/session"
 	"github.com/infinage/microfix/pkg/store"
@@ -151,7 +152,7 @@ func (app *Application) StartWeb(addr string) error {
 	return nil
 }
 
-func (app *Application) routes() *http.ServeMux {
+func (app *Application) routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("GET /assets/", http.FileServerFS(app.assets))
 
@@ -160,6 +161,7 @@ func (app *Application) routes() *http.ServeMux {
 	mux.HandleFunc("GET /api/header", app.handleAPIHeader)
 	mux.HandleFunc("POST /api/connect", app.handleAPIConnect)
 	mux.HandleFunc("GET /api/reset", app.handleAPIReset)
+	mux.HandleFunc("POST /api/sequence/reset", app.handleAPIResetSequence)
 	mux.HandleFunc("GET /api/disconnect", app.handleAPIDisconnect)
 	mux.HandleFunc("GET /api/logs/stream", app.handleAPILogs)
 	mux.HandleFunc("GET /api/sample", app.handleAPISample)
@@ -186,12 +188,17 @@ func (app *Application) routes() *http.ServeMux {
 	mux.HandleFunc("POST /api/script/upload", app.handleAPIScriptUpload)
 	mux.HandleFunc("GET /api/script/stream", app.handleAPIScriptStream)
 
-	return mux
+	// No caching except for endpoints under '/assets'
+	return app.noCacheMiddleware(mux)
 }
 
-// Force frontend not to cache and reload everytime
-func doNotCache(w http.ResponseWriter) {
-	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-	w.Header().Set("Pragma", "no-cache")
-	w.Header().Set("Expires", "0")
+func (app *Application) noCacheMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasPrefix(r.URL.Path, "/assets/") {
+			w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+			w.Header().Set("Pragma", "no-cache")
+			w.Header().Set("Expires", "0")
+		}
+		next.ServeHTTP(w, r)
+	})
 }

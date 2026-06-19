@@ -2,6 +2,7 @@ package transport
 
 import (
 	"net"
+	"time"
 
 	"github.com/infinage/microfix/pkg/message"
 )
@@ -26,10 +27,14 @@ func Dial(addr string) (Connection, error) {
 }
 
 // Listens for a single incoming connection [BLOCKING]
-func Listen1(addr string) (Connection, error) {
+func Listen1(addr string, timeout time.Duration) (Connection, error) {
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return nil, err
+	}
+
+	if tcpListener, ok := listener.(*net.TCPListener); ok {
+		tcpListener.SetDeadline(time.Now().Add(timeout))
 	}
 
 	conn, err := listener.Accept()
