@@ -127,10 +127,14 @@ func (app *Application) StartWails() error {
 	return nil
 }
 
-func (app *Application) StartWeb(port string) error {
+// addr: ":0" can be passed to use a randomized port listening on localhost.
+// Alternatively use ":3000" or similar combined with 'air' when building UI
+//
+// Deprecated: Merely for prototyping and development.
+func (app *Application) StartWeb(addr string) error {
 	defer app.SaveConfig()
 
-	listener, err := net.Listen("tcp", port)
+	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
 	}
@@ -143,6 +147,7 @@ func (app *Application) StartWeb(port string) error {
 		return err
 	}
 
+	fmt.Println("Closing application")
 	return nil
 }
 

@@ -5,19 +5,13 @@ on:
     tags:
       - 'v*'
 
-jobs:
-  build:
-    name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
-    runs-on: ubuntu-latest
-    
-    strategy:
-          matrix:
-            goos: [linux, windows]
-            goarch: [amd64, arm64]
-            exclude:
-              - goos: windows
-                goarch: arm64
+env:
+  GO_VERSION: '1.26'
 
+jobs:
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -25,12 +19,15 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.26'
+          go-version: ${{ env.GO_VERSION }}
 
-      - name: Install UPX
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y upx-ucl
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
 
       - name: Enforce go fmt
         run: |
@@ -42,57 +39,129 @@ jobs:
             exit 1
           fi
 
+  build:
+    name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
+    needs: lint
+    runs-on: ${{ matrix.runner }}
+    
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            runner: ubuntu-latest
+          - goos: windows
+            goarch: amd64
+            runner: windows-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install Linux Dependencies
+        if: matrix.goos == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y upx-ucl libgtk-4-dev libwebkitgtk-6.0-dev
+
+      - name: Install Windows Dependencies
+        if: matrix.goos == 'windows'
+        run: choco install upx -y
+
       - name: Run go vet
         run: go vet ./...
 
-      - name: Build Production Binary
+      - name: Build Binaries
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: 0  # Disable CGO for statically linked binaries
+        shell: bash
         run: |
-          # Target the mxshell entrypoint
-          OUTPUT_NAME="mxshell-${{ matrix.goos }}-${{ matrix.goarch }}"
-        
-          # Add .exe extension for Windows binaries
-          if [ "${{ matrix.goos }}" = "windows" ]; then
-            OUTPUT_NAME="${OUTPUT_NAME}.exe"
+          mkdir -p build_output
+          
+          EXT=""
+          GUI_FLAGS="-s -w"
+          VERSION=${GITHUB_REF#refs/tags/}
+          COMMIT=${GITHUB_SHA:0:7}
+          
+          if [ "$GOOS" = "windows" ]; then
+            EXT=".exe"
+            GUI_FLAGS="-s -w -H windowsgui"
           fi
-          
-          # -s strips symbol table, -w strips DWARF debugging info
-          go build -ldflags="-s -w" -o $OUTPUT_NAME ./cmd/mxshell
-          
-          # Pass the filename to the next steps
-          echo "BINARY_NAME=$OUTPUT_NAME" >> $GITHUB_ENV
 
-      - name: Compress with UPX
-        run: upx --best ${{ env.BINARY_NAME }}
+          # Build mxshell (Pure Go)
+          echo "Building mxshell..."
+          CGO_ENABLED=0 go build \
+            -ldflags="-s -w -X main.Version=${VERSION} -X main.GitCommit=${COMMIT}" \
+            -o "build_output/mxshell-${GOOS}-${GOARCH}${EXT}" \
+            ./cmd/mxshell
 
-      - name: Upload Artifact
+          # Build mxgui (CGO enabled)
+          echo "Building mxgui..."
+          CGO_ENABLED=1 go build \
+            -ldflags="$GUI_FLAGS -X main.Version=${VERSION} -X main.GitCommit=${COMMIT}" \
+            -o "build_output/mxgui-${GOOS}-${GOARCH}${EXT}" \
+            ./cmd/mxgui
+
+      - name: Compress Binaries with UPX
+        shell: bash
+        run: |
+          for binary in build_output/*; do
+            if [ -f "$binary" ]; then
+              if [[ "$binary" == *.exe ]]; then
+                base="${binary%.exe}"
+                cp "$binary" "${base}-upx.exe"
+                upx --best "${base}-upx.exe" || echo "Warning: UPX failed for $binary"
+              else
+                cp "$binary" "${binary}-upx"
+                upx --best "${binary}-upx" || echo "Warning: UPX failed for $binary"
+              fi
+            fi
+          done
+
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          # This creates 4 separate zip files in the GitHub UI
           name: microfix-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: ${{ env.BINARY_NAME }}
+          path: build_output/*
           retention-days: 7
 
   release:
-      name: Create GitHub Release
-      needs: build
-      runs-on: ubuntu-latest
-      permissions:
-        contents: write
-      
-      steps:
-        - name: Download all build artifacts
-          uses: actions/download-artifact@v4
-          with:
-            pattern: microfix-*
-            merge-multiple: true
-            path: release-assets
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: microfix-*
+          merge-multiple: true
+          path: release-assets
 
-        - name: Create Release and Upload Assets
-          uses: softprops/action-gh-release@v2
-          with:
-            files: release-assets/*
-            generate_release_notes: true
+      - name: Generate Checksums
+        shell: bash
+        run: |
+          cd release-assets
+          sha256sum * > SHA256SUMS
+
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/*
+          generate_release_notes: true
