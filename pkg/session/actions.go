@@ -104,12 +104,13 @@ func (engine *Engine) OnTick(now time.Time) []Action {
 	}
 
 	// Incoming idle (send test request)
+	// Even if session is out of sync, let it stale & sort the staleness first
 	if since := now.Sub(engine.lastReadTime); since >= hbDuration {
 		if engine.state != SessionStale {
 			tr, _ := engine.Router.Sample("1", spec.SampleOptions{})
 			tr.Set(112, engine.testReqID)
 			engine.state = SessionStale
-			eventLog := fmt.Sprintf("No heartbeat received in %v. Transitioning to Stale", since.Truncate(time.Second))
+			eventLog := fmt.Sprintf("No message received in %v. Transitioning to Stale", since.Truncate(time.Second))
 			actions = append(actions, Action{Type: ActionLog, Event: eventLog}, Action{Type: ActionSend, Msg: tr})
 		} else if since >= hbDuration*3 {
 			engine.off()
@@ -161,13 +162,15 @@ func (engine *Engine) OnMessage(msg *message.Message, now time.Time) []Action {
 			msgAccepted = false
 		}
 
-	case SessionActive:
+	case SessionStale, SessionActive:
 		msgAccepted, actions = engine.handleAppMessage(msg)
-
-	case SessionStale:
-		if msgType == "0" {
-			msgAccepted, actions = engine.handleStaleHeartbeat(msg)
+		if engine.state == SessionStale {
+			engine.state = SessionActive
+			actions = append(actions, Action{Type: ActionLog, Event: "Message received. Transitioning to Active."})
 		}
+
+	case SessionOutOfSync:
+		msgAccepted, actions = engine.handleOutSyncMessage(msg)
 	}
 
 	// Update inbound sequence number
@@ -203,6 +206,11 @@ func (engine *Engine) OnResetSequence(inSeqNum int64, outSeqNum int64) []Action 
 				"Warning: May cause desync with counterparty.", engine.inSeqNum, inSeqNum)
 			actions = append(actions, Action{Type: ActionLog, Event: eventLog})
 		}
+
+		// If session state is OutOfSync, heal the session
+		actions = append(actions, Action{Type: ActionLog, Event: "Healing out of sync session, transitioning to Active"})
+		engine.state = SessionActive
+		engine.outOfSyncUntil = 0
 	}
 
 	// Reset internal state
@@ -215,17 +223,6 @@ func (engine *Engine) OnResetSequence(inSeqNum int64, outSeqNum int64) []Action 
 func (engine *Engine) OnDisconnect() []Action {
 	engine.state = SessionClosed
 	return nil
-}
-
-func (engine *Engine) handleStaleHeartbeat(msg *message.Message) (bool, []Action) {
-	var actions []Action
-	reqID, _ := msg.Get(112)
-	if reqID != engine.testReqID { // Log warn but continue
-		actions = append(actions, Action{Type: ActionError, Err: fmt.Errorf("Expected Heartbeat TestReqID tag [112] to %v", engine.testReqID)})
-	}
-	actions = append(actions, Action{Type: ActionLog, Event: "Heartbeat received. Transitioning to Active."})
-	engine.state = SessionActive
-	return true, actions
 }
 
 // If we get logon when we are in SessionNew state we accept it and send a logon back
@@ -260,9 +257,23 @@ func (engine *Engine) handleLogon(msg *message.Message) (bool, []Action) {
 	var actions []Action
 
 	// If flag set, reset sequence numbers
+	inSeqNumTag, _ := msg.FindFrom(34, 0)
+	inSeqNum, _ := inSeqNumTag.AsInt()
 	if resetSeqNumFlag, _ := msg.Get(141); resetSeqNumFlag == "Y" {
-		engine.inSeqNum, engine.outSeqNum = 1, 2
+		engine.inSeqNum = 1
 		engine.store.Reset() // Remove all message from store
+
+		// Only reset OutSeq if we are the acceptor (receiving logon as 1st msg)
+		// Otherwise we are receving logon as a response, outSeqNum is already at 2
+		if engine.state == SessionListening {
+			engine.outSeqNum = 1
+		}
+	} else if inSeqNum > engine.inSeqNum {
+		// Case where inSeqNum < engine.inSeqNum would be rejected and handled by engine.validate
+		// although such a scenario is unlikely, since we do not persist messages across restarts
+		engine.inSeqNum = inSeqNum
+		eventMsg := fmt.Sprintf("Logon InSeq [34] higher than expected, force set to %d", inSeqNum)
+		actions = append(actions, Action{Type: ActionLog, Event: eventMsg})
 	}
 
 	// We are SessionListening and Counterparty sends a logon, accept and send back a logon
@@ -359,21 +370,60 @@ func (engine *Engine) handleResend(msg *message.Message) []Action {
 	return actions
 }
 
+func (engine *Engine) handleOutSyncMessage(msg *message.Message) (bool, []Action) {
+	msgType, _ := msg.Get(35)
+	inSeqNumTag, _ := msg.FindFrom(34, 0)
+	inSeqNum, _ := inSeqNumTag.AsInt()
+
+	// If ResendRequest, bypass OutOfSync state (disregarding inSeqNum > expected)
+	if msgType == "2" {
+		return false, engine.handleResend(msg)
+	}
+
+	// If hard Sequence Reset (123=N), pass through std handler to reset and self heal
+	gapFillFlag, _ := msg.Get(123)
+	if msgType == "4" && gapFillFlag == "N" {
+		accepted, actions := engine.handleAppMessage(msg)
+		engine.state = SessionActive
+		actions = append(actions, Action{Type: ActionLog, Event: "Hard reset received. Transitioning to Active."})
+		return accepted, actions
+	}
+
+	// Drop any message that don't match our inSeqNum
+	if inSeqNum != engine.inSeqNum {
+		return false, []Action{
+			{Type: ActionLog, Event: fmt.Sprintf("OutSync: Dropped msg %d, still waiting for MsgSeq# %d", inSeqNum, engine.inSeqNum)},
+		}
+	}
+
+	// Process replayed message if it matches expected InSeqNum
+	accepted, actions := engine.handleAppMessage(msg)
+	if accepted && engine.inSeqNum+1 >= engine.outOfSyncUntil {
+		engine.state = SessionActive
+		actions = append(actions, Action{Type: ActionLog, Event: "All caught up, transitioning to Active."})
+	}
+
+	return accepted, actions
+}
+
 func (engine *Engine) handleAppMessage(msg *message.Message) (bool, []Action) {
 	// Get the MsgType
 	msgType, _ := msg.Get(35)
 
-	// Trigger a resend request (replay), if inSeqNum greater what we are expecting
+	// Trigger a resend request (replay), if inSeqNum greater than what we are expecting
 	inSeqNumTag, _ := msg.FindFrom(34, 0)
 	gapFillFlag, _ := msg.Get(123)
 	isHardReset := msgType == "4" && gapFillFlag == "N"
 	if inSeqNum, _ := inSeqNumTag.AsInt(); !isHardReset && inSeqNum > engine.inSeqNum {
+		engine.state = SessionOutOfSync
+		engine.outOfSyncUntil = inSeqNum
 		resend, _ := engine.Router.Sample("2", spec.SampleOptions{})
 		resend.Set(7, fmt.Sprint(engine.inSeqNum))
 		resend.Set(16, "0") // 0 means infinity in FIX Resend requests
 		return false, []Action{
 			{Type: ActionError, Err: fmt.Errorf("Expected InSeqNum [34] %v, got %v, triggering resend request.", engine.inSeqNum, inSeqNum)},
 			{Type: ActionSend, Msg: resend},
+			{Type: ActionLog, Event: "Transitioning to OutOfSync"},
 		}
 	}
 
@@ -381,7 +431,15 @@ func (engine *Engine) handleAppMessage(msg *message.Message) (bool, []Action) {
 	var actions []Action
 
 	switch msgType {
-	case "0": // Already updated InSeqNum, noop
+	case "0":
+		// If we are stale, we expect the heartbeat to echo our TestReqID
+		if engine.state == SessionStale {
+			reqID, _ := msg.Get(112)
+			if reqID != engine.testReqID {
+				errMsg := fmt.Errorf("Expected Heartbeat TestReqID tag [112] to be '%v'", engine.testReqID)
+				actions = append(actions, Action{Type: ActionError, Err: errMsg})
+			}
+		}
 
 	case "1": // Handle Test Request
 		hb, _ := engine.Router.Sample("0", spec.SampleOptions{OptionalFields: map[uint16]any{112: nil}})

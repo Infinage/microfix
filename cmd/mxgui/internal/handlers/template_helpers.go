@@ -50,6 +50,9 @@ func getThemeForEngineState(state string) Theme {
 	case "Stale":
 		textColor = "text-yellow-400"
 		bgColor = "bg-yellow-500"
+	case "OutOfSync":
+		textColor = "text-orange-400"
+		bgColor = "bg-orange-500"
 	case "Closed":
 		textColor = "text-gray-400"
 		bgColor = "bg-gray-500"

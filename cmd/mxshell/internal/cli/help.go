@@ -28,7 +28,7 @@ SCRIPT FLOW & UTILITY
   assert <exp1> <exp2>    Fail the script if exp1 != exp2
   include <filepath>      Include and execute another script file
   waitstatus <state>      Block until session enters state (New, Listening, 
-                          LoggingIn, Active, Stale, Closed)
+                          LoggingIn, Active, Stale, OutOfSync, Closed)
 
 VARIABLES & SUBSTITUTION
   Variables can be injected into any command using the '$' prefix.

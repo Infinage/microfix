@@ -22,11 +22,12 @@ const (
 	SessionLoggingIn
 	SessionActive
 	SessionStale
+	SessionOutOfSync
 	SessionClosed
 )
 
 func (s SessionState) String() string {
-	names := []string{"New", "Listening", "LoggingIn", "Active", "Stale", "Closed"}
+	names := []string{"New", "Listening", "LoggingIn", "Active", "Stale", "OutOfSync", "Closed"}
 	if s < 0 || int(s) >= len(names) {
 		return "Unknown"
 	}
@@ -61,8 +62,9 @@ type Engine struct {
 	heartbeatInt int64
 	testReqID    string
 
-	inSeqNum  int64
-	outSeqNum int64
+	inSeqNum       int64
+	outSeqNum      int64
+	outOfSyncUntil int64
 
 	lastWriteTime time.Time
 	lastReadTime  time.Time
@@ -252,6 +254,11 @@ func (engine *Engine) validate(msg *message.Message, now time.Time) error {
 	// For values greater than we will trigger resend on `handleAppMessage`
 	if !skipSeqCheck && received < engine.inSeqNum {
 		return fmt.Errorf("Input sequence number mismatch. Expected %v, got %v", engine.inSeqNum, received)
+	}
+
+	// All logon messages with ResetSeqNum set, must have MsgSeqNum set as 1
+	if msgType == "A" && resetSeqNum == "Y" && received != 1 {
+		return fmt.Errorf("Logon with ResetSeqNumFlag [141] set must have MsgSeqNum set to 1, got %d", received)
 	}
 
 	// SendingTime validation - by passed if SkipLatencyCheck is set in EngineOpts

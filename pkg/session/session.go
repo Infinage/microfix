@@ -99,7 +99,7 @@ func (sess *Session) Listen(addr string) error {
 		return fmt.Errorf("Session has already started, please reinitialize a new session")
 	}
 
-	conn, err := transport.Listen1(addr, time.Second * 10)
+	conn, err := transport.Listen1(addr, time.Second*10)
 	if err != nil {
 		return err
 	}

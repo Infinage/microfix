@@ -1,6 +1,7 @@
 package session
 
 import (
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -106,16 +107,29 @@ func TestEngine_HandleLogonRequest(t *testing.T) {
 		t.Fatalf("Expected Reject request with 'First message not a logon', got %v", msg)
 	}
 
-	// Building a logon
-	msg = buildMessage(t, engine, "A", nil, spec.SampleOptions{})
+	// Building a logon with SeqNo != 1 and ResetSeqNumFlag set
+	msg = buildMessage(t, engine, "A", map[uint16]string{141: "Y", 34: "10"}, spec.SampleOptions{OptionalFields: map[uint16]any{141: nil}})
+	actions = engine.OnMessage(&msg, time.Now())
+	if engine.state != SessionListening {
+		t.Fatal("Expected state Listening")
+	} else if len(actions) != 3 || actions[0].Type != ActionError || actions[1].Type != ActionSend || actions[2].Type != ActionClose {
+		t.Fatal("Expected a Error event followed by a logout")
+	} else if msg, _ := actions[1].Msg.Get(58); strings.Contains(msg, "Must have MsgSeqNum set to 1") {
+		t.Fatalf("Expected Logout with reason: 'Must have MsgSeqNum set to 1', got %v", msg)
+	}
 
-	// Engine should send a logon response
+	// Building a logon, purposefully setting MsgSeqNum to a higher num
+	msg = buildMessage(t, engine, "A", map[uint16]string{34: "10"}, spec.SampleOptions{})
+
+	// Engine should sync InSeqNum before sending a logon response
 	actions = engine.OnMessage(&msg, time.Now())
 	if engine.state != SessionActive {
 		t.Errorf("Expected state Active, got %v", engine.state)
-	} else if len(actions) != 2 || actions[0].Type != ActionLog || actions[1].Type != ActionSend {
+	} else if len(actions) != 3 || actions[0].Type != ActionLog || actions[1].Type != ActionLog || actions[2].Type != ActionSend {
 		t.Error("Expected engine to log state transition and send logon response back")
-	} else if msgType, _ := actions[1].Msg.Get(35); msgType != "A" {
+	} else if !strings.HasPrefix(actions[0].Event, "Logon InSeq [34] higher than expected") {
+		t.Errorf("Expected MsgSeqNum sync log, got %v", actions[0])
+	} else if msgType, _ := actions[2].Msg.Get(35); msgType != "A" {
 		t.Errorf("Expected MsgType logon, got %v", msgType)
 	}
 }
@@ -429,7 +443,7 @@ func TestEngine_SequenceGap(t *testing.T) {
 	msg := buildMessage(t, engine, "D", map[uint16]string{34: "10"}, spec.SampleOptions{})
 	actions := engine.OnMessage(&msg, time.Now())
 
-	if len(actions) != 2 || actions[1].Type != ActionSend {
+	if len(actions) != 3 || actions[1].Type != ActionSend {
 		t.Fatalf("expected resend request")
 	}
 
@@ -611,6 +625,113 @@ func TestEngine_HandleResend(t *testing.T) {
 			if _, hasPossDup := entries[0].Msg.Get(43); hasPossDup {
 				t.Error("CRITICAL: Message in store was mutated with 43=Y during replay!")
 			}
+		}
+	})
+}
+
+func TestEngine_OutOfSyncStateAndRecovery(t *testing.T) {
+	engine := setupEngine(t, false)
+	engine.state = SessionActive
+	engine.inSeqNum = 2
+	engine.outSeqNum = 2
+
+	t.Run("Trigger OutOfSync and verify ResendRequest", func(t *testing.T) {
+		// Engine expects 2, but receives 5
+		msg := buildMessage(t, engine, "D", map[uint16]string{34: "5"}, spec.SampleOptions{})
+		actions := engine.OnMessage(&msg, time.Now())
+
+		if engine.state != SessionOutOfSync {
+			t.Fatalf("Expected state SessionOutOfSync, got %v", engine.state)
+		} else if engine.outOfSyncUntil != 5 {
+			t.Fatalf("Expected outOfSyncUntil to be 5, got %v", engine.outOfSyncUntil)
+		} else if len(actions) != 3 || actions[1].Type != ActionSend {
+			t.Fatalf("Expected ActionSend in generated actions, got %v", actions)
+		}
+
+		// Check if msg is a ResendRequest and is as expected
+		mt, _ := actions[1].Msg.Get(35)
+		tag7, _ := actions[1].Msg.Get(7)
+		tag16, _ := actions[1].Msg.Get(16)
+		if mt != "2" || tag7 != "2" || tag16 != "0" {
+			t.Errorf("Expected ResendRequest 2 to 0, got %s to %s", tag7, tag16)
+		}
+	})
+
+	t.Run("Resend Storm Prevention (Drop subsequent msgs)", func(t *testing.T) {
+		// Still expecting 2. Counterparty sends 6 before our ResendRequest reaches them.
+		msg := buildMessage(t, engine, "D", map[uint16]string{34: "6"}, spec.SampleOptions{})
+		actions := engine.OnMessage(&msg, time.Now())
+		if engine.state != SessionOutOfSync {
+			t.Fatalf("Expected state SessionOutOfSync, got %v", engine.state)
+		}
+
+		// Should just log a drop, NOT send another ResendRequest
+		for _, a := range actions {
+			if a.Type == ActionSend {
+				t.Fatal("Expected no messages to be sent (Resend Storm prevented)")
+			} else if a.Type == ActionLog && !strings.Contains(a.Event, "Dropped msg 6") {
+				t.Errorf("Expected drop log, got %s", a.Event)
+			}
+		}
+	})
+
+	t.Run("Honor incoming ResendRequests", func(t *testing.T) {
+		// Populate store so we have something to replay
+		engine.store.Append(buildMessage(t, engine, "D", map[uint16]string{34: "1"}, spec.SampleOptions{}))
+		engine.outSeqNum = 2
+
+		// While OutOfSync, counterparty asks us for a replay (1 to 0)
+		req := buildMessage(t, engine, "2", map[uint16]string{34: "7", 7: "1", 16: "0"}, spec.SampleOptions{})
+		actions := engine.OnMessage(&req, time.Now())
+
+		// Ensure engine stays out of sync
+		if engine.state != SessionOutOfSync {
+			t.Fatalf("Expected to remain in SessionOutOfSync, got %v", engine.state)
+		}
+
+		// Should honor the request (send GapFill or Replay)
+		if !slices.ContainsFunc(actions, func(a Action) bool { return a.Type == ActionSend }) {
+			t.Fatal("Expected engine to honor ResendRequest and send messages")
+		}
+	})
+
+	t.Run("Message Recovery and State Heal", func(t *testing.T) {
+		// We are waiting for 2, 3, and 4. outOfSyncUntil is 5.
+		msg := buildMessage(t, engine, "D", map[uint16]string{43: "Y"}, spec.SampleOptions{OptionalFields: map[uint16]any{43: nil}})
+		for _, msgSeq := range []string{"2", "3"} {
+			msg.Set(34, msgSeq)
+			msg.Finalize()
+			engine.OnMessage(&msg, time.Now())
+			if engine.state != SessionOutOfSync {
+				t.Fatalf("Expected to remain OutOfSync after msg %s, got %v", msgSeq, engine.state)
+			}
+		}
+
+		// Session should revive when it sees SeqNum = 4, i.e. outOfSyncUntil - 1
+		msg.Set(34, "4")
+		msg.Finalize()
+		t.Log(engine.OnMessage(&msg, time.Now()))
+		if engine.state != SessionActive {
+			t.Fatalf("Expected state to heal to SessionActive after msg 4, got %v", engine.state)
+		} else if engine.inSeqNum != 5 {
+			t.Fatalf("Expected inSeqNum to increment to 5, got %d", engine.inSeqNum)
+		}
+	})
+
+	t.Run("Hard Reset heals OutOfSync", func(t *testing.T) {
+		// Force engine back into a broken state
+		engine.state = SessionOutOfSync
+		engine.inSeqNum = 5
+		engine.outOfSyncUntil = 10
+
+		// Counterparty gives up and hard resets us to 10 (35=4, 123=N)
+		msg := buildMessage(t, engine, "4", map[uint16]string{34: "10", 36: "10", 123: "N"}, spec.SampleOptions{OptionalFields: map[uint16]any{123: nil}})
+		engine.OnMessage(&msg, time.Now())
+
+		if engine.state != SessionActive {
+			t.Fatalf("Expected state to heal to SessionActive on Hard Reset, got %v", engine.state)
+		} else if engine.inSeqNum != 10 {
+			t.Fatalf("Expected inSeqNum to reset to 10, got %d", engine.inSeqNum)
 		}
 	})
 }

@@ -88,7 +88,7 @@ func (app *Application) SaveConfig() bool {
 
 func (app *Application) StartWails() error {
 	// Config wails with middleware to intercept all requests
-	mux := app.routes()
+	webMux, wailsMux := app.webRoutes(), app.wailsRoutes()
 
 	app.isWailsApp = true
 	app.wails = application.New(application.Options{
@@ -97,15 +97,10 @@ func (app *Application) StartWails() error {
 		Assets: application.AssetOptions{
 			Middleware: func(next http.Handler) http.Handler {
 				return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					switch r.URL.Path {
-					case "/wails/about/repository":
-						app.handleWailsAboutRepository(w, r)
-					case "/wails/about/contact":
-						app.handleWailsAboutMailto(w, r)
-					case "/wails/config/import":
-						app.handleWailsImportConfig(w, r)
-					default:
-						mux.ServeHTTP(w, r)
+					if strings.HasPrefix(r.URL.Path, "/wails") {
+						wailsMux.ServeHTTP(w, r)
+					} else {
+						webMux.ServeHTTP(w, r)
 					}
 				})
 			},
@@ -113,7 +108,13 @@ func (app *Application) StartWails() error {
 	})
 
 	// Start a new window
-	app.wails.Window.New()
+	app.wails.Window.NewWithOptions(application.WebviewWindowOptions{
+		Title:     "MicroFix",
+		Width:     1400,
+		Height:    900,
+		MinWidth:  900,
+		MinHeight: 800,
+	})
 
 	// Cleanup on WailsApp exit
 	app.wails.OnShutdown(func() {
@@ -144,7 +145,7 @@ func (app *Application) StartWeb(addr string) error {
 	app.port = listener.Addr().(*net.TCPAddr).Port
 	fmt.Println("Listening on port:", app.port)
 
-	if err = http.Serve(listener, app.routes()); err != nil {
+	if err = http.Serve(listener, app.webRoutes()); err != nil {
 		return err
 	}
 
@@ -152,7 +153,7 @@ func (app *Application) StartWeb(addr string) error {
 	return nil
 }
 
-func (app *Application) routes() http.Handler {
+func (app *Application) webRoutes() http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("GET /assets/", http.FileServerFS(app.assets))
 
@@ -189,6 +190,15 @@ func (app *Application) routes() http.Handler {
 	mux.HandleFunc("GET /api/script/stream", app.handleAPIScriptStream)
 
 	// No caching except for endpoints under '/assets'
+	return app.noCacheMiddleware(mux)
+}
+
+func (app *Application) wailsRoutes() http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /wails/about/repository", app.handleWailsAboutRepository)
+	mux.HandleFunc("GET /wails/about/contact", app.handleWailsAboutMailto)
+	mux.HandleFunc("POST /wails/config/import", app.handleWailsImportConfig)
+	mux.HandleFunc("GET /wails/config/export", app.handleWailsExportConfig)
 	return app.noCacheMiddleware(mux)
 }
 

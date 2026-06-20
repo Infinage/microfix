@@ -61,7 +61,7 @@ func handleStatus(ctx *ShellContext, _ []string) {
 	switch snapshot.State {
 	case session.SessionActive:
 		stateColor = "\033[32m" // Green
-	case session.SessionLoggingIn, session.SessionStale:
+	case session.SessionLoggingIn, session.SessionStale, session.SessionOutOfSync:
 		stateColor = "\033[33m" // Yellow
 	default:
 		stateColor = "\033[31m" // Red

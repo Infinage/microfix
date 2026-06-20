@@ -172,7 +172,7 @@ These commands are specific to automation flows and control script execution:
 
 * `expect <MsgLike>` - Fail if the *next* application message doesn't match. (Automatically ignores background Heartbeats & Test Requests).
 * `wait <MsgLike>` - Block execution until a matching message is received.
-* `waitstatus <state>` - Block until session enters state (`New`, `Listening`, `LoggingIn`, `Active`, `Stale`, `Closed`).
+* `waitstatus <state>` - Block until session enters state (`New`, `Listening`, `LoggingIn`, `Active`, `Stale`, `OutOfSync`, `Closed`).
 * `assert <exp1> <exp2>` - Fail the script if the two expressions do not match.
 * `sleep <millis>` - Pause execution for a specified duration.
 * `set <key> <val>` - Set a variable in the local store (e.g., `set VARS.Symbol AAPL`).
