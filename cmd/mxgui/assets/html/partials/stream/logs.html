@@ -74,7 +74,7 @@
                     if (type === 'RECV') tags.push('IN');
                     if (type === 'SEND') tags.push('OUT');
                     if (type === 'ERR') tags.push('Error');
-                    if (type === 'SYS') tags.push('Admin');
+                    if (type === 'SYS') tags.push('Sys');
                     
                     // Renamed from 'App' (Business Level Messages)
                     if (type === 'RECV' || type === 'SEND') tags.push('App');
@@ -84,6 +84,47 @@
                 
                 el.style.display = (matchRegex && matchFilter) ? '' : 'none';
             });
+        },
+
+        exportLogs() {
+            let logText = '';
+            
+            document.querySelectorAll('.log-entry').forEach(el => {
+                // Only process elements that pass the current filter
+                if (el.style.display !== 'none') {
+                    // Extract parts using the known span hierarchy
+                    let timeSpan = el.querySelector('span:nth-child(1)');
+                    let time = timeSpan ? timeSpan.innerText.replace(/\s+/g, ' ').trim() : '';
+
+                    let typeSpan = el.querySelector('span:nth-child(2)');
+                    let type = typeSpan ? typeSpan.innerText.trim() : '';
+
+                    let contentSpan = el.querySelector('span:nth-child(3)');
+                    let content = contentSpan ? contentSpan.innerText.trim() : '';
+
+                    // Format: [2026-06-20 19:45:00.000] SEND  8=FIXT.1.1...
+                    logText += `[${time}] ${type.padEnd(5)} ${content}\n`;
+                }
+            });
+
+            if (!logText) { return; }
+
+            // Create a Blob and trigger the native WebView download dialog
+            const blob = new Blob([logText], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            
+            // Generate a safe, timestamped filename
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            a.download = `microfix_stream_${timestamp}.log`;
+            
+            document.body.appendChild(a);
+            a.click();
+            
+            // Cleanup
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
     }" 
     @htmx:sse-message.camel="setTimeout(() => { 
@@ -94,9 +135,7 @@
     @htmx:after-settle="applyFilters()" 
     class="flex-1 flex flex-col min-w-0 min-h-0"
 >
-    <div class="bg-gray-950 px-4 py-2 border-b border-gray-800 flex items-center 
-      justify-between gap-x-2 shrink-0"
-    >
+    <div class="bg-gray-950 px-4 py-2 border-b border-gray-800 flex items-center justify-between gap-x-2 shrink-0">
         <input 
             type="text" 
             x-model="regexStr" 
@@ -104,37 +143,62 @@
             placeholder="Search regex..." 
             class="bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-300 focus:outline-none focus:border-blue-500 w-64 font-mono"
         >
-        
         <div class="flex space-x-2 items-center">
-            <button @click="toggleFilter('IN')" :class="activeFilters.includes('IN') ? 'ring-2 ring-green-500' : ''" class="text-xs font-bold px-3 py-1.5 rounded border border-green-900/50 bg-green-900/20 text-green-400 transition">IN</button>
-            <button @click="toggleFilter('OUT')" :class="activeFilters.includes('OUT') ? 'ring-2 ring-blue-500' : ''" class="text-xs font-bold px-3 py-1.5 rounded border border-blue-900/50 bg-blue-900/20 text-blue-400 transition">OUT</button>
-            <div class="w-px h-5 bg-gray-800 mx-2"></div>
+            <span class="text-xs text-gray-500 italic shrink-0 hidden 2xl:inline">Filters are additive (OR) &rarr;</span>
+            <button 
+                title="Incoming FIX messages"
+                @click="toggleFilter('IN')" 
+                :class="activeFilters.includes('IN') ? 'ring-2 ring-green-500' : ''" 
+                class="cursor-pointer text-xs font-bold px-3 py-1.5 rounded border border-green-900/50 bg-green-900/20 text-green-400 hover:bg-green-900/40 hover:text-green-300 transition"
+            >IN</button>
+
+            <button 
+                title="Outgoing FIX messages"
+                @click="toggleFilter('OUT')" 
+                :class="activeFilters.includes('OUT') ? 'ring-2 ring-blue-500' : ''" 
+                class="cursor-pointer text-xs font-bold px-3 py-1.5 rounded border border-blue-900/50 bg-blue-900/20 text-blue-400 hover:bg-blue-900/40 hover:text-blue-300 transition"
+            >OUT</button>
+            
+             <button 
+              title="All FIX messages (IN|OUT)"
+              @click="toggleFilter('App')" 
+              :class="activeFilters.includes('App') ? 'ring-2 ring-teal-500' : ''" 
+              class="cursor-pointer text-xs font-bold px-3 py-1.5 rounded border border-teal-900/50 bg-teal-900/20 text-teal-400 hover:bg-teal-900/40 hover:text-teal-300 transition hidden sm:inline"
+            >App</button>
             
             <button 
-              @click="toggleFilter('Admin')" 
-              :class="activeFilters.includes('Admin') ? 'ring-2 ring-gray-400' : ''" 
-              class="text-xs font-bold px-3 py-1.5 rounded border border-gray-700 bg-gray-800 
-                text-gray-300 transition hidden sm:inline"
-            >Admin</button>
+              title="Session events and informational messages"
+              @click="toggleFilter('Sys')" 
+              :class="activeFilters.includes('Sys') ? 'ring-2 ring-yellow-500' : ''" 
+              class="cursor-pointer text-xs font-bold px-3 py-1.5 rounded border border-yellow-900/50 bg-yellow-900/20 text-yellow-400 hover:bg-yellow-900/40 hover:text-yellow-300 transition hidden sm:inline"
+            >Sys</button>
+            
             <button 
-              @click="toggleFilter('App')" 
-              :class="activeFilters.includes('App') ? 'ring-2 ring-gray-400' : ''" 
-              class="text-xs font-bold px-3 py-1.5 rounded border border-gray-700 bg-gray-800 
-                text-gray-300 transition hidden sm:inline"
-            >App</button>
-            <button 
+              title="Errors and warnings"
               @click="toggleFilter('Error')" 
               :class="activeFilters.includes('Error') ? 'ring-2 ring-red-500' : ''" 
-              class="text-xs font-bold px-3 py-1.5 rounded border border-gray-700 bg-gray-800 
-                text-red-400 transition"
-            >Errors</button>
-            <div class="w-px h-5 bg-gray-800 mx-2"></div>
+              class="cursor-pointer text-xs font-bold px-3 py-1.5 rounded border border-red-900/50 bg-red-900/20 text-red-400 hover:bg-red-900/40 hover:text-red-300 transition"
+            >Errors</button> 
+            <div class="w-px h-5 bg-gray-800 mx-1"></div>
             
-            <button 
-                @click="clearLogs()"
-                class="text-xs font-bold px-3 py-1.5 rounded text-gray-500 hover:text-white transition"
+            <a
+                {{if .IsWailsApp}}
+                    hx-get="/wails/logs/export" hx-swap="none"
+                {{else}}
+                    href="/api/logs/export" download="microfix_stream.log"
+                {{end}}
+                title="Export all logs to file"
+                class="cursor-pointer flex items-center space-x-1.5 text-xs font-medium px-3 py-1.5 rounded text-gray-500 hover:text-green-400 hover:bg-green-500/10 transition"
             >
-                Clear Logs
+                <span>Export</span>
+            </a>
+
+            <button
+                @click="clearLogs()"
+                title="Clear all logs"
+                class="cursor-pointer text-xs font-medium px-3 py-1.5 rounded text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition"
+            >
+                <span>Clear</span>
             </button>
         </div>
     </div>

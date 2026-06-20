@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/infinage/microfix/cmd/mxgui/internal/tfilelogger"
 	"github.com/infinage/microfix/pkg/session"
 	"github.com/infinage/microfix/pkg/store"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -24,8 +25,11 @@ type Application struct {
 	assets embed.FS
 	templ  *template.Template
 
-	isWailsApp bool // conditional rendering of templates
+	// conditional rendering of templates
+	isWailsApp bool
 	wails      *application.App
+
+	tlogger *tfilelogger.LogStore
 }
 
 func NewSession(cfg store.Config) (*session.Session, error) {
@@ -65,12 +69,18 @@ func NewApplication(assets embed.FS) (*Application, error) {
 		return nil, err
 	}
 
+	tlogger, err := tfilelogger.NewTempFileLogger()
+	if err != nil {
+		return nil, err
+	}
+
 	return &Application{
 		Session: sess,
 		Store:   &st,
 		Ctx:     context.Background(),
 		assets:  assets,
 		templ:   templ,
+		tlogger: tlogger,
 	}, nil
 }
 
@@ -119,6 +129,7 @@ func (app *Application) StartWails() error {
 	// Cleanup on WailsApp exit
 	app.wails.OnShutdown(func() {
 		app.SaveConfig()
+		app.tlogger.Cleanup()
 	})
 
 	// Blocks until UI closes
@@ -135,6 +146,7 @@ func (app *Application) StartWails() error {
 // Deprecated: Merely for prototyping and development.
 func (app *Application) StartWeb(addr string) error {
 	defer app.SaveConfig()
+	defer app.tlogger.Cleanup()
 
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -165,6 +177,7 @@ func (app *Application) webRoutes() http.Handler {
 	mux.HandleFunc("POST /api/sequence/reset", app.handleAPIResetSequence)
 	mux.HandleFunc("GET /api/disconnect", app.handleAPIDisconnect)
 	mux.HandleFunc("GET /api/logs/stream", app.handleAPILogs)
+	mux.HandleFunc("GET /api/logs/export", app.handleAPIExportLogs)
 	mux.HandleFunc("GET /api/sample", app.handleAPISample)
 	mux.HandleFunc("POST /api/send", app.handleAPISend)
 	mux.HandleFunc("GET /api/finalize", app.handleAPIFinalize)
@@ -199,6 +212,7 @@ func (app *Application) wailsRoutes() http.Handler {
 	mux.HandleFunc("GET /wails/about/contact", app.handleWailsAboutMailto)
 	mux.HandleFunc("POST /wails/config/import", app.handleWailsImportConfig)
 	mux.HandleFunc("GET /wails/config/export", app.handleWailsExportConfig)
+	mux.HandleFunc("GET /wails/logs/export", app.handleWailsExportLogs)
 	return app.noCacheMiddleware(mux)
 }
 

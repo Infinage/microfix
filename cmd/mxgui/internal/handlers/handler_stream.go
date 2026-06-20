@@ -5,10 +5,18 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/infinage/microfix/pkg/message"
+	"github.com/infinage/microfix/pkg/pretty"
 	"github.com/infinage/microfix/pkg/spec"
 )
+
+var bufferPool = sync.Pool{
+	New: func() any {
+		return new(bytes.Buffer)
+	},
+}
 
 func (app *Application) handleAPILogs(w http.ResponseWriter, r *http.Request) {
 	// Set header for Server sent events (SSE)
@@ -38,13 +46,31 @@ func (app *Application) handleAPILogs(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			// Parse and print the logs
-			var buf bytes.Buffer
-			renderTemplate(app.templ, &buf, "partials/stream/logs/entry", log)
-			logMarkup := strings.ReplaceAll(buf.String(), "\n", " ")
+			// Parse and append logs to temp file logger
+			buf1 := bufferPool.Get().(*bytes.Buffer)
+			buf1.Reset()
+			pretty.Log(buf1, log, app.Session.Router())
+			app.tlogger.Log(buf1.String())
+			bufferPool.Put(buf1)
+
+			// Parse and print the logs for GUI
+			buf2 := bufferPool.Get().(*bytes.Buffer)
+			buf2.Reset()
+			renderTemplate(app.templ, buf2, "partials/stream/logs/entry", log)
+			logMarkup := strings.ReplaceAll(buf2.String(), "\n", " ")
+			bufferPool.Put(buf2)
 			fmt.Fprintf(w, "data: %s\n\n", logMarkup)
 			flusher.Flush()
 		}
+	}
+}
+
+func (app *Application) handleAPIExportLogs(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Disposition", "attachment; filename=microfix_stream_export.log")
+	w.Header().Set("Content-Type", "text/plain")
+
+	if err := app.tlogger.DumpTo(w); err != nil {
+		http.Error(w, "Failed to export logs", http.StatusInternalServerError)
 	}
 }
 
