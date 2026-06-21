@@ -290,9 +290,7 @@ func handleSeq(ctx *ShellContext, args []string) {
 	}
 }
 
-func handleHelp(_ *ShellContext, args []string) {
-	const version = "v0.2.1"
-
+func handleHelp(ctx *ShellContext, args []string) {
 	// If user asks: help <command>
 	if len(args) > 1 {
 		cmdName := args[1]
@@ -313,7 +311,7 @@ func handleHelp(_ *ShellContext, args []string) {
 	fmt.Println("────────────────────────────────────────────")
 
 	fmt.Println("\nMXShell - CLI FIX Client")
-	fmt.Println("Version :", version)
+	fmt.Println("Version :", ctx.Version)
 	fmt.Println("Author  : nj.deesa@gmail.com")
 	fmt.Println("")
 

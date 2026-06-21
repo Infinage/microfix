@@ -17,6 +17,8 @@ import (
 )
 
 type Application struct {
+	Version string
+
 	Session *session.Session
 	Store   *store.Store
 	Ctx     context.Context
@@ -44,7 +46,7 @@ func NewSession(cfg store.Config) (*session.Session, error) {
 		})
 }
 
-func NewApplication(assets embed.FS) (*Application, error) {
+func NewApplication(version string, assets embed.FS) (*Application, error) {
 	// Helper functions for parsing templates
 	templHelpers := template.FuncMap{
 		"getSpecName":            getSpecName,
@@ -54,6 +56,7 @@ func NewApplication(assets embed.FS) (*Application, error) {
 		"getAllFieldNamesAsJSON": getAllFieldNamesAsJSON,
 		"replaceSOH":             replaceSOH,
 		"add":                    add2,
+		"getCurrentYear":         getCurrentYear,
 	}
 
 	var err error
@@ -76,6 +79,7 @@ func NewApplication(assets embed.FS) (*Application, error) {
 	}
 
 	return &Application{
+		Version: version,
 		Session: sess,
 		Store:   &st,
 		Ctx:     context.Background(),
@@ -111,7 +115,7 @@ func (app *Application) StartWails() error {
 	app.wails = application.New(application.Options{
 		Name:        "MicroFix",
 		Description: "High-performance FIX Protocol client",
-		Icon: appIcon,
+		Icon:        appIcon,
 		Assets: application.AssetOptions{
 			Middleware: func(next http.Handler) http.Handler {
 				return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -216,6 +220,7 @@ func (app *Application) webRoutes() http.Handler {
 
 func (app *Application) wailsRoutes() http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /wails/about/docs", app.handleWailsAboutDocs)
 	mux.HandleFunc("GET /wails/about/repository", app.handleWailsAboutRepository)
 	mux.HandleFunc("GET /wails/about/contact", app.handleWailsAboutMailto)
 	mux.HandleFunc("POST /wails/config/import", app.handleWailsImportConfig)

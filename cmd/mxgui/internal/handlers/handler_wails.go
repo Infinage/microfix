@@ -9,6 +9,10 @@ func (app *Application) handleWailsAboutRepository(http.ResponseWriter, *http.Re
 	app.wails.Browser.OpenURL("https://github.com/infinage/microfix")
 }
 
+func (app *Application) handleWailsAboutDocs(http.ResponseWriter, *http.Request) {
+	app.wails.Browser.OpenURL("https://github.com/Infinage/microfix/blob/main/README.md")
+}
+
 func (app *Application) handleWailsAboutMailto(http.ResponseWriter, *http.Request) {
 	app.wails.Browser.OpenURL("mailto:nj.deesa@gmail.com")
 }

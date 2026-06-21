@@ -11,13 +11,20 @@ import (
 	shell "github.com/infinage/microfix/cmd/mxshell/internal/handlers"
 )
 
+// Populated from ldflags via GitHub CI/CD
+var (
+	Version   = "v0.0.0-dev"
+	GitCommit = "local"
+)
+
 // --- Main Application ---
 func main() {
 	// Create the config store and shell context
 	st := store.InitStore()
 	ctx := &shell.ShellContext{
-		Store: &st,
-		Logs:  ringbuf.NewCircularBuffer(1000),
+		Version: Version,
+		Store:   &st,
+		Logs:    ringbuf.NewCircularBuffer(1000),
 	}
 
 	if args := os.Args; len(args) == 1 {

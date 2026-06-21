@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html/template"
 	"strings"
+	"time"
 
 	"github.com/infinage/microfix/pkg/spec"
 	"github.com/infinage/microfix/pkg/store"
@@ -32,6 +33,10 @@ func getSpecName(config store.Config) string {
 
 func add2(n1, n2 int) int {
 	return n1 + n2
+}
+
+func getCurrentYear() int {
+	return time.Now().Year()
 }
 
 func replaceSOH(raw string) string {

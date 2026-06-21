@@ -13,7 +13,7 @@
             <div>
                 <h4 class="text-4xl font-extrabold text-white tracking-widest drop-shadow-sm">MICRO<span class="text-blue-500">FIX</span></h4>
                 <div class="flex items-center space-x-2 mt-2">
-                    <span class="text-sm font-mono text-gray-400 bg-gray-900 px-2.5 py-1 rounded-md border border-gray-800 shadow-sm">v1.0.0-alpha</span>
+                  <span class="text-sm font-mono text-gray-400 bg-gray-900 px-2.5 py-1 rounded-md border border-gray-800 shadow-sm">{{.AppVersion}}</span>
                 </div>
             </div>
         </div>
@@ -76,8 +76,16 @@
 
         <!-- Footer -->
         <div class="pt-5 mt-6 border-t border-gray-800 text-xs font-mono text-gray-600 flex justify-between items-center shrink-0">
-            <span>&copy; 2026 Microfix. MIT License.</span>
-            <button class="text-blue-400/70 hover:text-blue-400 transition hover:underline">Documentation &rarr;</button>
+            <span>&copy; {{getCurrentYear}} Microfix. MIT License.</span>
+
+            <a 
+              {{if .IsWailsApp}} 
+                hx-get="/wails/about/docs" hx-swap="none" 
+              {{else}} 
+                href="https://github.com/Infinage/microfix/blob/main/README.md" target="_blank" 
+              {{end}}
+              class="cursor-pointer text-blue-400/70 hover:text-blue-400 transition hover:underline"
+            >Documentation &rarr;</a>
         </div>
     </div>
 {{end}}
