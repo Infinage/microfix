@@ -247,10 +247,13 @@
                 </button>
             </div>
         </div>
-        <div class="flex items-center space-x-2"
+        <div 
+          class="flex items-center space-x-2" 
+          data-raw="{{.RawFix}}" 
+          data-json="{{.JSON}}"
           x-data="{
-            rawMsg: '{{.RawFix}}',
-            jsonMsg: '{{.JSON}}',
+            rawMsg: $el.dataset.raw,
+            jsonMsg: $el.dataset.json,
             copied: '',
           }"
         >

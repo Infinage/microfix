@@ -15,7 +15,7 @@ func (app *Application) handleAPIInspect(w http.ResponseWriter, r *http.Request)
 	raw := r.URL.Query().Get("message")
 	_, err := message.MessageFromString(raw, "|")
 	if err != nil {
-		toast(w, app.templ, "error", "Failed to parse message")
+		toast(w, app.templ, "error", fmt.Sprintf("Failed to parse message: %s", err.Error()))
 		return
 	}
 

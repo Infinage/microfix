@@ -10,11 +10,12 @@
   {{if $clickable}}
     @open-inspector-tab.window="inspectorOpen = true"
     hx-get="/api/inspect"
-    hx-vals='{"message": "{{.Content}}"}'
+    hx-include="find input[name='message']"
     hx-target="#msg-inspector"
     hx-swap="outerHTML"
   {{end}}
 >
+  {{if $clickable}} <input type="hidden" name="message" value="{{.Content}}"> {{end}}
   <span class="text-gray-500 shrink-0 whitespace-nowrap">
     <span class="hidden lg:inline">{{.Timestamp.Format "2006-01-02"}}</span>
     <span>{{.Timestamp.Format "15:04:05.000"}}</span>
