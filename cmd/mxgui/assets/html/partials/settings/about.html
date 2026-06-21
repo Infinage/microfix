@@ -1,15 +1,19 @@
 {{define "partials/settings/about"}}
     <div x-show="settingsTab === 'about'" style="display:none;" class="flex flex-col h-full pb-6">
-        
         <!-- Header & Logo -->
-        <div class="flex items-center space-x-4 mb-6 shrink-0">
-            <div class="w-16 h-16 bg-blue-900/30 border border-blue-500/50 rounded-xl flex items-center justify-center shadow-inner">
-                <span class="text-2xl font-bold text-blue-400 font-mono tracking-tighter">MX</span>
+        <div class="flex items-center space-x-6 mb-8 shrink-0">
+            <div class="relative w-24 h-24 flex items-center justify-center">
+                <div class="absolute inset-0 animate-glow-pulse z-0">
+                    <img src="/assets/image/logo.png" class="w-full h-full object-contain blur-md brightness-0 invert" alt="">
+                </div>
+                
+                <img src="/assets/image/logo.png" alt="MicroFIX Logo" class="relative z-10 w-full h-full object-contain">
             </div>
+            
             <div>
-                <h4 class="text-2xl font-bold text-white tracking-wider">MICRO<span class="text-blue-500">FIX</span></h4>
-                <div class="flex items-center space-x-2 mt-0.5">
-                    <span class="text-xs font-mono text-gray-400 bg-gray-900 px-2 py-0.5 rounded border border-gray-800">v1.0.0-alpha</span>
+                <h4 class="text-4xl font-extrabold text-white tracking-widest drop-shadow-sm">MICRO<span class="text-blue-500">FIX</span></h4>
+                <div class="flex items-center space-x-2 mt-2">
+                    <span class="text-sm font-mono text-gray-400 bg-gray-900 px-2.5 py-1 rounded-md border border-gray-800 shadow-sm">v1.0.0-alpha</span>
                 </div>
             </div>
         </div>

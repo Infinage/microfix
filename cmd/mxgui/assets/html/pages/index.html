@@ -4,8 +4,18 @@
     <title>Microfix</title>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <style> :root { color-scheme: dark; } </style>
+    <style> 
+      :root { color-scheme: dark; } 
+      @keyframes glow-pulse {
+          0%, 100% { opacity: 0.5; }
+          50% { opacity: 0; }
+      }
+      .animate-glow-pulse {
+          animation: glow-pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+    </style>
     <link href="/assets/css/index.css" rel="stylesheet" />
+    <link rel="icon" type="image/png" href="/assets/image/logo.png">
     <script src="/assets/js/htmx.min.js"></script> 
     <script src="/assets/js/htmx-ext-sse.min.js"></script>
     <script defer src="/assets/js/alpine.js"></script> 
