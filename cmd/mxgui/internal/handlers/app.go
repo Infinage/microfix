@@ -113,7 +113,7 @@ func (app *Application) StartWails() error {
 
 	app.isWailsApp = true
 	app.wails = application.New(application.Options{
-		Name:        "MicroFix",
+		Name:        "MicroFIX",
 		Description: "High-performance FIX Protocol client",
 		Icon:        appIcon,
 		Assets: application.AssetOptions{
@@ -131,7 +131,7 @@ func (app *Application) StartWails() error {
 
 	// Start a new window
 	app.wails.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:     "MicroFix",
+		Title:     "MicroFIX",
 		Width:     1200,
 		Height:    800,
 		MinWidth:  900,

@@ -20,8 +20,8 @@ func (app *Application) handleWailsAboutMailto(http.ResponseWriter, *http.Reques
 func (app *Application) handleWailsImportConfig(w http.ResponseWriter, _ *http.Request) {
 	// OpenFile Dialog from wails runtime
 	dialog := app.wails.Dialog.OpenFile()
-	dialog.SetTitle("Load MicroFix Configuration")
-	dialog.AddFilter("MicroFix Config", "*.mxrc")
+	dialog.SetTitle("Load MicroFIX Configuration")
+	dialog.AddFilter("MicroFIX Config", "*.mxrc")
 	dialog.AddFilter("All Files", "*.*")
 	dialog.CanChooseDirectories(true)
 
@@ -45,7 +45,7 @@ func (app *Application) handleWailsImportConfig(w http.ResponseWriter, _ *http.R
 
 func (app *Application) handleWailsExportConfig(w http.ResponseWriter, _ *http.Request) {
 	dialog := app.wails.Dialog.SaveFile()
-	dialog.AddFilter("MicroFix config", "*.mxrc")
+	dialog.AddFilter("MicroFIX config", "*.mxrc")
 
 	fpath, err := dialog.PromptForSingleSelection()
 	if err != nil || fpath == "" {
@@ -63,7 +63,7 @@ func (app *Application) handleWailsExportConfig(w http.ResponseWriter, _ *http.R
 
 func (app *Application) handleWailsExportLogs(w http.ResponseWriter, _ *http.Request) {
 	dialog := app.wails.Dialog.SaveFile()
-	dialog.AddFilter("MicroFix log", "*.log")
+	dialog.AddFilter("MicroFIX log", "*.log")
 
 	fpath, err := dialog.PromptForSingleSelection()
 	if err != nil || fpath == "" {

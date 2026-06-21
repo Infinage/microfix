@@ -21,16 +21,9 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
-      - name: Cache Go modules
-        uses: actions/cache@v4
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-
       - name: Enforce go fmt
         run: |
+          set -euo pipefail
           UNFORMATTED=$(go fmt ./...)
           if [ -n "$UNFORMATTED" ]; then
             echo "The following files are not formatted:"
@@ -63,14 +56,6 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
-      - name: Cache Go modules
-        uses: actions/cache@v4
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-
       - name: Install Linux Dependencies
         if: matrix.goos == 'linux'
         run: |
@@ -90,6 +75,8 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
         shell: bash
         run: |
+          set -euo pipefail
+
           mkdir -p build_output
           
           EXT=""
@@ -109,32 +96,30 @@ jobs:
             export PATH=$PATH:$(go env GOPATH)/bin
             
             # Generate for mxgui
-            winicon g cmd/mxgui/assets/image/logo.png -o cmd/mxgui/logo.ico
-            rsrc -ico cmd/mxgui/logo.ico -arch amd64 -o cmd/mxgui/rsrc_windows_amd64.syso
+            winicon g cmd/mxgui/assets/image/logo.png
+            rsrc -ico logo.ico -arch amd64 -o cmd/mxgui/mxgui_windows_amd64.syso
             
             # Generate for mxshell
-            winicon g cmd/mxshell/build/mxshell.png -o cmd/mxshell/mxshell.ico
-            rsrc -ico cmd/mxshell/mxshell.ico -arch amd64 -o cmd/mxshell/rsrc_windows_amd64.syso
+            winicon g cmd/mxshell/build/mxshell.png
+            rsrc -ico mxshell.ico -arch amd64 -o cmd/mxshell/mxshell_windows_amd64.syso
           fi
 
           # Build mxshell (Pure Go)
           echo "Building mxshell..."
           CGO_ENABLED=0 go build \
             -ldflags="-s -w -X main.Version=${VERSION} -X main.GitCommit=${COMMIT}" \
-            -o "build_output/mxshell-${GOOS}-${GOARCH}${EXT}" \
-            ./cmd/mxshell
+            -o "build_output/mxshell-${GOOS}-${GOARCH}${EXT}" ./cmd/mxshell
 
-          # Build mxgui (CGO enabled)
+          # Build mxgui (CGO enabled) — avoid stray trailing spaces after backslashes
           echo "Building mxgui..."
-          CGO_ENABLED=1 go build \
-            -tags desktop,production \ 
+          CGO_ENABLED=1 go build -tags "desktop,production" \
             -ldflags="$GUI_FLAGS -X main.Version=${VERSION} -X main.GitCommit=${COMMIT}" \
-            -o "build_output/mxgui-${GOOS}-${GOARCH}${EXT}" \
-            ./cmd/mxgui
+            -o "build_output/mxgui-${GOOS}-${GOARCH}${EXT}" ./cmd/mxgui
 
       - name: Compress Binaries with UPX
         shell: bash
         run: |
+          set -euo pipefail
           for binary in build_output/*; do
             if [ -f "$binary" ]; then
               if [[ "$binary" == *.exe ]]; then
