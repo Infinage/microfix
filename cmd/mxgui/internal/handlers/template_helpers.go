@@ -30,6 +30,10 @@ func getSpecName(config store.Config) string {
 	return sessSpec
 }
 
+func add2(n1, n2 int) int {
+	return n1 + n2
+}
+
 func replaceSOH(raw string) string {
 	return strings.ReplaceAll(raw, "\x01", "|")
 }

@@ -169,19 +169,19 @@
               <td class="px-2 py-1.5 text-purple-400 font-bold">{{.Value}} <span class="text-gray-600 font-sans text-[9px]">entries</span></td>
           </tr>
           
-          <template x-if="expanded">
-            {{range $index, $entryNodes := .Children}}
-                <tr class="bg-[#0a0d12]">
-                    <td class="px-2 py-1"></td>
-                    <td colspan="2" class="pl-4 py-1 border-l-2 border-gray-800">
-                        <div class="text-[10px] text-gray-600 mb-1 font-sans uppercase tracking-wider">Entry {{$index}}</div>
-                        <table class="w-full">
-                            {{template "partials/stream/inspector/render_nodes" $entryNodes}}
-                        </table>
-                    </td>
-                </tr>
-            {{end}}
-          </template>
+          {{range $index, $entryNodes := .Children}}
+              <tr x-show="expanded" class="bg-[#0a0d12]">
+                  <td class="px-2 py-1"></td>
+                  <td colspan="2" class="pl-4 py-1 border-l-2 border-gray-800">
+                      <div class="text-[10px] text-gray-600 mb-1 font-sans uppercase tracking-wider">
+                        Entry {{add $index 1}}
+                      </div>
+                      <table class="w-full">
+                          {{template "partials/stream/inspector/render_nodes" $entryNodes}}
+                      </table>
+                  </td>
+              </tr>
+          {{end}}
       </tbody>
     {{else}}
       <tr class="border-b border-gray-800/30 hover:bg-gray-800 transition">

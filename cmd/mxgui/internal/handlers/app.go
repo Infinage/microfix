@@ -53,6 +53,7 @@ func NewApplication(assets embed.FS) (*Application, error) {
 		"toTitle":                toTitle,
 		"getAllFieldNamesAsJSON": getAllFieldNamesAsJSON,
 		"replaceSOH":             replaceSOH,
+		"add":                    add2,
 	}
 
 	var err error
