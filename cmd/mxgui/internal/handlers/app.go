@@ -101,10 +101,17 @@ func (app *Application) StartWails() error {
 	// Config wails with middleware to intercept all requests
 	webMux, wailsMux := app.webRoutes(), app.wailsRoutes()
 
+	// Load app icon
+	appIcon, err := app.assets.ReadFile("assets/image/logo.png")
+	if err != nil {
+		return fmt.Errorf("failed to load app icon: %w", err)
+	}
+
 	app.isWailsApp = true
 	app.wails = application.New(application.Options{
 		Name:        "MicroFix",
 		Description: "High-performance FIX Protocol client",
+		Icon: appIcon,
 		Assets: application.AssetOptions{
 			Middleware: func(next http.Handler) http.Handler {
 				return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -121,10 +128,10 @@ func (app *Application) StartWails() error {
 	// Start a new window
 	app.wails.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:     "MicroFix",
-		Width:     1400,
-		Height:    900,
+		Width:     1200,
+		Height:    800,
 		MinWidth:  900,
-		MinHeight: 800,
+		MinHeight: 600,
 	})
 
 	// Cleanup on WailsApp exit

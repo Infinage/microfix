@@ -18,5 +18,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	app.StartWails()
+	if err = app.StartWails(); err != nil {
+		fmt.Printf("Fatal error: %v\n", err)
+		os.Exit(1)
+	}
 }

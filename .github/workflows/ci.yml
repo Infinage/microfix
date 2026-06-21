@@ -100,6 +100,21 @@ jobs:
           if [ "$GOOS" = "windows" ]; then
             EXT=".exe"
             GUI_FLAGS="-s -w -H windowsgui"
+            
+            echo "Generating Windows icons and .syso files..."
+            go install github.com/leaanthony/winicon/cmd/winicon@latest
+            go install github.com/akavel/rsrc@latest
+            
+            # Ensure the installed Go binaries are in the path
+            export PATH=$PATH:$(go env GOPATH)/bin
+            
+            # Generate for mxgui
+            winicon g cmd/mxgui/assets/image/logo.png -o cmd/mxgui/logo.ico
+            rsrc -ico cmd/mxgui/logo.ico -arch amd64 -o cmd/mxgui/rsrc_windows_amd64.syso
+            
+            # Generate for mxshell
+            winicon g cmd/mxshell/build/mxshell.png -o cmd/mxshell/mxshell.ico
+            rsrc -ico cmd/mxshell/mxshell.ico -arch amd64 -o cmd/mxshell/rsrc_windows_amd64.syso
           fi
 
           # Build mxshell (Pure Go)
@@ -112,6 +127,7 @@ jobs:
           # Build mxgui (CGO enabled)
           echo "Building mxgui..."
           CGO_ENABLED=1 go build \
+            -tags desktop,production \ 
             -ldflags="$GUI_FLAGS -X main.Version=${VERSION} -X main.GitCommit=${COMMIT}" \
             -o "build_output/mxgui-${GOOS}-${GOARCH}${EXT}" \
             ./cmd/mxgui
