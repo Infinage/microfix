@@ -18,6 +18,7 @@ import (
 
 type Application struct {
 	Version string
+	Commit  string
 
 	Session *session.Session
 	Store   *store.Store
@@ -46,7 +47,7 @@ func NewSession(cfg store.Config) (*session.Session, error) {
 		})
 }
 
-func NewApplication(version string, assets embed.FS) (*Application, error) {
+func NewApplication(version, commit string, assets embed.FS) (*Application, error) {
 	// Helper functions for parsing templates
 	templHelpers := template.FuncMap{
 		"getSpecName":            getSpecName,
@@ -80,6 +81,7 @@ func NewApplication(version string, assets embed.FS) (*Application, error) {
 
 	return &Application{
 		Version: version,
+		Commit:  commit,
 		Session: sess,
 		Store:   &st,
 		Ctx:     context.Background(),

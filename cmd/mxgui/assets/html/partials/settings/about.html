@@ -13,7 +13,10 @@
             <div>
                 <h4 class="text-4xl font-extrabold text-white tracking-widest drop-shadow-sm">MICRO<span class="text-blue-500">FIX</span></h4>
                 <div class="flex items-center space-x-2 mt-2">
-                  <span class="text-sm font-mono text-gray-400 bg-gray-900 px-2.5 py-1 rounded-md border border-gray-800 shadow-sm">{{.AppVersion}}</span>
+                  <span 
+                    title="{{.GitCommit}}"
+                    class="text-sm font-mono text-gray-400 bg-gray-900 px-2.5 py-1 rounded-md border border-gray-800 shadow-sm"
+                  >{{.AppVersion}}</span>
                 </div>
             </div>
         </div>
@@ -47,18 +50,16 @@
             <!-- Shortcuts -->
             <div class="bg-gray-900 border border-gray-800 p-4 rounded-lg space-y-2">
                 <h5 class="text-white font-bold mb-3">Quick Shortcuts</h5>
-                <div class="flex justify-between border-b border-gray-800 pb-2">
-                    <span class="text-gray-400">Send Message</span>
-                    <span class="font-mono text-blue-400 bg-blue-950 px-2 py-0.5 rounded border border-blue-900/50 text-xs">⌘ + Enter</span>
-                </div>
-                <div class="flex justify-between border-b border-gray-800 pb-2 pt-2">
-                    <span class="text-gray-400">Close Inspector</span>
-                    <span class="font-mono text-blue-400 bg-blue-950 px-2 py-0.5 rounded border border-blue-900/50 text-xs">ESC</span>
-                </div>
-                <div class="flex justify-between pt-2">
-                    <span class="text-gray-400">Global Command Palette</span>
-                    <span class="font-mono text-blue-400 bg-blue-950 px-2 py-0.5 rounded border border-blue-900/50 text-xs">⌘ + P</span>
-                </div>
+                <template x-for="s in shortcuts">
+                  <div class="flex justify-between border-b border-gray-800 pb-2">
+                      <span class="text-gray-400" x-text="s.description"></span>
+                      <span 
+                        class="font-mono text-blue-400 bg-blue-950 px-2 py-0.5 rounded border border-blue-900/50 text-xs cursor-help"
+                        x-text="(s.ctrl? '⌃ + ': '') + (s.alt? '⌥ + ': '') + (s.shift? '⇧ + ': '') + s.key"
+                        :title="(s.ctrl ? 'Ctrl + ' : '') + (s.alt ? 'Alt + ' : '') + (s.shift ? 'Shift + ' : '') + s.key.toUpperCase()"
+                      ></span>
+                  </div>
+                </template>
             </div>
 
             <!-- Tech Stack Tags -->

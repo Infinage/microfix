@@ -8,10 +8,11 @@ import (
 
 // Every handler takes in the context along with args
 type ShellContext struct {
-	Version string
-	Session *session.Session
-	Store   *store.Store
-	Logs    *ringbuf.CircularBuffer
+	Version   string
+	GitCommit string
+	Session   *session.Session
+	Store     *store.Store
+	Logs      *ringbuf.CircularBuffer
 }
 
 // Typing a command handler

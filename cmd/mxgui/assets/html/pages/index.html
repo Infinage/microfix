@@ -20,19 +20,42 @@
     <script src="/assets/js/htmx-ext-sse.min.js"></script>
     <script defer src="/assets/js/alpine.js"></script> 
 </head>
-<body class="bg-[#0a0d12] text-gray-300 h-screen overflow-hidden flex flex-col font-sans selection:bg-blue-900 selection:text-white" 
+<body 
+  class="bg-[#0a0d12] text-gray-300 h-screen overflow-hidden flex flex-col font-sans selection:bg-blue-900 selection:text-white" 
+  data-shortcuts="{{.Shortcuts}}"
+
   x-data="{ 
-      view: 'stream', /* 'stream', 'dictionary', 'toolbox', 'settings' */
-      inspectorTab: 'decoded', /* 'decoded', 'validation', 'diff' */
-      settingsTab: 'about', /* 'about', 'config', 'aliases' */
-      toolboxTab: 'scripts', /* 'validate', 'scripts', 'finalize' */
-      modal: '', /* '', 'seq', 'connect', 'form', 'alias' */
-      inspectorOpen: false, 
-      selectedMsg: null,
-      sendRaw: false,
-      sidebarOpen: true,
-      inSeq: 1, outSeq: 1, /* Added to track modal input */
-  }">
+    shortcuts: JSON.parse($el.dataset.shortcuts),
+    view: 'stream', /* 'stream', 'dictionary', 'toolbox', 'settings' */
+    inspectorTab: 'decoded', /* 'decoded', 'validation', 'diff' */
+    settingsTab: 'about', /* 'about', 'config', 'aliases' */
+    toolboxTab: 'scripts', /* 'validate', 'scripts', 'finalize' */
+    modal: '', /* '', 'seq', 'connect', 'form', 'alias' */
+    inspectorOpen: false, 
+    selectedMsg: null,
+    sendRaw: false,
+    sidebarOpen: true,
+    inSeq: 1, outSeq: 1, /* Added to track modal input */
+
+    handleShortcut(e, dispatch) {
+          for (const s of this.shortcuts) {
+              const keyMatch = s.key.toLowerCase() === e.key.toLowerCase();
+              if (keyMatch && !!s.ctrl === e.ctrlKey && !!s.alt === e.altKey && !!s.shift === e.shiftKey) {
+                  e.preventDefault();
+                  s.events.forEach(eventName => dispatch(eventName));
+                  break;
+              }
+          }
+      }
+  }"
+
+  @keydown.window="handleShortcut($event, $dispatch)"
+  @view-stream.window="view = 'stream'"
+  @view-dictionary.window="view = 'dictionary'"
+  @view-settings.window="view = 'settings'; settingsTab = 'config'"
+  @close-modal.window="modal = ''"
+  @close-inspector.window="inspectorOpen = false"
+>
 
   {{template "partials/global/modals" .}}
   {{template "partials/global/header" .}}

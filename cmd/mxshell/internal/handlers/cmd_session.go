@@ -311,8 +311,9 @@ func handleHelp(ctx *ShellContext, args []string) {
 	fmt.Println("────────────────────────────────────────────")
 
 	fmt.Println("\nMXShell - CLI FIX Client")
-	fmt.Println("Version :", ctx.Version)
 	fmt.Println("Author  : nj.deesa@gmail.com")
+	fmt.Println("Version :", ctx.Version)
+	fmt.Println("Commit  :", ctx.GitCommit)
 	fmt.Println("")
 
 	// Sort commands for stable output

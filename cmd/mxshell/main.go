@@ -22,9 +22,10 @@ func main() {
 	// Create the config store and shell context
 	st := store.InitStore()
 	ctx := &shell.ShellContext{
-		Version: Version,
-		Store:   &st,
-		Logs:    ringbuf.NewCircularBuffer(1000),
+		Version:   Version,
+		GitCommit: GitCommit,
+		Store:     &st,
+		Logs:      ringbuf.NewCircularBuffer(1000),
 	}
 
 	if args := os.Args; len(args) == 1 {

@@ -18,7 +18,7 @@ var (
 )
 
 func main() {
-	app, err := gui.NewApplication(Version, assets)
+	app, err := gui.NewApplication(Version, GitCommit, assets)
 	if err != nil {
 		fmt.Printf("Failed to init application: %v\n", err)
 		os.Exit(1)

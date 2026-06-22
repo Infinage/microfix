@@ -5,6 +5,8 @@ import (
 	"html/template"
 	"io"
 	"net/http"
+
+	"github.com/infinage/microfix/cmd/mxgui/internal/shortcuts"
 )
 
 func renderTemplate(templ *template.Template, w io.Writer, templateName string, data any) {
@@ -25,10 +27,12 @@ func (app *Application) handleHome(w http.ResponseWriter, r *http.Request) {
 
 	renderTemplate(app.templ, w, "index.html", map[string]any{
 		"AppVersion": app.Version,
+		"GitCommit":  app.Commit,
 		"Snapshot":   snap,
 		"Config":     cfg,
 		"Router":     app.Session.Router(),
 		"Aliases":    &cfg.Alias,
 		"IsWailsApp": app.isWailsApp,
+		"Shortcuts":  shortcuts.Shortcuts(),
 	})
 }

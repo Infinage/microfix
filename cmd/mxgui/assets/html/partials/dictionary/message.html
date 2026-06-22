@@ -4,22 +4,30 @@
     sampleStr: '{{.SampleStr}}' 
 }">
     
-  <div class="flex items-end justify-between border-b border-gray-800 pb-4 mb-6">
-    <div>
+  <div class="flex items-end justify-between border-b border-gray-800 pb-4 mb-6 space-x-4">
+    <div class="min-w-0">
       <div class="flex items-center space-x-3 mb-2">
-        <span class="bg-blue-900/30 text-blue-400 font-bold font-mono px-3 py-1 rounded text-sm border border-blue-800">MsgType = {{.Id}}</span>
-        <span class="bg-gray-800 text-gray-400 px-3 py-1 rounded text-sm border border-gray-700">{{if .IsAdmin}}Admin{{else}}App{{end}}</span>
+        <span class="bg-blue-900/30 text-blue-400 font-bold font-mono px-3 py-1 rounded text-sm border border-blue-800 shrink-0">MsgType = {{.Id}}</span>
+        <span class="bg-gray-800 text-gray-400 px-3 py-1 rounded text-sm border border-gray-700 shrink-0">{{if .IsAdmin}}Admin{{else}}App{{end}}</span>
       </div>
-      <h2 class="text-3xl font-semibold text-white">{{.Name}}</h2>
+      <h2 class="text-3xl font-semibold text-white truncate" title="{{.Name}}">{{.Name}}</h2>
     </div>
     
     <button 
       @click="navigator.clipboard.writeText(sampleStr.replace(/\|/g, '\x01')); copied = true; setTimeout(() => copied = false, 2000)"
-      class="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm transition flex items-center space-x-2 border border-gray-700"
+      class="hidden md:flex shrink-0 bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm transition items-center 
+        justify-center space-x-0 lg:space-x-2 border border-gray-700"
     >
-      <svg x-show="!copied" class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
-      <svg x-show="copied" style="display:none;" class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-      <span x-text="copied ? 'Copied to Clipboard!' : 'Copy Sample'"></span>
+      <svg x-show="!copied" class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 
+          12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z">
+        </path>
+      </svg>
+      <svg x-show="copied" style="display:none;" class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7">
+        </path>
+      </svg>
+      <span class="hidden lg:inline" x-text="copied ? 'Copied to Clipboard!' : 'Copy Sample'"></span>
     </button>
   </div>
 
