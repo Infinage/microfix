@@ -132,8 +132,10 @@ func (router *Router) SessionSpec() *Spec {
 }
 
 func (r *Router) IsAdmin(msgType string) bool {
+	// MsgType 'n' (XMLnonFIX) is technically admin, but it is omitted post FIX44
+	// We deliberately exclude it here to force router to look it up in the appl dict
 	switch msgType {
-	case "0", "1", "2", "3", "4", "5", "A", "n":
+	case "0", "1", "2", "3", "4", "5", "A":
 		return true
 	}
 	return false

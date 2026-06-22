@@ -25,7 +25,7 @@ func handleExpect(ctx *ScriptContext, args []string) error {
 	// Timeout after configured duration - if set to 0 assumes no timeout
 	var timeout <-chan time.Time
 	if timeoutSec := ctx.Store.Config().DefaultTimeoutSec; timeoutSec > 0 {
-		timeout = time.After(time.Duration(ctx.Store.Config().DefaultTimeoutSec) * time.Second)
+		timeout = time.After(time.Duration(timeoutSec) * time.Second)
 	}
 
 	for {
@@ -68,8 +68,11 @@ func handleWait(ctx *ScriptContext, args []string) error {
 	}
 	defer unsubscribe()
 
-	// Timeout after configured duration
-	timeout := time.After(time.Duration(ctx.Store.Config().DefaultTimeoutSec) * time.Second)
+	// Timeout after configured duration - if set to 0 assumes no timeout
+	var timeout <-chan time.Time
+	if timeoutSec := ctx.Store.Config().DefaultTimeoutSec; timeoutSec > 0 {
+		timeout = time.After(time.Duration(timeoutSec) * time.Second)
+	}
 
 	for {
 		select {
@@ -103,7 +106,7 @@ func handleWaitStatus(ctx *ScriptContext, args []string) error {
 	// Timeout after configured duration - if set to 0 assumes no timeout
 	var timeout <-chan time.Time
 	if timeoutSec := ctx.Store.Config().DefaultTimeoutSec; timeoutSec > 0 {
-		timeout = time.After(time.Duration(ctx.Store.Config().DefaultTimeoutSec) * time.Second)
+		timeout = time.After(time.Duration(timeoutSec) * time.Second)
 	}
 
 	// Case insensitive comparisons
@@ -111,6 +114,10 @@ func handleWaitStatus(ctx *ScriptContext, args []string) error {
 
 	for {
 		select {
+		case <-ctx.GoCtx.Done():
+			return fmt.Errorf("interrupt")
+		case <-ctx.Session.Done():
+			return fmt.Errorf("session closed")
 		case <-timeout:
 			return fmt.Errorf("timeout waiting for status: %s", targetState)
 		case <-ticker.C:

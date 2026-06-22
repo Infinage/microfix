@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/infinage/microfix/pkg/executor"
@@ -84,6 +85,7 @@ func (app *Application) handleAPIScriptStream(w http.ResponseWriter, r *http.Req
 			defer unsub()
 			wg.Go(func() {
 				router := app.Session.Router()
+				logSanitizer := strings.NewReplacer("<", "", ">", "")
 
 				for {
 					select {
@@ -114,7 +116,8 @@ func (app *Application) handleAPIScriptStream(w http.ResponseWriter, r *http.Req
 							}
 						}
 
-						html := fmt.Sprintf(`<div class="%s break-all">%s</div>`, colorClass, log.String(hint))
+						logStr := logSanitizer.Replace(log.String(hint))
+						html := fmt.Sprintf(`<div class="%s break-all">%s</div>`, colorClass, logStr)
 						sseChan <- html
 					}
 				}
@@ -126,7 +129,7 @@ func (app *Application) handleAPIScriptStream(w http.ResponseWriter, r *http.Req
 	wg.Go(func() {
 		defer stop() // Cancels scriptCtx, which tells the Logger to exit
 
-		// Read temp file created at `/api/script/upload`
+		// Read temp file created via api `/api/script/upload`
 		f, err := os.Open(fpath)
 		if err != nil {
 			sseChan <- fmt.Sprintf(`<div class="text-red-500">Failed to read file: %v</div>`, err)

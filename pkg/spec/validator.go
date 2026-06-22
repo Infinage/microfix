@@ -140,12 +140,23 @@ func walkSpec(ro *Router, msg *message.Message, vmode ValidationMode, context En
 				if groupSize == -1 {
 					// Store the begin and end indices of a group
 					groupSize = idx - group1Start
+					if groupSize == 0 {
+						*obs = append(*obs, fmt.Sprintf("Empty group [%d] with non zero counts [%d]",
+							field.Tag, repeat))
+						break
+					}
 
 					// Ensure first tag in group is our anchor tag from spec
 					anchorTag := (*msg)[group1Start].Tag
 					if anchorPos, found := entry.Lookup[anchorTag]; !found || anchorPos != 0 {
-						*obs = append(*obs, fmt.Sprintf("Tag %v immediately following group count missing"+
-							" or not at first position", (*msg)[idx+1].Tag))
+						var expectedAnchorTag uint16
+						for k, v := range entry.Lookup {
+							if v == 0 {
+								expectedAnchorTag = k
+							}
+						}
+						*obs = append(*obs, fmt.Sprintf("Repeating group delimiter mismatch: expected tag [%v]"+
+							" as first field, got [%v]", expectedAnchorTag, anchorTag))
 					}
 				} else if vmode == ValidationStrict {
 					// Validate the ordering for second repeating group onwards
@@ -245,7 +256,7 @@ func (router *Router) Validate(msg *message.Message, mode ValidationMode) ([]str
 	msgSpec := router.SpecForMsgType(msgType)
 	msgEntry, ok := msgSpec.Messages[msgType]
 	if !ok {
-		observations = append(observations, fmt.Sprintf("Unknown MsgType '35=%v'", msgType))
+		observations = append(observations, fmt.Sprintf("Unknown MsgType '35=%s'", msgType))
 		return observations, false
 	}
 

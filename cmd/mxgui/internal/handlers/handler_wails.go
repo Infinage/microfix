@@ -23,17 +23,16 @@ func (app *Application) handleWailsImportConfig(w http.ResponseWriter, _ *http.R
 	dialog.SetTitle("Load MicroFIX Configuration")
 	dialog.AddFilter("MicroFIX Config", "*.mxrc")
 	dialog.AddFilter("All Files", "*.*")
-	dialog.CanChooseDirectories(true)
 
 	// Show the dialog. This blocks until the user selects a file or cancels.
-	filePath, err := dialog.PromptForSingleSelection()
-	if err != nil {
-		toast(w, app.templ, "error", "Failed to open dialog")
+	fpath, err := dialog.PromptForSingleSelection()
+	if err != nil || fpath == "" {
+		toast(w, app.templ, "error", "Failed to select file")
 		return
 	}
 
 	// Load config from file, original config untouched on error
-	if err := app.Store.LoadConfig(filePath); err != nil {
+	if err := app.Store.LoadConfig(fpath); err != nil {
 		toast(w, app.templ, "error", fmt.Sprintf("Failed to load config: %s", err.Error()))
 		return
 	}
@@ -46,6 +45,7 @@ func (app *Application) handleWailsImportConfig(w http.ResponseWriter, _ *http.R
 func (app *Application) handleWailsExportConfig(w http.ResponseWriter, _ *http.Request) {
 	dialog := app.wails.Dialog.SaveFile()
 	dialog.AddFilter("MicroFIX config", "*.mxrc")
+	dialog.AddFilter("All Files", "*.*")
 
 	fpath, err := dialog.PromptForSingleSelection()
 	if err != nil || fpath == "" {

@@ -120,7 +120,7 @@ func (app *Application) handleAPIResetConfig(w http.ResponseWriter, r *http.Requ
 
 	// Reload the config page
 	renderTemplate(app.templ, w, "partials/settings/config/form",
-		map[string]any{"partials/settings/config": app.Store.Config()})
+		map[string]any{"Config": app.Store.Config()})
 }
 
 func (app *Application) handleAPIDumpConfig(w http.ResponseWriter, r *http.Request) {

@@ -1,6 +1,7 @@
 package spec
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -296,7 +297,7 @@ func TestValidate_GroupOrdering(t *testing.T) {
 			t.Error("Validation should fail when group members are out of order")
 		} else {
 			found := slices.ContainsFunc(obs, func(ob string) bool {
-				return strings.Contains(ob, "Tag 629 immediately following group count missing or not at first position")
+				return strings.Contains(ob, "Repeating group delimiter mismatch: expected tag [628] as first field")
 			})
 			if !found {
 				t.Errorf("Expected error not found in observations, got: %v", strings.Join(obs, "; "))
@@ -360,4 +361,38 @@ func TestValidate_FIXTMultiplexing(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestValidate_SampleAllMessages(t *testing.T) {
+	ro, err := NewDefaultRouter("FIXT11.xml")
+	if err != nil {
+		t.Fatalf("Failed to init router: %s", err.Error())
+	}
+
+	for applVerID := 2; applVerID <= 9; applVerID++ {
+		applVerIDStr := fmt.Sprint(applVerID)
+		if !ro.SetDefaultApplVerID(applVerIDStr) {
+			t.Fatalf("Failed to set defaultApplVerID: %d", applVerID)
+		}
+
+		// Synchronous outer subtest: ensure all subtests finish before switching applVerID
+		t.Run(fmt.Sprintf("AppVer-%s", ro.defaultApplVer), func(t *testing.T) {
+			for msgId := range ro.ApplSpec().Messages {
+				t.Run(fmt.Sprintf("MsgID-%s", msgId), func(t *testing.T) {
+					t.Parallel() // Run for each message parallely
+
+					msg, err := ro.Sample(msgId, SampleOptions{})
+					t.Log(msg)
+					if err != nil {
+						t.Fatalf("Failed to sample message Id: %s: %s", msgId, err.Error())
+					}
+
+					obs, ok := ro.Validate(&msg, ValidationStrict)
+					if !ok {
+						t.Errorf("MsgID [35=%s] validation failed with observations: %s", msgId, obs)
+					}
+				})
+			}
+		})
+	}
 }

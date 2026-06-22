@@ -32,6 +32,7 @@ func Listen1(addr string, timeout time.Duration) (Connection, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer listener.Close()
 
 	if tcpListener, ok := listener.(*net.TCPListener); ok {
 		tcpListener.SetDeadline(time.Now().Add(timeout))
@@ -42,6 +43,5 @@ func Listen1(addr string, timeout time.Duration) (Connection, error) {
 		return nil, err
 	}
 
-	listener.Close()
 	return newTransport(conn), nil
 }

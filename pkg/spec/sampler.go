@@ -85,15 +85,15 @@ func (spec *Spec) buildFromEntries(entries []Entry, opts SampleOptions) message.
 	}
 
 	// Recursively process an entry and add it fields into the message being built
-	var addEntry func(msg *message.Message, entry Entry)
-	addEntry = func(msg *message.Message, entry Entry) {
+	var addEntry func(msg *message.Message, entry Entry, forceInclude bool)
+	addEntry = func(msg *message.Message, entry Entry, forceInclude bool) {
 		tag, _ := spec.FieldNames[entry.Name]
 
 		// Shortcut to skip adding entry's contents into message.
-		// 1. Required fields are never skipped
-		// 2. If a whitelist is provided, pass if this tag OR any child is whitelisted.
-		// 3. Otherwise, pass only if IncludeOptional is toggled on.
-		if !entry.Required {
+		// 1. Required & 'forceInclude'ed fields are never skipped
+		// 2. If a whitelist is provided, pass (no skip) if this tag OR any child is whitelisted.
+		// 3. Otherwise, pass (no skip) only if IncludeOptional is toggled on.
+		if !forceInclude && !entry.Required {
 			if opts.OptionalFields != nil {
 				if !hasWhitelistedDescendant(&entry) {
 					return
@@ -120,19 +120,27 @@ func (spec *Spec) buildFromEntries(entries []Entry, opts SampleOptions) message.
 
 			// Add the NumInGroup counter tag
 			*msg = append(*msg, message.Field{Tag: tag, Value: fmt.Sprint(repeat)})
+			sizeBefore := len(*msg)
 
 			// Recurse into group members
 			for range repeat {
-				for _, subEntry := range entry.Entries {
-					addEntry(msg, subEntry)
+				for idx, subEntry := range entry.Entries {
+					// force include first entry of group
+					addEntry(msg, subEntry, idx == 0)
 				}
+			}
+
+			// Set repeat to 0 if all subgroup tags were
+			// non-mandatory and none were added
+			if len(*msg) == sizeBefore {
+				(*msg)[len(*msg)-1].Value = "0"
 			}
 		}
 	}
 
 	var result message.Message
 	for _, entry := range entries {
-		addEntry(&result, entry)
+		addEntry(&result, entry, false)
 	}
 
 	return result

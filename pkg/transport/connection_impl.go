@@ -111,6 +111,7 @@ func (t *transport) writeLoop() {
 			wire := message.String("\x01")
 			if _, err := t.conn.Write([]byte(wire)); err != nil {
 				t.reportError(fmt.Errorf("Failed to write: %w", err))
+				return
 			}
 		}
 	}
