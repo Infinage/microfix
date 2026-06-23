@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="cmd/mxgui/assets/image/logo.png" width="160" alt="MicroFIX Logo"/>
+  <img src="cmd/mxgui/assets/image/logo.png" width="240" alt="MicroFIX Logo"/>
 </p>
 
 <h1 align="center">MicroFIX</h1>

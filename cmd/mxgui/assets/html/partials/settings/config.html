@@ -126,7 +126,7 @@
           </td>
           <td class="p-4">
             <div class="flex items-center space-x-3">
-              <input type="text" name="SessionSpec" value="{{.Config.SessionSpec}}" 
+              <input type="text" name="SessionSpec" value="{{.Config.SessionSpec}}" autocomplete="off"
                 hx-get="/api/config/check/specpath" hx-indicator="#session-spec-spinner" hx-swap="innerHTML"
                 hx-vals='{"from": "session-spec"}' hx-trigger="input delay:300ms" hx-target="#session-spec-status"
                 class="bg-gray-950 border border-gray-700 rounded px-3 py-1.5 text-white font-mono w-full max-w-md 
@@ -150,7 +150,7 @@
           </td>
           <td class="p-4">
             <div class="flex items-center space-x-3">
-              <input type="text" name="ApplicationSpec" value="{{.Config.ApplicationSpec}}" 
+              <input type="text" name="ApplicationSpec" value="{{.Config.ApplicationSpec}}" autocomplete="off"
                 hx-get="/api/config/check/specpath" hx-indicator="#application-spec-spinner" hx-swap="innerHTML"
                 hx-vals='{"from": "application-spec"}' hx-trigger="input delay:300ms" hx-target="#application-spec-status"
                 class="bg-gray-950 border border-gray-700 rounded px-3 py-1.5 text-white 

@@ -36,16 +36,31 @@ func (app *Application) handleAPIDisconnect(w http.ResponseWriter, r *http.Reque
 	toast(w, app.templ, "success", "Session disconnected")
 }
 
-func (app *Application) handleAPIReset(w http.ResponseWriter, r *http.Request) {
-	app.Session.Close()
-	sess, err := NewSession(app.Store.Config())
+func (app *Application) resetSession() error {
+	// Create a new session from latest config
+	newSess, err := NewSession(app.Store.Config())
 	if err != nil {
-		toast(w, app.templ, "error", fmt.Sprintf("Failed to reset session: %v", err))
+		return err
+	}
+
+	// Reset session and close the old one
+	oldSess := app.Session
+	app.Session = newSess
+	if oldSess != nil {
+		oldSess.Close()
+	}
+
+	return nil
+}
+
+func (app *Application) handleAPIReset(w http.ResponseWriter, r *http.Request) {
+	if err := app.resetSession(); err != nil {
+		toast(w, app.templ, "error", fmt.Sprintf("Reset failed: %v", err))
 		return
 	}
 
-	app.Session = sess
-	w.Header().Set("HX-Trigger", "session-updated")
+	// Trigger updation of headers and other listening components
+	w.Header().Set("HX-Trigger", "config-reloaded, session-updated")
 	toast(w, app.templ, "success", "Session reset successfully")
 }
 

@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/infinage/microfix/pkg/session"
 )
 
 func (app *Application) handleAPIGetAlias(w http.ResponseWriter, r *http.Request) {
@@ -55,7 +57,7 @@ func (app *Application) handleAPIListAlias(w http.ResponseWriter, r *http.Reques
 	if r.URL.Query().Get("from") == "settings" {
 		renderTemplate(app.templ, w, "partials/settings/aliases", map[string]any{"Aliases": app.Store.Config().Alias})
 	} else {
-		renderTemplate(app.templ, w, "partials/stream/send_form/aliases", map[string]any{"Aliases": app.Store.Config().Alias})
+		renderTemplate(app.templ, w, "partials/stream/send_form/select/aliases", map[string]any{"Aliases": app.Store.Config().Alias})
 	}
 }
 
@@ -105,7 +107,20 @@ func (app *Application) handleAPISaveConfig(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	toast(w, app.templ, "success", "Config save successful")
+	// Attempt to reset session with changes if not already started
+	toastMsg := "Configuration saved successfully. Changes will be applied after the next session reset."
+	if app.Session.Status().State == session.SessionNew {
+		if err := app.resetSession(); err != nil {
+			toast(w, app.templ, "error", fmt.Sprintf("Config saved, but reset failed: %v", err))
+			return
+		}
+
+		// Update listening components - header, dictionary, stream select boxes
+		w.Header().Set("HX-Trigger", "config-reloaded, session-updated")
+		toastMsg = "Configuration saved and applied successfully."
+	}
+
+	toast(w, app.templ, "success", toastMsg)
 }
 
 func (app *Application) handleAPIResetConfig(w http.ResponseWriter, r *http.Request) {

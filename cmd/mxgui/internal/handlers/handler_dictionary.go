@@ -8,6 +8,10 @@ import (
 	"github.com/infinage/microfix/pkg/spec"
 )
 
+func (app *Application) handleAPIDictionaryDefinitions(w http.ResponseWriter, r *http.Request) {
+	renderTemplate(app.templ, w, "partials/dictionary/definitions", map[string]any{"Router": app.Session.Router()})
+}
+
 func (app *Application) handleAPIDictionaryMessage(w http.ResponseWriter, r *http.Request) {
 	msgId := r.PathValue("id")
 

@@ -18,6 +18,14 @@ var bufferPool = sync.Pool{
 	},
 }
 
+func (app *Application) handleAPISendFormReload(w http.ResponseWriter, r *http.Request) {
+	cfg := app.Store.Config()
+	renderTemplate(app.templ, w, "partials/stream/send_form/select", map[string]any{
+		"Router":  app.Session.Router(),
+		"Aliases": &cfg.Alias,
+	})
+}
+
 func (app *Application) handleAPILogs(w http.ResponseWriter, r *http.Request) {
 	// Set header for Server sent events (SSE)
 	w.Header().Set("Content-Type", "text/event-stream")

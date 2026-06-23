@@ -1,9 +1,10 @@
-{{define "partials/stream/send_form/aliases"}}
+{{define "partials/stream/send_form/select/aliases"}}
 <div hx-trigger="refresh-alias from:body" hx-get="/api/alias/list" hx-vals='{"from": "stream"}' class="flex-1 min-w-[100px] max-w-[200px]">
   <select 
    name="alias"
     hx-get="/api/alias/get"
     hx-target="#message-input"
+    hx-swap="innerHTML"
     x-model="selectedAlias" 
     @change="selectedMsgType = ''" 
     :class="selectedAlias !== '' ? 'border-blue-500' : 'border-gray-700'" 
@@ -17,39 +18,51 @@
 </div>
 {{end}}
 
+{{define "partials/stream/send_form/select/fix_messages"}}
+<select 
+ name="msgtype"
+  hx-get="/api/sample"
+  hx-target="#message-input"
+  hx-swap="innerHTML"
+  x-model="selectedMsgType" 
+  @change="selectedAlias = ''" 
+  :class="selectedMsgType !== '' ? 'border-blue-500' : 'border-gray-700'" 
+  class="flex-1 min-w-[120px] max-w-[300px] truncate bg-gray-950 border text-gray-300 text-sm rounded px-3 py-1.5 outline-none focus:border-blue-500 font-mono transition"
+>
+    <option disabled value="">-- Select MsgType --</option>
+    {{range $msgId, $msgSpec := .Router.SessionSpec.Messages}}
+      <option value="{{$msgId}}">[Sess] Type: {{$msgId}} ({{$msgSpec.Name}})</option>
+    {{end}}
+    {{if not .Router.IsLegacyRouter}}
+        {{range $msgId, $msgSpec := .Router.ApplSpec.Messages}}
+            <option value="{{$msgId}}">[Appl] Type: {{$msgId}} ({{$msgSpec.Name}})</option>
+        {{end}}
+    {{end}}
+</select>
+{{end}}
+
+{{define "partials/stream/send_form/select"}}
+<div 
+  class="flex flex-1 items-center gap-3 min-w-0"
+  hx-trigger="config-reloaded from:body" 
+  hx-get="/api/logs/send_form/select" hx-swap="outerHTML" 
+>
+    {{template "partials/stream/send_form/select/aliases" .}}
+    <span class="text-gray-600 font-bold text-xs shrink-0">OR</span>
+    {{template "partials/stream/send_form/select/fix_messages" .}}
+    <span class="text-xs text-gray-500 italic shrink-0 hidden 2xl:inline">&larr; Auto-populates raw payload</span>
+</div>
+{{end}}
+
 {{define "partials/stream/send_form"}}
 <div 
   x-data="{ mode: 'alias', selectedAlias: '', selectedMsgType: '' }" 
+  @config-reloaded.window="selectedAlias = ''; selectedMsgType = ''"
+  @refresh-alias.window="selectedAlias = ''"
   class="bg-gray-900/40 border-b border-gray-800 flex flex-col shrink-0 p-4"
 >
     <div class="flex flex-wrap lg:flex-nowrap justify-between items-center gap-3 mb-3">
-        <div class="flex flex-1 items-center gap-3 min-w-0">
-            {{template "partials/stream/send_form/aliases" .}}
-
-            <span class="text-gray-600 font-bold text-xs shrink-0">OR</span>
-
-            <select 
-             name="msgtype"
-              hx-get="/api/sample"
-              hx-target="#message-input"
-              x-model="selectedMsgType" 
-              @change="selectedAlias = ''" 
-              :class="selectedMsgType !== '' ? 'border-blue-500' : 'border-gray-700'" 
-              class="flex-1 min-w-[120px] max-w-[300px] truncate bg-gray-950 border text-gray-300 text-sm rounded px-3 py-1.5 outline-none focus:border-blue-500 font-mono transition"
-            >
-                <option disabled value="">-- Select MsgType --</option>
-                {{range $msgId, $msgSpec := .Router.SessionSpec.Messages}}
-                  <option value="{{$msgId}}">[Sess] Type: {{$msgId}} ({{$msgSpec.Name}})</option>
-                {{end}}
-                {{if not .Router.IsLegacyRouter}}
-                    {{range $msgId, $msgSpec := .Router.ApplSpec.Messages}}
-                        <option value="{{$msgId}}">[Appl] Type: {{$msgId}} ({{$msgSpec.Name}})</option>
-                    {{end}}
-                {{end}}
-            </select>
-            <span class="text-xs text-gray-500 italic shrink-0 hidden 2xl:inline">&larr; Auto-populates raw payload</span>
-        </div>
-        
+        {{template "partials/stream/send_form/select" .}}
         <button 
           @click="modal = 'form'" 
           class="shrink-0 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-3 py-1.5 rounded text-sm 

@@ -190,13 +190,17 @@ func (app *Application) webRoutes() http.Handler {
 	mux.HandleFunc("POST /api/reset", app.handleAPIReset)
 	mux.HandleFunc("POST /api/sequence/reset", app.handleAPIResetSequence)
 	mux.HandleFunc("POST /api/disconnect", app.handleAPIDisconnect)
+
+	mux.HandleFunc("GET /api/logs/send_form/select", app.handleAPISendFormReload)
 	mux.HandleFunc("GET /api/logs/stream", app.handleAPILogs)
 	mux.HandleFunc("GET /api/logs/export", app.handleAPIExportLogs)
+
 	mux.HandleFunc("GET /api/sample", app.handleAPISample)
 	mux.HandleFunc("POST /api/send", app.handleAPISend)
 	mux.HandleFunc("GET /api/finalize", app.handleAPIFinalize)
 	mux.HandleFunc("GET /api/validate", app.handleAPIValidate)
 
+	mux.HandleFunc("GET /api/dictionary/definitions", app.handleAPIDictionaryDefinitions)
 	mux.HandleFunc("GET /api/dictionary/message/{id}", app.handleAPIDictionaryMessage)
 	mux.HandleFunc("GET /api/dictionary/field/{tag}", app.handleAPIDictionaryField)
 

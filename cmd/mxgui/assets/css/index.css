@@ -357,6 +357,9 @@
   .z-3 {
     z-index: 3;
   }
+  .z-6 {
+    z-index: 6;
+  }
   .z-10 {
     z-index: 10;
   }
@@ -389,6 +392,9 @@
   }
   .m-0 {
     margin: calc(var(--spacing) * 0);
+  }
+  .m-6 {
+    margin: calc(var(--spacing) * 6);
   }
   .mx-1 {
     margin-inline: calc(var(--spacing) * 1);
@@ -512,6 +518,9 @@
   }
   .h-6 {
     height: calc(var(--spacing) * 6);
+  }
+  .h-7 {
+    height: calc(var(--spacing) * 7);
   }
   .h-8 {
     height: calc(var(--spacing) * 8);
@@ -2433,11 +2442,6 @@
       }
     }
   }
-  .sm\:flex {
-    @media (width >= 40rem) {
-      display: flex;
-    }
-  }
   .sm\:inline {
     @media (width >= 40rem) {
       display: inline;
@@ -2455,11 +2459,6 @@
   }
   .md\:flex {
     @media (width >= 48rem) {
-      display: flex;
-    }
-  }
-  .lg\:flex {
-    @media (width >= 64rem) {
       display: flex;
     }
   }
