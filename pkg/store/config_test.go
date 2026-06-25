@@ -2,14 +2,14 @@ package store
 
 import (
 	"os"
-	"path/filepath"
+	"path"
 	"testing"
 )
 
 func TestConfig_LoadAndDump(t *testing.T) {
 	// Create an isolated temp directory for the test
 	tempDir := t.TempDir()
-	tempFile := filepath.Join(tempDir, ".mxrc")
+	tempFile := path.Join(tempDir, ".mxrc")
 
 	// Create a dummy config with aliases and dump it
 	original := &Config{
@@ -190,9 +190,9 @@ func TestConfig_InitConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get original working directory: %v", err)
 	}
-	defer os.Chdir(originalWD)
 
 	t.Run("Creates new config in CWD when none exist", func(t *testing.T) {
+		defer os.Chdir(originalWD)
 		cwdDir := t.TempDir()
 		homeDir := t.TempDir()
 
@@ -202,7 +202,7 @@ func TestConfig_InitConfig(t *testing.T) {
 		t.Setenv("USERPROFILE", homeDir) // Mock Home for Windows
 
 		// Execute
-		expectedPath := filepath.Join(cwdDir, ".mxrc")
+		expectedPath := path.Join(cwdDir, ".mxrc")
 		if cfg, loadedPath := initConfig(); loadedPath != expectedPath {
 			t.Errorf("Expected path %s, got %s", expectedPath, loadedPath)
 		} else if cfg.SenderCompID != "SENDER" {
@@ -216,6 +216,7 @@ func TestConfig_InitConfig(t *testing.T) {
 	})
 
 	t.Run("Loads from CWD if it exists", func(t *testing.T) {
+		defer os.Chdir(originalWD)
 		cwdDir := t.TempDir()
 		homeDir := t.TempDir()
 
@@ -225,7 +226,7 @@ func TestConfig_InitConfig(t *testing.T) {
 
 		// Create a dummy config in CWD
 		dummyCfg := &Config{SenderCompID: "CWD_SENDER"}
-		expectedPath := filepath.Join(cwdDir, ".mxrc")
+		expectedPath := path.Join(cwdDir, ".mxrc")
 		dummyCfg.dump(expectedPath)
 
 		// Execute
@@ -237,6 +238,7 @@ func TestConfig_InitConfig(t *testing.T) {
 	})
 
 	t.Run("Loads from Home if CWD does not exist but Home does", func(t *testing.T) {
+		defer os.Chdir(originalWD)
 		cwdDir := t.TempDir()
 		homeDir := t.TempDir()
 
@@ -246,7 +248,7 @@ func TestConfig_InitConfig(t *testing.T) {
 
 		// Create a dummy config ONLY in Home directory
 		dummyCfg := &Config{SenderCompID: "HOME_SENDER"}
-		expectedPath := filepath.Join(homeDir, ".mxrc")
+		expectedPath := path.Join(homeDir, ".mxrc")
 		dummyCfg.dump(expectedPath)
 
 		// Execute

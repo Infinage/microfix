@@ -215,7 +215,7 @@
                     <span>{{.Name}}</span>
                     <span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded border border-gray-700 font-mono">35={{.MsgId}}</span>
                 </div>
-                <div class="text-xs text-gray-500 font-mono mt-1">{{.Timestamp.Format "2006-01-02 15:04:05.000"}} &bull; {{if .RawFix}}{{len .RawFix}}{{else}}0{{end}} Bytes</div>
+                <div class="text-xs text-gray-500 font-mono mt-1">{{.Timestamp.Format "2006-01-02 15:04:05.000"}} &bull; {{.LogType}}</div>
             </div>
             <div class="flex space-x-3 items-center">
                 {{if .IsValid}}

@@ -5,7 +5,7 @@
     aliasName: '', aliasValue: '',
     resetForm() { this.aliasName = ''; this.aliasValue = ''; }
   }"
-  @click.away="modal = ''" class="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-[500px] p-5">
+  @mousedown.outside="modal = ''" class="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-[500px] p-5">
   <form hx-post="/api/alias/add" @close-modal.window="resetForm(); modal = '';">
     <h3 class="text-white font-bold text-lg mb-4">Add New Message Alias</h3>
     <div class="space-y-4">

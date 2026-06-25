@@ -1,5 +1,5 @@
 {{define "partials/modals/sequence"}}
-<div x-show="modal === 'seq'" @click.away="modal = ''" style="display: none;" class="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-80 p-5">
+<div x-show="modal === 'seq'" @mousedown.outside="modal = ''" style="display: none;" class="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-80 p-5">
   <form hx-post="/api/sequence/reset" hx-swap="none" @close-modal.window="modal = ''">
     <h3 class="text-white font-bold text-lg mb-4">Reset Sequence Numbers</h3>
     <div class="space-y-4">

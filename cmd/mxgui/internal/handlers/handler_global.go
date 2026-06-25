@@ -82,3 +82,7 @@ func (app *Application) handleAPIHeader(w http.ResponseWriter, r *http.Request) 
 		"Config":   app.Store.Config(),
 	})
 }
+
+func (app *Application) handleAPIConnectBtnReload(w http.ResponseWriter, r *http.Request) {
+	renderTemplate(app.templ, w, "partials/modals/connect", map[string]any{"Config": app.Store.Config()})
+}

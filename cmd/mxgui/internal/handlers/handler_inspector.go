@@ -25,7 +25,8 @@ func (app *Application) handleAPIInspect(w http.ResponseWriter, r *http.Request)
 	}
 
 	w.Header().Set("HX-Trigger", "open-inspector-tab")
-	inspectViewData := inspector.NewInspectView(raw, app.Session().Router(), vmode)
+	logType := r.URL.Query().Get("LogType")
+	inspectViewData := inspector.NewInspectView(raw, logType, app.Session().Router(), vmode)
 	renderTemplate(app.templ, w, "partials/stream/inspector", inspectViewData)
 }
 

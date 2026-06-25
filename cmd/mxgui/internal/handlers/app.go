@@ -105,6 +105,26 @@ func (app *Application) SaveConfig() bool {
 	return false
 }
 
+func (app *Application) startLogStreamHandler() (net.Listener, error) {
+	sseListener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return nil, err
+	}
+
+	app.port = sseListener.Addr().(*net.TCPAddr).Port
+	sseMux := http.NewServeMux()
+	sseMux.HandleFunc("GET /api/logs/stream", app.handleAPILogs)
+
+	// Spin a new goroutine
+	go http.Serve(sseListener, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		sseMux.ServeHTTP(w, r)
+	}))
+
+	return sseListener, nil
+}
+
 func (app *Application) StartWails() error {
 	// Config wails with middleware to intercept all requests
 	webMux, wailsMux := app.webRoutes(), app.wailsRoutes()
@@ -113,6 +133,12 @@ func (app *Application) StartWails() error {
 	appIcon, err := app.assets.ReadFile("assets/image/logo.png")
 	if err != nil {
 		return fmt.Errorf("failed to load app icon: %w", err)
+	}
+
+	// handle '/api/logs/stream' with a standalone server
+	sseListener, err := app.startLogStreamHandler()
+	if err != nil {
+		return fmt.Errorf("failed to start SSE server: %w", err)
 	}
 
 	app.isWailsApp = true
@@ -144,6 +170,7 @@ func (app *Application) StartWails() error {
 
 	// Cleanup on WailsApp exit
 	app.wails.OnShutdown(func() {
+		sseListener.Close()
 		app.SaveConfig()
 		app.tlogger.Cleanup()
 	})
@@ -196,6 +223,8 @@ func (app *Application) webRoutes() http.Handler {
 	mux.HandleFunc("GET /api/logs/send_form/select", app.handleAPISendFormReload)
 	mux.HandleFunc("GET /api/logs/stream", app.handleAPILogs)
 	mux.HandleFunc("GET /api/logs/export", app.handleAPIExportLogs)
+
+	mux.HandleFunc("GET /api/modals/connect_btn", app.handleAPIConnectBtnReload)
 
 	mux.HandleFunc("GET /api/sample", app.handleAPISample)
 	mux.HandleFunc("POST /api/send", app.handleAPISend)

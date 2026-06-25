@@ -2,7 +2,10 @@
 <div
     x-show="modal === 'connect'"
     x-data="{mode: 'client', loading: false}"
-    @click.away="if (!loading) modal = ''"
+    hx-get="/api/modals/connect_btn"
+    hx-swap="outerHTML"
+    hx-trigger="config-reloaded from:body" 
+    @mousedown.outside="if (!loading) modal = ''"
     class="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-96 p-5"
 >
     <div class="flex justify-between items-center mb-4">

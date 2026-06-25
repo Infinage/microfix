@@ -55,6 +55,11 @@ func TestMessage_WireRoundTrip(t *testing.T) {
 			"8=FIX.4.4|35=D|5000=CustomData|1= |10=001|",
 			"|",
 		},
+		{
+			"Value fields with '='",
+			"5000=TagWithBase64|96=dGVzdA==|",
+			"|",
+		},
 	}
 
 	for _, tt := range tests {
@@ -286,7 +291,7 @@ func TestMessageFromString_Malformed(t *testing.T) {
 		{"Empty", ""},
 		{"NoEquals", "8FIX.4.4|"},
 		{"BadTag", "ABC=Value|"},
-		{"MultipleEquals", "8=FIX=4.4|"},
+		{"TagExceedsUint16Limit", "65536=Value|"},
 	}
 
 	for _, tt := range tests {

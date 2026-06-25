@@ -12,6 +12,15 @@ A high-performance FIX (Financial Information eXchange) workstation suite for de
 Real-time GUI • Interactive Shell • Deterministic Automation • Cross Platform
 </p>
 
+<br/>
+
+<div align="center">
+  <h3><a href="https://github.com/user-attachments/assets/cc71c724-28a4-4fa6-9775-c6da18e87696">MXGUI: Graphical User Interface</a></h3>
+  <video src="https://github.com/user-attachments/assets/cc71c724-28a4-4fa6-9775-c6da18e87696" controls muted autoplay playsinline width="800"></video>
+</div>
+
+<br/>
+
 ---
 
 ## Overview
@@ -76,6 +85,11 @@ Built with Wails + HTMX + Tailwind.
 ---
 
 ## 💻 Interactive Shell (`mxshell`)
+
+<div align="center">
+  <h3><a href="https://github.com/user-attachments/assets/74aa908e-ef16-4a6f-8be0-2ee49c3f57cd">MXShell: Command Line Interface</a></h3>
+  <video src="https://github.com/user-attachments/assets/74aa908e-ef16-4a6f-8be0-2ee49c3f57cd" controls muted autoplay playsinline width="800"></video>
+</div>
 
 ### Smart REPL
 

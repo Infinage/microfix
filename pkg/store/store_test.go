@@ -1,14 +1,14 @@
 package store
 
 import (
-	"path/filepath"
+	"path"
 	"testing"
 )
 
 // Helper to create an isolated store for testing without hitting real ~/.mxrc
 func setupTestStore(t *testing.T) *Store {
 	tempDir := t.TempDir()
-	cfgPath := filepath.Join(tempDir, "test.mxrc")
+	cfgPath := path.Join(tempDir, "test.mxrc")
 
 	// Manually construct the private config for test isolation
 	testCfg := &Config{

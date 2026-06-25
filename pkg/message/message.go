@@ -3,6 +3,7 @@ package message
 import (
 	"fmt"
 	"iter"
+	"math"
 	"strconv"
 	"strings"
 )
@@ -24,8 +25,8 @@ func MessageFromString(raw string, sep string) (Message, error) {
 			return nil, fmt.Errorf("Last token is non empty")
 		}
 
-		eqCount := strings.Count(field, "=")
-		if eqCount != 1 {
+		// Allow values to have '=' in them, eg: tag 96 containing base 64 value
+		if eqCount := strings.Count(field, "="); eqCount < 1 {
 			return nil, fmt.Errorf("Must contain exactly one '=', found %v", eqCount)
 		}
 
@@ -33,6 +34,8 @@ func MessageFromString(raw string, sep string) (Message, error) {
 		tag, err := strconv.Atoi(tagS)
 		if err != nil {
 			return nil, fmt.Errorf("Field token not an INT: %v", tagS)
+		} else if limit := math.MaxUint16; tag > limit {
+			return nil, fmt.Errorf("Tag exceeds maximum supported limit: %d", limit)
 		}
 
 		result[nField] = Field{uint16(tag), value}

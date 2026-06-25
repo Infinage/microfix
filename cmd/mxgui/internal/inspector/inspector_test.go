@@ -289,7 +289,7 @@ func TestInspectView_NoMemorySpike(t *testing.T) {
 	}
 
 	for i, raw := range testCases {
-		iview := NewInspectView(raw, router, spec.ValidationStrict)
+		iview := NewInspectView(raw, "", router, spec.ValidationStrict)
 
 		// Just verify the JSON compiles and the process doesn't hang or crash
 		if iview.JSON == "" {
@@ -352,7 +352,7 @@ func TestInspectView_Integration_OOCAndGroups(t *testing.T) {
 	// We inject Tag 11 (ClOrdID), which is valid in FIX44 but OUT OF CONTEXT for a Market Data message.
 	// We also include a repeating group (Tag 268) with 2 entries.
 	raw := "8=FIX.4.4|9=100|35=W|49=SENDER|56=TARGET|34=1|55=AAPL|11=OOC_ID|268=2|269=0|270=150.00|269=1|270=151.00|10=123|"
-	view := NewInspectView(raw, router, spec.ValidationNone)
+	view := NewInspectView(raw, "", router, spec.ValidationNone)
 
 	// Verify Body absorbed the OOC tag
 	var foundOOC bool

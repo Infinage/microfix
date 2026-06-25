@@ -45,6 +45,9 @@ func (app *Application) handleAPILogs(w http.ResponseWriter, r *http.Request) {
 	}
 	defer closeLogs()
 
+	// Windows have "\r\n" while linux have "\n", sse requires strictly have "\n\n"
+	sseFormatter := strings.NewReplacer("\r\n", " ", "\r", " ", "\n", " ")
+
 	// Continuously poll the logs and push to the server
 	for {
 		select {
@@ -66,7 +69,7 @@ func (app *Application) handleAPILogs(w http.ResponseWriter, r *http.Request) {
 			buf2 := bufferPool.Get().(*bytes.Buffer)
 			buf2.Reset()
 			renderTemplate(app.templ, buf2, "partials/stream/logs/entry", log)
-			logMarkup := strings.ReplaceAll(buf2.String(), "\n", " ")
+			logMarkup := sseFormatter.Replace(buf2.String())
 			bufferPool.Put(buf2)
 			fmt.Fprintf(w, "data: %s\n\n", logMarkup)
 			flusher.Flush()
@@ -103,6 +106,9 @@ func (app *Application) handleAPISend(w http.ResponseWriter, r *http.Request) {
 		toast(w, app.templ, "error", fmt.Sprintf("Failed to send message: %s", err.Error()))
 		return
 	}
+
+	// Signal all okay
+	w.WriteHeader(http.StatusOK)
 }
 
 func (app *Application) handleAPISample(w http.ResponseWriter, r *http.Request) {

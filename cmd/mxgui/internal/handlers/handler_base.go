@@ -34,6 +34,7 @@ func (app *Application) handleHome(w http.ResponseWriter, r *http.Request) {
 		"Router":     sess.Router(),
 		"Aliases":    &cfg.Alias,
 		"IsWailsApp": app.isWailsApp,
+		"SSEPort":    app.port,
 		"Shortcuts":  shortcuts.Shortcuts(),
 	})
 }

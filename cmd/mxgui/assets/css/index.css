@@ -26,6 +26,7 @@
     --color-yellow-500: oklch(79.5% 0.184 86.047);
     --color-yellow-600: oklch(68.1% 0.162 75.834);
     --color-yellow-900: oklch(42.1% 0.095 57.708);
+    --color-yellow-950: oklch(28.6% 0.066 53.813);
     --color-green-300: oklch(87.1% 0.15 154.449);
     --color-green-400: oklch(79.2% 0.209 151.711);
     --color-green-500: oklch(72.3% 0.219 149.579);
@@ -1166,6 +1167,9 @@
   .border-l-blue-500 {
     border-left-color: var(--color-blue-500);
   }
+  .border-l-gray-600 {
+    border-left-color: var(--color-gray-600);
+  }
   .border-l-green-500 {
     border-left-color: var(--color-green-500);
   }
@@ -1228,6 +1232,12 @@
   }
   .bg-blue-950 {
     background-color: var(--color-blue-950);
+  }
+  .bg-blue-950\/40 {
+    background-color: color-mix(in srgb, oklch(28.2% 0.091 267.935) 40%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-blue-950) 40%, transparent);
+    }
   }
   .bg-cyan-900 {
     background-color: var(--color-cyan-900);
@@ -1308,6 +1318,12 @@
     background-color: color-mix(in srgb, oklch(26.6% 0.065 152.934) 20%, transparent);
     @supports (color: color-mix(in lab, red, red)) {
       background-color: color-mix(in oklab, var(--color-green-950) 20%, transparent);
+    }
+  }
+  .bg-green-950\/40 {
+    background-color: color-mix(in srgb, oklch(26.6% 0.065 152.934) 40%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-green-950) 40%, transparent);
     }
   }
   .bg-green-950\/90 {
@@ -1401,6 +1417,15 @@
     background-color: color-mix(in srgb, oklch(42.1% 0.095 57.708) 20%, transparent);
     @supports (color: color-mix(in lab, red, red)) {
       background-color: color-mix(in oklab, var(--color-yellow-900) 20%, transparent);
+    }
+  }
+  .bg-yellow-950 {
+    background-color: var(--color-yellow-950);
+  }
+  .bg-yellow-950\/40 {
+    background-color: color-mix(in srgb, oklch(28.6% 0.066 53.813) 40%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-yellow-950) 40%, transparent);
     }
   }
   .object-contain {

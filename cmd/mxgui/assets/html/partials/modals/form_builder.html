@@ -61,7 +61,7 @@
     
     x-init="$watch('modal', value => { if (value === 'form') initFromRaw() })"
     
-    @click.away="modal = ''" 
+    @mousedown.outside="modal = ''" 
     class="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-[600px] max-h-[80vh] flex flex-col z-50 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
 >
     <div class="flex items-center justify-between p-4 border-b border-gray-800 shrink-0">

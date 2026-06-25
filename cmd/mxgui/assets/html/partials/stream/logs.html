@@ -8,8 +8,9 @@
   class="log-entry group relative flex items-start space-x-4 p-2 rounded border-l-2 {{$theme.Border}} hover:bg-gray-800/50 transition 
     {{if $clickable}}cursor-pointer{{end}}"
   {{if $clickable}}
-    @open-inspector-tab.window="inspectorOpen = true"
+    @open-inspector-tab.window="inspectorOpen = true; inspectorTab = 'decoded'"
     hx-get="/api/inspect"
+    hx-vals='{"LogType": "{{$LogType}}"}'
     hx-include="find input[name='message']"
     hx-target="#msg-inspector"
     hx-swap="outerHTML"
@@ -207,7 +208,7 @@
     <div 
         hx-ext="sse"
         id="log-stream-container"
-        sse-connect="/api/logs/stream" 
+        sse-connect="{{if .IsWailsApp}}http://localhost:{{.SSEPort}}{{end}}/api/logs/stream" 
         sse-swap="message"
         hx-swap="beforeend scroll:bottom"
         class="flex-1 overflow-y-auto min-h-0 p-3 font-mono text-sm space-y-1 scroll-smooth"

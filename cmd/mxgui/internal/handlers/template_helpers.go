@@ -71,25 +71,30 @@ func getThemeForEngineState(state string) Theme {
 }
 
 func getThemeForLogType(state string) Theme {
-	textColor := "text-green-500"
-	borderColor := "border-l-green-500"
+	textColor := "text-gray-400"
+	borderColor := "border-l-gray-600"
+	bgColor := "bg-gray-800"
 
 	switch state {
 	case "SEND":
 		textColor = "text-blue-500"
 		borderColor = "border-l-blue-500"
+		bgColor = "bg-blue-950/40"
 	case "RECV":
 		textColor = "text-green-500"
 		borderColor = "border-l-green-500"
+		bgColor = "bg-green-950/40"
 	case "ERR ":
 		textColor = "text-red-500"
 		borderColor = "border-l-red-500"
+		bgColor = "bg-red-950/40"
 	case "SYS ":
 		textColor = "text-yellow-500"
 		borderColor = "border-l-yellow-500"
+		bgColor = "bg-yellow-950/40"
 	}
 
-	return Theme{Text: textColor, Border: borderColor}
+	return Theme{Text: textColor, Border: borderColor, Bg: bgColor}
 }
 
 func getAllFieldNamesAsJSON(r *spec.Router) template.JS {

@@ -49,8 +49,9 @@ type InspectView struct {
 	Trailer   []FieldNode
 	LeftOvers []FieldNode
 
-	RawFix string
-	JSON   string
+	RawFix  string
+	LogType string
+	JSON    string
 
 	IsValid      bool
 	Observations []string
@@ -73,8 +74,8 @@ func (view *InspectView) json() map[uint16]any {
 	return result
 }
 
-func NewInspectView(raw string, router *spec.Router, vmode spec.ValidationMode) InspectView {
-	var result = InspectView{RawFix: raw}
+func NewInspectView(raw, logType string, router *spec.Router, vmode spec.ValidationMode) InspectView {
+	var result = InspectView{RawFix: raw, LogType: logType}
 	if len(raw) < 4 {
 		result.Observations = append(result.Observations, "Input must be atleast 4 chars long")
 		return result

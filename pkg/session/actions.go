@@ -109,7 +109,7 @@ func (engine *Engine) OnTick(now time.Time) []Action {
 		if engine.state != SessionStale {
 			tr, _ := engine.Router.Sample("1", spec.SampleOptions{})
 			tr.Set(112, engine.testReqID)
-			eventLog := fmt.Sprintf("No message received in %v. Transitioning from %s to Stale", engine.state, since.Truncate(time.Second))
+			eventLog := fmt.Sprintf("No message received in %v. Transitioning from %s to Stale", since.Truncate(time.Second), engine.state)
 			actions = append(actions, Action{Type: ActionLog, Event: eventLog}, Action{Type: ActionSend, Msg: tr})
 			engine.state = SessionStale
 		} else if since >= hbDuration*3 {
@@ -362,7 +362,7 @@ func (engine *Engine) handleResend(msg *message.Message) []Action {
 
 	// If last msg sent is behind the requested seqno, send a final gapfill
 	if prevSeqNo < endSeq {
-		seqReset := seqResetTemplate
+		seqReset := slices.Clone(seqResetTemplate)
 		seqReset.Set(34, fmt.Sprint(prevSeqNo+1))
 		seqReset.Set(36, fmt.Sprint(endSeq+1))
 		seqReset.Set(43, "Y")
