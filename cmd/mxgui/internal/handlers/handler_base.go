@@ -22,7 +22,8 @@ func toast(w http.ResponseWriter, templ *template.Template, typeStr, msg string)
 }
 
 func (app *Application) handleHome(w http.ResponseWriter, r *http.Request) {
-	snap := app.Session.Status()
+	sess := app.Session()
+	snap := sess.Status()
 	cfg := app.Store.Config()
 
 	renderTemplate(app.templ, w, "index.html", map[string]any{
@@ -30,7 +31,7 @@ func (app *Application) handleHome(w http.ResponseWriter, r *http.Request) {
 		"GitCommit":  app.Commit,
 		"Snapshot":   snap,
 		"Config":     cfg,
-		"Router":     app.Session.Router(),
+		"Router":     sess.Router(),
 		"Aliases":    &cfg.Alias,
 		"IsWailsApp": app.isWailsApp,
 		"Shortcuts":  shortcuts.Shortcuts(),

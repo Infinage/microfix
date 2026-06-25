@@ -21,7 +21,7 @@ var bufferPool = sync.Pool{
 func (app *Application) handleAPISendFormReload(w http.ResponseWriter, r *http.Request) {
 	cfg := app.Store.Config()
 	renderTemplate(app.templ, w, "partials/stream/send_form/select", map[string]any{
-		"Router":  app.Session.Router(),
+		"Router":  app.Session().Router(),
 		"Aliases": &cfg.Alias,
 	})
 }
@@ -37,7 +37,8 @@ func (app *Application) handleAPILogs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Subscribe to logs from session
-	logCh, closeLogs, err := app.Session.SubscribeLog()
+	sess := app.Session()
+	logCh, closeLogs, err := sess.SubscribeLog()
 	if err != nil {
 		toast(w, app.templ, "error", fmt.Sprintf("Failed to subscribe log: %s", err.Error()))
 		return
@@ -57,7 +58,7 @@ func (app *Application) handleAPILogs(w http.ResponseWriter, r *http.Request) {
 			// Parse and append logs to temp file logger
 			buf1 := bufferPool.Get().(*bytes.Buffer)
 			buf1.Reset()
-			pretty.Log(buf1, log, app.Session.Router())
+			pretty.Log(buf1, log, sess.Router())
 			app.tlogger.Log(buf1.String())
 			bufferPool.Put(buf1)
 
@@ -98,7 +99,7 @@ func (app *Application) handleAPISend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = app.Session.Send(msg, raw); err != nil {
+	if err = app.Session().Send(msg, raw); err != nil {
 		toast(w, app.templ, "error", fmt.Sprintf("Failed to send message: %s", err.Error()))
 		return
 	}
@@ -107,7 +108,7 @@ func (app *Application) handleAPISend(w http.ResponseWriter, r *http.Request) {
 func (app *Application) handleAPISample(w http.ResponseWriter, r *http.Request) {
 	cfg := app.Store.Config()
 	msgType := r.URL.Query().Get("msgtype")
-	msg, err := app.Session.Router().Sample(msgType, spec.SampleOptions{IncludeOptional: cfg.FixSampleOptional})
+	msg, err := app.Session().Router().Sample(msgType, spec.SampleOptions{IncludeOptional: cfg.FixSampleOptional})
 	if err == nil {
 		w.Write([]byte(msg.String("|")))
 	} else {

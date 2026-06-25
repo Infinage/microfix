@@ -25,7 +25,7 @@ func (app *Application) handleAPIInspect(w http.ResponseWriter, r *http.Request)
 	}
 
 	w.Header().Set("HX-Trigger", "open-inspector-tab")
-	inspectViewData := inspector.NewInspectView(raw, app.Session.Router(), vmode)
+	inspectViewData := inspector.NewInspectView(raw, app.Session().Router(), vmode)
 	renderTemplate(app.templ, w, "partials/stream/inspector", inspectViewData)
 }
 
@@ -56,10 +56,11 @@ func (app *Application) handleAPIMessageDiff(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Render diffs
+	sess := app.Session()
 	diffs := diff.Compare(source, target)
 	for idx := range diffs {
 		diffs[idx].Name = "Unknown"
-		if fdef, ok := app.Session.Router().Field(diffs[idx].Tag); ok {
+		if fdef, ok := sess.Router().Field(diffs[idx].Tag); ok {
 			diffs[idx].Name = fdef.Name
 		}
 	}

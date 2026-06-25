@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/infinage/microfix/cmd/mxgui/internal/tfilelogger"
 	"github.com/infinage/microfix/pkg/session"
@@ -20,13 +21,14 @@ type Application struct {
 	Version string
 	Commit  string
 
-	Session *session.Session
+	session *session.Session
 	Store   *store.Store
 	Ctx     context.Context
 
 	port   int
 	assets embed.FS
 	templ  *template.Template
+	mu     sync.RWMutex
 
 	// conditional rendering of templates
 	isWailsApp bool
@@ -82,7 +84,7 @@ func NewApplication(version, commit string, assets embed.FS) (*Application, erro
 	return &Application{
 		Version: version,
 		Commit:  commit,
-		Session: sess,
+		session: sess,
 		Store:   &st,
 		Ctx:     context.Background(),
 		assets:  assets,
@@ -244,4 +246,32 @@ func (app *Application) noCacheMiddleware(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func (app *Application) resetSession() error {
+	// Create a new session from latest config
+	newSess, err := NewSession(app.Store.Config())
+	if err != nil {
+		return err
+	}
+
+	// Reset session
+	app.mu.Lock()
+	oldSess := app.session
+	app.session = newSess
+	app.mu.Unlock()
+
+	// Close the old session
+	if oldSess != nil {
+		oldSess.Close()
+	}
+
+	return nil
+}
+
+// Access session pointer through a RWMutex
+func (app *Application) Session() *session.Session {
+	app.mu.RLock()
+	defer app.mu.RUnlock()
+	return app.session
 }

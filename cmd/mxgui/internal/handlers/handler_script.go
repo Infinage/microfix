@@ -73,18 +73,19 @@ func (app *Application) handleAPIScriptStream(w http.ResponseWriter, r *http.Req
 	sseChan := make(chan string, 20)
 
 	// Initialize context
+	sess := app.Session()
 	writer := sseWriter{stream: sseChan}
-	scriptCtx, stop := executor.NewScriptContext(app.Session, app.Store, &writer)
+	scriptCtx, stop := executor.NewScriptContext(sess, app.Store, &writer)
 	defer stop() // Failsafe cleanup
 
 	var wg sync.WaitGroup
 
 	// Verbose Logs (Goroutine 1)
 	if verbose {
-		if logCh, unsub, err := app.Session.SubscribeLog(); err == nil {
+		if logCh, unsub, err := sess.SubscribeLog(); err == nil {
 			defer unsub()
 			wg.Go(func() {
-				router := app.Session.Router()
+				router := sess.Router()
 				logSanitizer := strings.NewReplacer("<", "", ">", "")
 
 				for {

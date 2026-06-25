@@ -109,7 +109,7 @@ func (app *Application) handleAPISaveConfig(w http.ResponseWriter, r *http.Reque
 
 	// Attempt to reset session with changes if not already started
 	toastMsg := "Configuration saved successfully. Changes will be applied after the next session reset."
-	if app.Session.Status().State == session.SessionNew {
+	if app.Session().Status().State == session.SessionNew {
 		if err := app.resetSession(); err != nil {
 			toast(w, app.templ, "error", fmt.Sprintf("Config saved, but reset failed: %v", err))
 			return

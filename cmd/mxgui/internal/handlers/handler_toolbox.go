@@ -44,6 +44,6 @@ func (app *Application) handleAPIValidate(w http.ResponseWriter, r *http.Request
 	}
 
 	// Spec Dictionary Validation
-	result, _ := app.Session.Router().Validate(&msg, spec.ValidationStrict)
+	result, _ := app.Session().Router().Validate(&msg, spec.ValidationStrict)
 	renderTemplate(app.templ, w, "partials/toolbox/validate/report", result)
 }

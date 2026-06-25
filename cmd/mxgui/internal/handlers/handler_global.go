@@ -16,10 +16,10 @@ func (app *Application) handleAPIConnect(w http.ResponseWriter, r *http.Request)
 	addr := fmt.Sprintf("%s:%s", host, port)
 
 	var err error
-	if mode == "client" {
-		err = app.Session.Connect(addr)
+	if sess := app.Session(); mode == "client" {
+		err = sess.Connect(addr)
 	} else {
-		err = app.Session.Listen(addr)
+		err = sess.Listen(addr)
 	}
 
 	if err != nil {
@@ -31,26 +31,9 @@ func (app *Application) handleAPIConnect(w http.ResponseWriter, r *http.Request)
 }
 
 func (app *Application) handleAPIDisconnect(w http.ResponseWriter, r *http.Request) {
-	app.Session.Close()
+	app.Session().Close()
 	w.Header().Set("HX-Trigger", "session-updated")
 	toast(w, app.templ, "success", "Session disconnected")
-}
-
-func (app *Application) resetSession() error {
-	// Create a new session from latest config
-	newSess, err := NewSession(app.Store.Config())
-	if err != nil {
-		return err
-	}
-
-	// Reset session and close the old one
-	oldSess := app.Session
-	app.Session = newSess
-	if oldSess != nil {
-		oldSess.Close()
-	}
-
-	return nil
 }
 
 func (app *Application) handleAPIReset(w http.ResponseWriter, r *http.Request) {
@@ -84,7 +67,7 @@ func (app *Application) handleAPIResetSequence(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	if err = app.Session.ResetSequence(inSeq, outSeq); err != nil {
+	if err = app.Session().ResetSequence(inSeq, outSeq); err != nil {
 		toast(w, app.templ, "error", fmt.Sprintf("Failed to reset sequence: %s", err.Error()))
 		return
 	}
@@ -95,7 +78,7 @@ func (app *Application) handleAPIResetSequence(w http.ResponseWriter, r *http.Re
 
 func (app *Application) handleAPIHeader(w http.ResponseWriter, r *http.Request) {
 	renderTemplate(app.templ, w, "partials/global/header", map[string]any{
-		"Snapshot": app.Session.Status(),
+		"Snapshot": app.Session().Status(),
 		"Config":   app.Store.Config(),
 	})
 }

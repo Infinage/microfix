@@ -9,13 +9,13 @@ import (
 )
 
 func (app *Application) handleAPIDictionaryDefinitions(w http.ResponseWriter, r *http.Request) {
-	renderTemplate(app.templ, w, "partials/dictionary/definitions", map[string]any{"Router": app.Session.Router()})
+	renderTemplate(app.templ, w, "partials/dictionary/definitions", map[string]any{"Router": app.Session().Router()})
 }
 
 func (app *Application) handleAPIDictionaryMessage(w http.ResponseWriter, r *http.Request) {
 	msgId := r.PathValue("id")
 
-	router := app.Session.Router()
+	router := app.Session().Router()
 
 	sp := router.SpecForMsgType(msgId)
 	msgEntry, ok := sp.Messages[msgId]
@@ -60,14 +60,15 @@ func (app *Application) handleAPIDictionaryField(w http.ResponseWriter, r *http.
 		tag = uint16(tagInt)
 	}
 
-	fieldDef, ok := app.Session.Router().Field(tag)
+	sess := app.Session()
+	fieldDef, ok := sess.Router().Field(tag)
 	if !ok {
 		toast(w, app.templ, "error", fmt.Sprintf("Tag [%d] not found", tag))
 		return
 	}
 
-	sessMsgs, appMsgs := app.Session.Router().SessionSpec().Messages,
-		app.Session.Router().ApplSpec().Messages
+	sessMsgs, appMsgs := sess.Router().SessionSpec().Messages,
+		sess.Router().ApplSpec().Messages
 
 	// For now we only do a surface level lookup - map to prevent dups
 	var usedIn = make(map[string]string)
