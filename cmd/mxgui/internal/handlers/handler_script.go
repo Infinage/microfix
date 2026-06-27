@@ -71,7 +71,6 @@ func (app *Application) handleAPIScriptStream(w http.ResponseWriter, r *http.Req
 	sseChan := make(chan string, 20)
 
 	// Initialize context
-	sess := app.Session()
 	writer := sseWriter{stream: sseChan}
 	scriptCtx, stop := executor.NewScriptContext(app.Session, app.resetSession, app.Store, &writer)
 	defer stop() // Failsafe cleanup
@@ -80,48 +79,47 @@ func (app *Application) handleAPIScriptStream(w http.ResponseWriter, r *http.Req
 
 	// Verbose Logs (Goroutine 1)
 	if verbose {
-		if logCh, unsub, err := sess.SubscribeLog(); err == nil {
-			wg.Go(func() {
-				defer unsub()
-				router := sess.Router()
-				logSanitizer := strings.NewReplacer("<", "", ">", "")
+		logCh, unsub := app.logBroker.Subscribe()
+		wg.Go(func() {
+			defer unsub()
+			router := app.Session().Router()
+			logSanitizer := strings.NewReplacer("<", "", ">", "")
 
-				for {
-					select {
-					case <-scriptCtx.GoCtx.Done(): // Triggers when script finishes
+			for {
+				select {
+				case <-scriptCtx.GoCtx.Done(): // Triggers when script finishes
+					return
+				case log, ok := <-logCh:
+					if !ok {
 						return
-					case log, ok := <-logCh:
-						if !ok {
-							return
-						}
-						colorClass := "text-gray-500"
-						hint := ""
-
-						switch log.Type {
-						case session.LogSys:
-							colorClass = "text-yellow-400"
-						case session.LogErr:
-							colorClass = "text-red-400"
-						case session.LogSend, session.LogRecv:
-							if log.Type == session.LogSend {
-								colorClass = "text-blue-400"
-							} else {
-								colorClass = "text-green-400"
-							}
-							if msgType, ok := log.Msg.Get(35); ok {
-								if entry, ok := router.SpecForMsgType(msgType).Messages[msgType]; ok {
-									hint = entry.Name
-								}
-							}
-						}
-
-						logStr := logSanitizer.Replace(log.String(hint))
-						html := fmt.Sprintf(`<div class="%s break-all">%s</div>`, colorClass, logStr)
-						sseChan <- html
 					}
+					colorClass := "text-gray-500"
+					hint := ""
+
+					switch log.Type {
+					case session.LogSys:
+						colorClass = "text-yellow-400"
+					case session.LogErr:
+						colorClass = "text-red-400"
+					case session.LogSend, session.LogRecv:
+						if log.Type == session.LogSend {
+							colorClass = "text-blue-400"
+						} else {
+							colorClass = "text-green-400"
+						}
+						if msgType, ok := log.Msg.Get(35); ok {
+							if entry, ok := router.SpecForMsgType(msgType).Messages[msgType]; ok {
+								hint = entry.Name
+							}
+						}
+					}
+
+					logStr := logSanitizer.Replace(log.String(hint))
+					html := fmt.Sprintf(`<div class="%s break-all">%s</div>`, colorClass, logStr)
+					sseChan <- html
 				}
-			})
-		}
+			}
+		})
 	}
 
 	// Script Runner (Goroutine 2)

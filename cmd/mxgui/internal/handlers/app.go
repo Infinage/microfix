@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"github.com/infinage/microfix/cmd/mxgui/internal/tfilelogger"
+	"github.com/infinage/microfix/pkg/broker"
 	"github.com/infinage/microfix/pkg/session"
 	"github.com/infinage/microfix/pkg/store"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -21,9 +22,10 @@ type Application struct {
 	Version string
 	Commit  string
 
-	session *session.Session
-	Store   *store.Store
-	Ctx     context.Context
+	session   *session.Session
+	logBroker *broker.Broker
+	Store     *store.Store
+	Ctx       context.Context
 
 	port   int
 	assets embed.FS
@@ -37,7 +39,7 @@ type Application struct {
 	tlogger *tfilelogger.LogStore
 }
 
-func NewSession(cfg store.Config) (*session.Session, error) {
+func newSession(cfg store.Config) (*session.Session, error) {
 	return session.NewSession(
 		cfg.SessionSpec,
 		cfg.SenderCompID,
@@ -71,7 +73,7 @@ func NewApplication(version, commit string, assets embed.FS) (*Application, erro
 	}
 
 	st := store.InitStore()
-	sess, err := NewSession(st.Config())
+	sess, err := newSession(st.Config())
 	if err != nil {
 		return nil, err
 	}
@@ -81,15 +83,21 @@ func NewApplication(version, commit string, assets embed.FS) (*Application, erro
 		return nil, err
 	}
 
+	lbroker := broker.NewBroker()
+	if err := lbroker.Bind(sess); err != nil {
+		return nil, err
+	}
+
 	return &Application{
-		Version: version,
-		Commit:  commit,
-		session: sess,
-		Store:   &st,
-		Ctx:     context.Background(),
-		assets:  assets,
-		templ:   templ,
-		tlogger: tlogger,
+		Version:   version,
+		Commit:    commit,
+		session:   sess,
+		logBroker: lbroker,
+		Store:     &st,
+		Ctx:       context.Background(),
+		assets:    assets,
+		templ:     templ,
+		tlogger:   tlogger,
 	}, nil
 }
 
@@ -105,7 +113,7 @@ func (app *Application) SaveConfig() bool {
 	return false
 }
 
-func (app *Application) startLogStreamHandler() (net.Listener, error) {
+func (app *Application) startSSEHandler() (net.Listener, error) {
 	sseListener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, err
@@ -136,8 +144,8 @@ func (app *Application) StartWails() error {
 		return fmt.Errorf("failed to load app icon: %w", err)
 	}
 
-	// handle '/api/logs/stream' with a standalone server
-	sseListener, err := app.startLogStreamHandler()
+	// handle '/api/logs/stream' & '/api/script/stream' with a standalone server
+	sseListener, err := app.startSSEHandler()
 	if err != nil {
 		return fmt.Errorf("failed to start SSE server: %w", err)
 	}
@@ -280,7 +288,7 @@ func (app *Application) noCacheMiddleware(next http.Handler) http.Handler {
 
 func (app *Application) resetSession() error {
 	// Create a new session from latest config
-	newSess, err := NewSession(app.Store.Config())
+	newSess, err := newSession(app.Store.Config())
 	if err != nil {
 		return err
 	}
@@ -296,7 +304,8 @@ func (app *Application) resetSession() error {
 		oldSess.Close()
 	}
 
-	return nil
+	// Bind the log broker to new session
+	return app.logBroker.Bind(newSess)
 }
 
 // Access session pointer through a RWMutex

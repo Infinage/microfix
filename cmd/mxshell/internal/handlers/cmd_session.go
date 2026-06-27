@@ -8,20 +8,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/infinage/microfix/pkg/broker"
 	"github.com/infinage/microfix/pkg/message"
 	"github.com/infinage/microfix/pkg/pretty"
 	"github.com/infinage/microfix/pkg/ringbuf"
 	"github.com/infinage/microfix/pkg/session"
+	"github.com/infinage/microfix/pkg/spec"
 	"github.com/infinage/microfix/pkg/store"
 )
 
-// Read from session and write into circular buffer
-func startLogger(sess *session.Session, cb *ringbuf.CircularBuffer) error {
-	// Subscribe to the session logs
-	logCh, unsubscribe, err := sess.SubscribeLog()
-	if err != nil {
-		return err
-	}
+// Read from broker and write into circular buffer
+func startLogger(lbroker *broker.Broker, cb *ringbuf.CircularBuffer, router spec.Router) error {
+	// Subscribe to the log broker
+	logCh, unsubscribe := lbroker.Subscribe()
 
 	// Session closes logs on run loop exit
 	go func() {
@@ -31,7 +30,7 @@ func startLogger(sess *session.Session, cb *ringbuf.CircularBuffer) error {
 
 		for log := range logCh {
 			sb.Reset()
-			pretty.Log(&sb, log, sess.Router())
+			pretty.Log(&sb, log, &router)
 			cb.Write(strings.TrimSpace(sb.String()))
 		}
 	}()
@@ -168,12 +167,11 @@ func handleConnect(ctx *ShellContext, args []string) {
 
 	fmt.Println("\n─── Connect ─────────────────────────────────────")
 
-	sess := ctx.Session()
-	if err := sess.Connect(addr); err != nil {
+	if err := ctx.Session().Connect(addr); err != nil {
 		fmt.Printf("  Status : FAILED\n")
 		fmt.Printf("  Error  : %v\n", err)
 	} else {
-		startLogger(sess, ctx.Logs)
+		startLogger(ctx.logBroker, ctx.Logs, *ctx.session.Router())
 		fmt.Printf("  Status : OK\n")
 		fmt.Printf("  Remote : %s\n", addr)
 	}
@@ -196,12 +194,11 @@ func handleListen(ctx *ShellContext, args []string) {
 
 	fmt.Println("\n─── Listen ──────────────────────────────────────")
 
-	sess := ctx.Session()
-	if err := sess.Listen(addr); err != nil {
+	if err := ctx.Session().Listen(addr); err != nil {
 		fmt.Printf("  Status : FAILED\n")
 		fmt.Printf("  Error  : %v\n", err)
 	} else {
-		startLogger(sess, ctx.Logs)
+		startLogger(ctx.logBroker, ctx.Logs, *ctx.session.Router())
 		fmt.Printf("  Status : OK\n")
 		fmt.Printf("  Remote : %s\n", addr)
 	}

@@ -3,6 +3,7 @@ package shell
 import (
 	"sync"
 
+	"github.com/infinage/microfix/pkg/broker"
 	"github.com/infinage/microfix/pkg/ringbuf"
 	"github.com/infinage/microfix/pkg/session"
 	"github.com/infinage/microfix/pkg/store"
@@ -15,8 +16,9 @@ type ShellContext struct {
 	Store     *store.Store
 	Logs      *ringbuf.CircularBuffer
 
-	session *session.Session
-	mu      sync.RWMutex
+	session   *session.Session
+	mu        sync.RWMutex
+	logBroker *broker.Broker
 }
 
 func NewShellContext(Version, GitCommit string) (*ShellContext, error) {
@@ -28,12 +30,18 @@ func NewShellContext(Version, GitCommit string) (*ShellContext, error) {
 		return nil, err
 	}
 
+	lbroker := broker.NewBroker()
+	if err := lbroker.Bind(sess); err != nil {
+		return nil, err
+	}
+
 	return &ShellContext{
 		Version:   Version,
 		GitCommit: GitCommit,
 		Store:     &st,
 		Logs:      ringbuf.NewCircularBuffer(1000),
 		session:   sess,
+		logBroker: lbroker,
 	}, nil
 }
 
@@ -62,7 +70,7 @@ func (ctx *ShellContext) resetSession() error {
 		oldSess.Close()
 	}
 
-	return nil
+	return ctx.logBroker.Bind(newSess)
 }
 
 // Typing a command handler
