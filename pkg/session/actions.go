@@ -134,7 +134,7 @@ func (engine *Engine) OnMessage(msg *message.Message, now time.Time) []Action {
 	// Validate the message and logout for non "RejectError"
 	if err := engine.validate(msg, now); err != nil {
 		actions = append(actions, Action{Type: ActionError, Err: err})
-		if rejectErr, ok := err.(*RejectError); ok {
+		if rejectErr, ok := err.(*RejectError); ok && engine.state >= SessionActive {
 			actions = append(actions, engine.reject(rejectErr))
 			engine.inSeqNum++ // Increment seqNo in case of spec validation failure
 		} else {

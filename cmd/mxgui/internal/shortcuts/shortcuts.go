@@ -38,6 +38,13 @@ var appShortcuts = []shortcut{
 		Events:      []string{"view-settings"},
 		Description: "Open settings",
 	},
+
+	{
+		Key:         "r",
+		Alt:         true,
+		Events:      []string{"view-script-runner"},
+		Description: "Open Script Runner",
+	},
 }
 
 // Serialises appShortcuts defined to be used in the html views

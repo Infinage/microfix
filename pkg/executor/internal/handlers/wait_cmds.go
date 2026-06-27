@@ -33,7 +33,7 @@ func handleExpect(ctx *ScriptContext, args []string) error {
 		case <-ctx.GoCtx.Done():
 			return fmt.Errorf("interrupt")
 		case <-ctx.Session.Done():
-			return fmt.Errorf("session closed")
+			return fmt.Errorf("session not active")
 		case <-timeout:
 			return fmt.Errorf("timeout")
 		case log, ok := <-logCh:
@@ -79,7 +79,7 @@ func handleWait(ctx *ScriptContext, args []string) error {
 		case <-ctx.GoCtx.Done():
 			return fmt.Errorf("interrupt")
 		case <-ctx.Session.Done():
-			return fmt.Errorf("session closed")
+			return fmt.Errorf("session not active")
 		case <-timeout:
 			return fmt.Errorf("timeout")
 		case log, ok := <-logCh:
@@ -111,19 +111,30 @@ func handleWaitStatus(ctx *ScriptContext, args []string) error {
 
 	// Case insensitive comparisons
 	targetState := strings.ToLower(args[1])
+	checkStatus := func() bool {
+		snap := ctx.Session.Status()
+		currentState := strings.ToLower(snap.State.String())
+		return currentState == targetState
+	}
+
+	// Compare once before entering polling loop
+	if checkStatus() {
+		return nil
+	}
 
 	for {
 		select {
 		case <-ctx.GoCtx.Done():
 			return fmt.Errorf("interrupt")
 		case <-ctx.Session.Done():
-			return fmt.Errorf("session closed")
+			if checkStatus() {
+				return nil
+			}
+			return fmt.Errorf("session not active")
 		case <-timeout:
 			return fmt.Errorf("timeout waiting for status: %s", targetState)
 		case <-ticker.C:
-			snap := ctx.Session.Status()
-			currentState := strings.ToLower(snap.State.String())
-			if currentState == targetState {
+			if checkStatus() {
 				return nil
 			}
 		}

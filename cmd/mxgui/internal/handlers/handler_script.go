@@ -2,7 +2,6 @@ package gui
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -13,40 +12,39 @@ import (
 	"github.com/infinage/microfix/pkg/session"
 )
 
-func (app *Application) handleAPIScriptUpload(w http.ResponseWriter, r *http.Request) {
-	file, _, err := r.FormFile("scriptFile")
-	if err != nil {
-		w.Header().Set("HX-Trigger", "script-upload-error")
-		toast(w, app.templ, "error", "Upload failed, please try again")
-		return
-	}
-	defer file.Close()
-
+func (app *Application) handleAPIScriptExecute(w http.ResponseWriter, r *http.Request) {
+	scriptContent := r.FormValue("scriptContent")
 	verbose := r.FormValue("verbose") == "true"
 
 	// Create temp file
 	tempFile, err := os.CreateTemp("", "microfix-script-*.mxs")
 	if err != nil {
-		w.Header().Set("HX-Trigger", "script-upload-error")
+		w.Header().Set("HX-Trigger", "script-error")
 		toast(w, app.templ, "error", "Temp file creation failed, please try again")
 		return
 	}
-	defer tempFile.Close()
 
-	_, err = io.Copy(tempFile, file)
+	_, err = tempFile.WriteString(scriptContent)
+	tempFile.Close()
 	if err != nil {
-		w.Header().Set("HX-Trigger", "script-upload-error")
-		toast(w, app.templ, "error", "Failed to copy to tempfile, please try again")
+		w.Header().Set("HX-Trigger", "script-error")
+		toast(w, app.templ, "error", "Failed to write script")
 		return
 	}
 
+	// If using wails route through sse server
+	sseURL := ""
+	if app.isWailsApp {
+		sseURL = fmt.Sprintf("http://localhost:%d", app.port)
+	}
+
 	html := fmt.Sprintf(`
-		<div hx-ext="sse" sse-connect="/api/script/stream?file=%s&verbose=%t">
+		<div hx-ext="sse" sse-connect="%s/api/script/stream?file=%s&verbose=%t">
 			<div sse-swap="log" hx-target="#script-console" hx-swap="beforeend"></div>
 			<div sse-swap="done" hx-target="#sse-injector" hx-swap="innerHTML" @htmx:sse-message="running = false">
             </div>
 		</div>
-	`, url.QueryEscape(tempFile.Name()), verbose)
+	`, sseURL, url.QueryEscape(tempFile.Name()), verbose)
 
 	w.Write([]byte(html))
 }
@@ -83,8 +81,8 @@ func (app *Application) handleAPIScriptStream(w http.ResponseWriter, r *http.Req
 	// Verbose Logs (Goroutine 1)
 	if verbose {
 		if logCh, unsub, err := sess.SubscribeLog(); err == nil {
-			defer unsub()
 			wg.Go(func() {
+				defer unsub()
 				router := sess.Router()
 				logSanitizer := strings.NewReplacer("<", "", ">", "")
 
@@ -130,7 +128,7 @@ func (app *Application) handleAPIScriptStream(w http.ResponseWriter, r *http.Req
 	wg.Go(func() {
 		defer stop() // Cancels scriptCtx, which tells the Logger to exit
 
-		// Read temp file created via api `/api/script/upload`
+		// Read temp file created via api `/api/script/execute`
 		f, err := os.Open(fpath)
 		if err != nil {
 			sseChan <- fmt.Sprintf(`<div class="text-red-500">Failed to read file: %v</div>`, err)

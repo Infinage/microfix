@@ -16,6 +16,7 @@ import (
 
 type SessionState int
 
+// engine.state >= SessionActive => session established
 const (
 	SessionNew SessionState = iota
 	SessionListening

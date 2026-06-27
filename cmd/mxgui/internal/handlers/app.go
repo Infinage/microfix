@@ -114,6 +114,7 @@ func (app *Application) startLogStreamHandler() (net.Listener, error) {
 	app.port = sseListener.Addr().(*net.TCPAddr).Port
 	sseMux := http.NewServeMux()
 	sseMux.HandleFunc("GET /api/logs/stream", app.handleAPILogs)
+	sseMux.HandleFunc("GET /api/script/stream", app.handleAPIScriptStream)
 
 	// Spin a new goroutine
 	go http.Serve(sseListener, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -248,7 +249,7 @@ func (app *Application) webRoutes() http.Handler {
 
 	mux.HandleFunc("GET /api/inspect", app.handleAPIInspect)
 	mux.HandleFunc("POST /api/diff", app.handleAPIMessageDiff)
-	mux.HandleFunc("POST /api/script/upload", app.handleAPIScriptUpload)
+	mux.HandleFunc("POST /api/script/execute", app.handleAPIScriptExecute)
 	mux.HandleFunc("GET /api/script/stream", app.handleAPIScriptStream)
 
 	// No caching except for endpoints under '/assets'
