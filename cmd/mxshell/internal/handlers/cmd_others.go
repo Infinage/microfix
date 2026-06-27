@@ -18,7 +18,7 @@ func RunFile(ctx *ShellContext, fpath string, out io.Writer) error {
 	defer f.Close()
 
 	// Trigger context close on interupt
-	scriptCtx, stop := executor.NewScriptContext(ctx.Session, ctx.Store, out)
+	scriptCtx, stop := executor.NewScriptContext(ctx.Session, ctx.resetSession, ctx.Store, out)
 	defer stop()
 
 	// Evaluate the file
@@ -30,7 +30,7 @@ func handleDisconnect(ctx *ShellContext, args []string) {
 		fmt.Println("Usage: disconnect")
 		return
 	}
-	ctx.Session.Close()
+	ctx.Session().Close()
 }
 
 func handleClear(_ *ShellContext, args []string) {

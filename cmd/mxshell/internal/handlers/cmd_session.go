@@ -55,7 +55,7 @@ func NewSession(store *store.Store) (*session.Session, error) {
 }
 
 func handleStatus(ctx *ShellContext, _ []string) {
-	snapshot := ctx.Session.Status()
+	snapshot := ctx.Session().Status()
 
 	var stateColor string
 	switch snapshot.State {
@@ -131,7 +131,7 @@ func handleSend(ctx *ShellContext, args []string) {
 		return
 	}
 
-	if err := ctx.Session.Send(msg, isRaw); err != nil {
+	if err := ctx.Session().Send(msg, isRaw); err != nil {
 		fmt.Printf("  Status : FAILED\n")
 		fmt.Printf("  Error  : %v\n", err)
 		fmt.Println("──────────────────────────────────────────────────")
@@ -168,11 +168,12 @@ func handleConnect(ctx *ShellContext, args []string) {
 
 	fmt.Println("\n─── Connect ─────────────────────────────────────")
 
-	if err := ctx.Session.Connect(addr); err != nil {
+	sess := ctx.Session()
+	if err := sess.Connect(addr); err != nil {
 		fmt.Printf("  Status : FAILED\n")
 		fmt.Printf("  Error  : %v\n", err)
 	} else {
-		startLogger(ctx.Session, ctx.Logs)
+		startLogger(sess, ctx.Logs)
 		fmt.Printf("  Status : OK\n")
 		fmt.Printf("  Remote : %s\n", addr)
 	}
@@ -195,11 +196,12 @@ func handleListen(ctx *ShellContext, args []string) {
 
 	fmt.Println("\n─── Listen ──────────────────────────────────────")
 
-	if err := ctx.Session.Listen(addr); err != nil {
+	sess := ctx.Session()
+	if err := sess.Listen(addr); err != nil {
 		fmt.Printf("  Status : FAILED\n")
 		fmt.Printf("  Error  : %v\n", err)
 	} else {
-		startLogger(ctx.Session, ctx.Logs)
+		startLogger(sess, ctx.Logs)
 		fmt.Printf("  Status : OK\n")
 		fmt.Printf("  Remote : %s\n", addr)
 	}
@@ -210,26 +212,20 @@ func handleListen(ctx *ShellContext, args []string) {
 func handleReset(ctx *ShellContext, _ []string) {
 	fmt.Println("\n─── Session Reset ───────────────────────────────")
 
-	ctx.Session.Close()
-
-	s, err := NewSession(ctx.Store)
-	if err != nil {
+	if err := ctx.resetSession(); err != nil {
 		fmt.Printf("  Status : FAILED\n")
 		fmt.Printf("  Error  : %v\n", err)
 		fmt.Println("──────────────────────────────────────────────────")
 		os.Exit(1)
 	}
 
-	ctx.Session = s
-
 	fmt.Printf("  Status : OK\n")
 	fmt.Println("  Info   : New session initialized")
-
 	fmt.Println("──────────────────────────────────────────────────")
 }
 
 func handleSeq(ctx *ShellContext, args []string) {
-	sess := ctx.Session
+	sess := ctx.Session()
 
 	// View current sequence numbers
 	if len(args) == 1 {

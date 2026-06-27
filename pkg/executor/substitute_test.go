@@ -164,7 +164,7 @@ func TestSubstitute_Variables(t *testing.T) {
 		}
 
 		// Create a separate context containing the active session
-		snapCtx := &script.ScriptContext{Store: &st, Session: sess}
+		snapCtx := &script.ScriptContext{Store: &st, Session: func() *session.Session { return sess }}
 
 		input := "Status: $STATUS | In: $SEQ_IN | Out: $SEQ_OUT"
 		res, err := Substitute(input, snapCtx)

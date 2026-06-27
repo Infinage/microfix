@@ -82,7 +82,7 @@ func searchFixSpec(s *session.Session, pattern string) {
 }
 
 func queryFixSpec(ctx *ShellContext, sub, id string) {
-	ro := ctx.Session.Router()
+	ro := ctx.Session().Router()
 	cfg := ctx.Store.Config()
 
 	switch sub {
@@ -146,7 +146,7 @@ func decodeMessage(ctx *ShellContext, rawMsg string) {
 	}
 
 	fmt.Println("\n─── FIX Message (Spec View) ────────────────────────")
-	pretty.Message(os.Stdout, &msg, ctx.Session.Router())
+	pretty.Message(os.Stdout, &msg, ctx.Session().Router())
 	fmt.Println("────────────────────────────────────────────────────")
 }
 
@@ -184,7 +184,7 @@ func validateMessage(ctx *ShellContext, rawMsg string) {
 		validationMode = spec.ValidationBasic
 	}
 
-	obs, ok := ctx.Session.Router().Validate(&msg, validationMode)
+	obs, ok := ctx.Session().Router().Validate(&msg, validationMode)
 
 	if ok {
 		fmt.Println("  Status : OK")
@@ -207,7 +207,7 @@ func validateMessage(ctx *ShellContext, rawMsg string) {
 
 func displayMeta(ctx *ShellContext, meta string) {
 	// Headers and Trailers ALWAYS belong to the Session Spec
-	sp := ctx.Session.Router().SessionSpec()
+	sp := ctx.Session().Router().SessionSpec()
 
 	var entry spec.Entry
 	switch meta {
@@ -235,7 +235,7 @@ func handleFix(ctx *ShellContext, args []string) {
 	}
 
 	if sub := strings.ToLower(args[1]); sub == "search" {
-		searchFixSpec(ctx.Session, args[2])
+		searchFixSpec(ctx.Session(), args[2])
 	} else if sub == "meta" {
 		displayMeta(ctx, args[2])
 	} else if sub == "validate" {

@@ -1,6 +1,8 @@
 package shell
 
 import (
+	"sync"
+
 	"github.com/infinage/microfix/pkg/ringbuf"
 	"github.com/infinage/microfix/pkg/session"
 	"github.com/infinage/microfix/pkg/store"
@@ -10,9 +12,57 @@ import (
 type ShellContext struct {
 	Version   string
 	GitCommit string
-	Session   *session.Session
 	Store     *store.Store
 	Logs      *ringbuf.CircularBuffer
+
+	session *session.Session
+	mu      sync.RWMutex
+}
+
+func NewShellContext(Version, GitCommit string) (*ShellContext, error) {
+	// Load store from file or create one if missing
+	st := store.InitStore()
+
+	sess, err := NewSession(&st)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ShellContext{
+		Version:   Version,
+		GitCommit: GitCommit,
+		Store:     &st,
+		Logs:      ringbuf.NewCircularBuffer(1000),
+		session:   sess,
+	}, nil
+}
+
+func (ctx *ShellContext) Session() *session.Session {
+	ctx.mu.RLock()
+	defer ctx.mu.RUnlock()
+	return ctx.session
+}
+
+// Safely reset session
+func (ctx *ShellContext) resetSession() error {
+	// Create a new session from latest config
+	newSess, err := NewSession(ctx.Store)
+	if err != nil {
+		return err
+	}
+
+	// Reset session
+	ctx.mu.Lock()
+	oldSess := ctx.session
+	ctx.session = newSess
+	ctx.mu.Unlock()
+
+	// Close the old session
+	if oldSess != nil {
+		oldSess.Close()
+	}
+
+	return nil
 }
 
 // Typing a command handler

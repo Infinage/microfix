@@ -13,7 +13,8 @@ import (
 
 // Show logs to screen until user interupts
 func streamLogs(ctx *ShellContext) {
-	ch, unsubscribe, err := ctx.Session.SubscribeLog()
+	sess := ctx.Session()
+	ch, unsubscribe, err := sess.SubscribeLog()
 	if err != nil {
 		fmt.Println("\n─── Log Stream ────────────────────────────────")
 		fmt.Printf("  Status : FAILED\n")
@@ -38,7 +39,7 @@ func streamLogs(ctx *ShellContext) {
 			if !ok {
 				return
 			}
-			pretty.Log(os.Stdout, log, ctx.Session.Router())
+			pretty.Log(os.Stdout, log, sess.Router())
 		}
 	}
 }

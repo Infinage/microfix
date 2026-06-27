@@ -8,12 +8,11 @@ import (
 
 	shell "github.com/infinage/microfix/cmd/mxshell/internal/handlers"
 	"github.com/infinage/microfix/pkg/pretty"
-	"github.com/infinage/microfix/pkg/session"
 	"github.com/peterh/liner"
 )
 
 // ReplLoop starts the interactive CLI mode
-func Repl(ctx *shell.ShellContext) {
+func Repl(Version, GitCommit string) {
 	line := liner.NewLiner()
 	defer line.Close()
 	defer writeHistory(line)
@@ -34,14 +33,11 @@ func Repl(ctx *shell.ShellContext) {
 	setupAutocomplete(line)
 
 	// Create a new session from shell context
-	sess, err := shell.NewSession(ctx.Store)
+	ctx, err := shell.NewShellContext(Version, GitCommit)
 	if err != nil {
 		fmt.Printf("Critical Error: %v\n", err)
 		os.Exit(1)
 	}
-
-	// Set session into the context
-	ctx.Session = sess
 
 	// Abort prompts on interupt
 	loadHistory(line)
@@ -70,7 +66,7 @@ func Repl(ctx *shell.ShellContext) {
 		switch cmdName {
 		// Exit on command
 		case "exit", "quit":
-			ctx.Session.Close()
+			ctx.Session().Close()
 			return
 
 		// Dispatch to handler
@@ -87,28 +83,18 @@ func Repl(ctx *shell.ShellContext) {
 }
 
 // ScriptMode executes a headless script file
-func Script(ctx *shell.ShellContext, filename string, verbose bool) {
-	// Initialize a new session with config loaded (default if missing)
-	cfg := ctx.Store.Config()
-	var err error
-	ctx.Session, err = session.NewSession(
-		cfg.SessionSpec,
-		cfg.SenderCompID,
-		cfg.TargetCompID,
-		cfg.HeartbeatInt,
-		session.EngineOptions{
-			DefaultApplVer:   cfg.ApplicationSpec,
-			SkipLatencyCheck: cfg.SkipLatencyCheckInValidate,
-		})
-
+func Script(filename string, verbose bool) {
+	// Pass in dummy values for version and git commit
+	ctx, err := shell.NewShellContext("", "")
 	if err != nil {
 		fmt.Printf("Critical Error: %v\n", err)
 		os.Exit(1)
 	}
 
 	// Subscribe to logs
+	sess := ctx.Session()
 	if verbose {
-		logCh, unsub, err := ctx.Session.SubscribeLog()
+		logCh, unsub, err := sess.SubscribeLog()
 		if err != nil {
 			fmt.Printf("Failed to subscribe to logs: %v\n", err)
 			os.Exit(1)
@@ -119,7 +105,7 @@ func Script(ctx *shell.ShellContext, filename string, verbose bool) {
 			var sb strings.Builder
 			for log := range logCh {
 				sb.Reset()
-				pretty.Log(&sb, log, ctx.Session.Router())
+				pretty.Log(&sb, log, sess.Router())
 				fmt.Fprintf(os.Stdout, "\033[90m[LOG] %s\033[0m\n", strings.TrimSpace(sb.String()))
 			}
 		}()

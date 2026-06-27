@@ -16,7 +16,8 @@ func handleExpect(ctx *ScriptContext, args []string) error {
 	}
 
 	// Subscribe to logs so that we dont steal app msg
-	logCh, unsubscribe, err := ctx.Session.SubscribeLog()
+	sess := ctx.Session()
+	logCh, unsubscribe, err := sess.SubscribeLog()
 	if err != nil {
 		return fmt.Errorf("failed to create wire tap: %w", err)
 	}
@@ -32,7 +33,7 @@ func handleExpect(ctx *ScriptContext, args []string) error {
 		select {
 		case <-ctx.GoCtx.Done():
 			return fmt.Errorf("interrupt")
-		case <-ctx.Session.Done():
+		case <-sess.Done():
 			return fmt.Errorf("session not active")
 		case <-timeout:
 			return fmt.Errorf("timeout")
@@ -62,7 +63,8 @@ func handleWait(ctx *ScriptContext, args []string) error {
 	}
 
 	// Subscribe to logs so that we dont steal app msg
-	logCh, unsubscribe, err := ctx.Session.SubscribeLog()
+	sess := ctx.Session()
+	logCh, unsubscribe, err := sess.SubscribeLog()
 	if err != nil {
 		return fmt.Errorf("failed to create wire tap: %w", err)
 	}
@@ -78,7 +80,7 @@ func handleWait(ctx *ScriptContext, args []string) error {
 		select {
 		case <-ctx.GoCtx.Done():
 			return fmt.Errorf("interrupt")
-		case <-ctx.Session.Done():
+		case <-sess.Done():
 			return fmt.Errorf("session not active")
 		case <-timeout:
 			return fmt.Errorf("timeout")
@@ -110,9 +112,10 @@ func handleWaitStatus(ctx *ScriptContext, args []string) error {
 	}
 
 	// Case insensitive comparisons
+	sess := ctx.Session()
 	targetState := strings.ToLower(args[1])
 	checkStatus := func() bool {
-		snap := ctx.Session.Status()
+		snap := sess.Status()
 		currentState := strings.ToLower(snap.State.String())
 		return currentState == targetState
 	}
@@ -126,7 +129,7 @@ func handleWaitStatus(ctx *ScriptContext, args []string) error {
 		select {
 		case <-ctx.GoCtx.Done():
 			return fmt.Errorf("interrupt")
-		case <-ctx.Session.Done():
+		case <-sess.Done():
 			if checkStatus() {
 				return nil
 			}

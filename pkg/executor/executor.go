@@ -57,9 +57,20 @@ VARIABLES & SUBSTITUTION
   $LASTOUT[T,t]   Extract tag 't' from the last outgoing message of MsgType 'T'
 `
 
-func NewScriptContext(sess *session.Session, st *store.Store, writer io.Writer) (script.ScriptContext, context.CancelFunc) {
+func NewScriptContext(
+	getSession func() *session.Session,
+	resetSession func() error,
+	st *store.Store,
+	writer io.Writer,
+) (script.ScriptContext, context.CancelFunc) {
 	ctx, cancel := context.WithCancel(context.Background())
-	return script.ScriptContext{GoCtx: ctx, Session: sess, Store: st, Writer: writer}, cancel
+	return script.ScriptContext{
+		GoCtx:   ctx,
+		Session: getSession,
+		Reset:   resetSession,
+		Store:   st,
+		Writer:  writer,
+	}, cancel
 }
 
 // Evaluate a single line with provided context

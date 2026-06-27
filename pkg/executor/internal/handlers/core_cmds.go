@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/infinage/microfix/pkg/message"
-	"github.com/infinage/microfix/pkg/session"
 	"github.com/infinage/microfix/pkg/store"
 )
 
@@ -78,20 +77,6 @@ func parseResetSequence(args []string) (int64, bool, error) {
 	return seqNo, subCmd == "in", nil
 }
 
-func newSession(st *store.Store) (*session.Session, error) {
-	cfg := st.Config()
-	return session.NewSession(
-		cfg.SessionSpec,
-		cfg.SenderCompID,
-		cfg.TargetCompID,
-		cfg.HeartbeatInt,
-		session.EngineOptions{
-			DefaultApplVer:   cfg.ApplicationSpec,
-			SkipLatencyCheck: cfg.SkipLatencyCheckInValidate,
-		},
-	)
-}
-
 func handleConnect(ctx *ScriptContext, args []string) error {
 	cfg := ctx.Store.Config()
 	host, port, err := parseStartSession(args, &cfg)
@@ -100,7 +85,7 @@ func handleConnect(ctx *ScriptContext, args []string) error {
 	}
 
 	addr := fmt.Sprintf("%s:%d", host, port)
-	if err = ctx.Session.Connect(addr); err != nil {
+	if err = ctx.Session().Connect(addr); err != nil {
 		return fmt.Errorf("connect exec failed: %w", err)
 	}
 
@@ -116,7 +101,7 @@ func handleListen(ctx *ScriptContext, args []string) error {
 	}
 
 	addr := fmt.Sprintf("%s:%d", host, port)
-	if err = ctx.Session.Listen(addr); err != nil {
+	if err = ctx.Session().Listen(addr); err != nil {
 		return fmt.Errorf("listen exec failed: %w", err)
 	}
 
@@ -128,7 +113,7 @@ func handleDisconnect(ctx *ScriptContext, args []string) error {
 		return fmt.Errorf("Syntax error, expected: `disconnect`")
 	}
 
-	ctx.Session.Close()
+	ctx.Session().Close()
 	return nil
 }
 
@@ -137,14 +122,11 @@ func handleReset(ctx *ScriptContext, args []string) error {
 		return fmt.Errorf("Syntax error, expected: `reset`")
 	}
 
-	ctx.Session.Close()
-	s, err := newSession(ctx.Store)
-	if err != nil {
-		return fmt.Errorf("failed to create a new session: %w", err)
+	if ctx.Reset == nil {
+		return fmt.Errorf("Reset not implemented")
 	}
 
-	ctx.Session = s
-	return nil
+	return ctx.Reset()
 }
 
 func handleSend(ctx *ScriptContext, args []string) error {
@@ -163,7 +145,7 @@ func handleSend(ctx *ScriptContext, args []string) error {
 		return fmt.Errorf("invalid fix string: %w", err)
 	}
 
-	return ctx.Session.Send(msg, isRaw)
+	return ctx.Session().Send(msg, isRaw)
 }
 
 func handleResetSequence(ctx *ScriptContext, args []string) error {
@@ -173,7 +155,8 @@ func handleResetSequence(ctx *ScriptContext, args []string) error {
 	}
 
 	// Get the latest snapshot for a partial SeqNo update
-	snapshot := ctx.Session.Status()
+	sess := ctx.Session()
+	snapshot := sess.Status()
 
 	inSeq := snapshot.InSeqNum
 	outSeq := snapshot.OutSeqNum
@@ -185,7 +168,7 @@ func handleResetSequence(ctx *ScriptContext, args []string) error {
 	}
 
 	// Engine handles the state changes and emit the appropriate logs
-	return ctx.Session.ResetSequence(inSeq, outSeq)
+	return sess.ResetSequence(inSeq, outSeq)
 }
 
 func init() {

@@ -10,10 +10,12 @@ import (
 
 // Every handler takes in the context
 type ScriptContext struct {
-	GoCtx   context.Context  // Context to cancel running scripts
-	Session *session.Session // Executor runs commands on the Session object
-	Store   *store.Store     // Configs and Runtime variables
-	Writer  io.Writer        // Writing output
+	GoCtx  context.Context // Context to cancel running scripts
+	Store  *store.Store    // Configs and Runtime variables
+	Writer io.Writer       // Writing output
+
+	Session func() *session.Session // Returns the latest active session
+	Reset   func() error            // Triggers a global app session reset
 }
 
 type Command func(ctx *ScriptContext, args []string) error

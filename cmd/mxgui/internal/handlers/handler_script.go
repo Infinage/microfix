@@ -73,7 +73,7 @@ func (app *Application) handleAPIScriptStream(w http.ResponseWriter, r *http.Req
 	// Initialize context
 	sess := app.Session()
 	writer := sseWriter{stream: sseChan}
-	scriptCtx, stop := executor.NewScriptContext(sess, app.Store, &writer)
+	scriptCtx, stop := executor.NewScriptContext(app.Session, app.resetSession, app.Store, &writer)
 	defer stop() // Failsafe cleanup
 
 	var wg sync.WaitGroup

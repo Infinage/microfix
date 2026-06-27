@@ -20,7 +20,7 @@ func setupTestContext(t *testing.T, sess *session.Session) (*script.ScriptContex
 
 	ctx := &script.ScriptContext{
 		GoCtx:   context.Background(),
-		Session: sess,
+		Session: func() *session.Session { return sess },
 		Store:   &st,
 		Writer:  buf,
 	}

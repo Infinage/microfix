@@ -58,10 +58,10 @@ func substituteMessageTag(raw string, isIncoming bool, ctx *script.ScriptContext
 
 	msgType := strings.TrimSpace(splits[0])
 	var msg *message.Message
-	if isIncoming {
-		msg = ctx.Session.LastMessage(msgType, true)
+	if sess := ctx.Session(); isIncoming {
+		msg = sess.LastMessage(msgType, true)
 	} else {
-		msg = ctx.Session.LastMessage(msgType, false)
+		msg = sess.LastMessage(msgType, false)
 	}
 
 	if msg == nil {
@@ -100,7 +100,7 @@ func substituteDate(raw string) (string, error) {
 }
 
 func substituteSnapshot(raw string, ctx *script.ScriptContext) string {
-	snap := ctx.Session.Status()
+	snap := ctx.Session().Status()
 	switch raw[1:] {
 	case "SEQ_IN":
 		return fmt.Sprint(snap.InSeqNum)
