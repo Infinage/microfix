@@ -1,4 +1,4 @@
-package executor
+package macros
 
 import (
 	"crypto/rand"
@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	script "github.com/infinage/microfix/pkg/executor/internal/handlers"
-	"github.com/infinage/microfix/pkg/message"
+	"github.com/infinage/microfix/pkg/session"
+	"github.com/infinage/microfix/pkg/store"
 )
 
 // Regex to find $SOMETHING or $PREFIX.SOMETHING
@@ -40,7 +40,7 @@ func extractSBrackets(raw string) (string, error) {
 	return raw[start+1 : end], nil
 }
 
-func substituteMessageTag(raw string, isIncoming bool, ctx *script.ScriptContext) (string, error) {
+func substituteMessageTag(raw string, isIncoming bool, sess *session.Session) (string, error) {
 	contents, err := extractSBrackets(raw)
 	if err != nil {
 		return "", err
@@ -57,13 +57,7 @@ func substituteMessageTag(raw string, isIncoming bool, ctx *script.ScriptContext
 	}
 
 	msgType := strings.TrimSpace(splits[0])
-	var msg *message.Message
-	if sess := ctx.Session(); isIncoming {
-		msg = sess.LastMessage(msgType, true)
-	} else {
-		msg = sess.LastMessage(msgType, false)
-	}
-
+	msg := sess.LastMessage(msgType, isIncoming)
 	if msg == nil {
 		dir := "incoming"
 		if !isIncoming {
@@ -99,8 +93,8 @@ func substituteDate(raw string) (string, error) {
 	return today.AddDate(0, 0, daysOffset).Format("20060102"), nil
 }
 
-func substituteSnapshot(raw string, ctx *script.ScriptContext) string {
-	snap := ctx.Session().Status()
+func substituteSnapshot(raw string, sess *session.Session) string {
+	snap := sess.Status()
 	switch raw[1:] {
 	case "SEQ_IN":
 		return fmt.Sprint(snap.InSeqNum)
@@ -116,7 +110,7 @@ func substituteSnapshot(raw string, ctx *script.ScriptContext) string {
 // Expand takes a string like "35=D|11=$UNIQUE|55=$VAR.Symbol" and fills it in.
 // Magic vars: $UNIQUE, $TIMESTAMP, $DATE, $DATE[+days], $LASTIN[MsgType, tag], $LASTOUT[MsgType,tag]
 // Store vars: $CFG.*, $ALIAS.*, $VARS.*, $ENV.*
-func Substitute(input string, ctx *script.ScriptContext) (string, error) {
+func Substitute(input string, sess *session.Session, st *store.Store) (string, error) {
 	var expandErr error
 
 	// match is the full string: "$VAR.Symbol" or "$UNIQUE" or "$LASTIN[35]"
@@ -129,7 +123,7 @@ func Substitute(input string, ctx *script.ScriptContext) (string, error) {
 			return time.Now().UTC().Format("20060102-15:04:05.000")
 		}
 		if match == "$SEQ_OUT" || match == "$SEQ_IN" || match == "$STATUS" {
-			return substituteSnapshot(match, ctx)
+			return substituteSnapshot(match, sess)
 		}
 		if strings.HasPrefix(match, "$DATE") {
 			res, err := substituteDate(match)
@@ -140,7 +134,7 @@ func Substitute(input string, ctx *script.ScriptContext) (string, error) {
 			return res
 		}
 		if isIncoming := strings.HasPrefix(match, "$LASTIN"); isIncoming || strings.HasPrefix(match, "$LASTOUT") {
-			res, err := substituteMessageTag(match, isIncoming, ctx)
+			res, err := substituteMessageTag(match, isIncoming, sess)
 			if err != nil {
 				expandErr = err
 				return match
@@ -151,7 +145,7 @@ func Substitute(input string, ctx *script.ScriptContext) (string, error) {
 		// Handle State (CFG, ALIAS, VARS, ENV)
 		// Strip the '$' and ask the store
 		storeKey := strings.TrimPrefix(match, "$")
-		val, ok, err := ctx.Store.Get(storeKey)
+		val, ok, err := st.Get(storeKey)
 		if !ok || err != nil {
 			expandErr = fmt.Errorf("variable resolution failed for '%s': %w", match, err)
 			return match

@@ -1,6 +1,6 @@
 {{define "pages/toolbox"}}
 <main x-show="view === 'toolbox'" style="display: none;" class="flex-1 flex bg-[#0a0d12] overflow-hidden">
-    <div class="flex-1 p-10 flex flex-col overflow-hidden max-w-7xl mx-auto">
+    <div class="flex-1 p-6 flex flex-col overflow-hidden w-full">
       {{template "partials/toolbox/script_runner" .}}
       {{template "partials/toolbox/finalize" .}}
       {{template "partials/toolbox/validate" .}}

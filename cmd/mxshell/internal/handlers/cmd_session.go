@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/infinage/microfix/pkg/broker"
+	"github.com/infinage/microfix/pkg/macros"
 	"github.com/infinage/microfix/pkg/message"
 	"github.com/infinage/microfix/pkg/pretty"
 	"github.com/infinage/microfix/pkg/ringbuf"
@@ -116,12 +117,19 @@ func handleSend(ctx *ShellContext, args []string) {
 		}
 	}
 
-	fmt.Println("\n─── Send Message ────────────────────────────────")
+	// Substitute placeholders if any (even if sending as 'raw')
+	sess := ctx.Session()
+	if err == nil {
+		raw, err = macros.Substitute(raw, sess, ctx.Store)
+	}
 
+	// Parse the text into message struct
 	if err == nil {
 		delim := raw[len(raw)-1:]
 		msg, err = message.MessageFromString(raw, delim)
 	}
+
+	fmt.Println("\n─── Send Message ────────────────────────────────")
 
 	if err != nil {
 		fmt.Printf("  Status : FAILED\n")

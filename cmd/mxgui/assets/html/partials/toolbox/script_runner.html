@@ -81,7 +81,7 @@
              style="display: none;"
         >
             <div @click.outside="showHelp = false"
-                 class="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-full max-w-[80%] flex flex-col overflow-hidden max-h-full">
+                 class="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-full max-w-4xl flex flex-col overflow-hidden max-h-full">
                 
                 <!-- Modal Header -->
                 <div class="flex justify-between items-center bg-gray-950 px-4 py-3 border-b border-gray-800">
@@ -90,8 +90,8 @@
                 </div>
                 
                 <!-- Modal Body -->
-                <div class="p-5 overflow-y-auto">
-                    <pre class="font-mono text-sm text-gray-300 whitespace-pre-wrap select-text leading-relaxed">{{ .ScriptingReference }}</pre>
+                <div class="p-5 overflow-auto">
+                    <pre class="font-mono text-sm text-gray-300 whitespace-pre select-text leading-relaxed">{{ .ScriptingReference }}</pre>
                 </div>
             </div>
         </div>

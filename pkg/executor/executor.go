@@ -9,9 +9,11 @@ import (
 	"os"
 	"strings"
 
-	"github.com/infinage/microfix/pkg/executor/internal/handlers"
+	"github.com/infinage/microfix/pkg/macros"
 	"github.com/infinage/microfix/pkg/session"
 	"github.com/infinage/microfix/pkg/store"
+
+	"github.com/infinage/microfix/pkg/executor/internal/handlers"
 )
 
 const ScriptHelpText = `
@@ -41,20 +43,25 @@ SCRIPT FLOW & UTILITY
   waitstatus <state>      Block until session enters state (New, Listening, 
                           LoggingIn, Active, Stale, OutOfSync, Closed)
 
-VARIABLES & SUBSTITUTION
+GLOBAL VARIABLES
   Variables can be injected into any command using the '$' prefix.
 
-  Store Vars:     $VARS.<name>, $CFG.<name>, $ALIAS.<name>, $ENV.<name>
-  $UNIQUE         Generates a random UUID (e.g., for ClOrdID generation)
-  $TIMESTAMP      Current UTC timestamp (YYYYMMDD-HH:MM:SS.000)
-  $DATE           Current date (YYYYMMDD)
-  $DATE[+N]       Date offset by N days (e.g., $DATE[+1] is tomorrow, $DATE[-1] is yesterday)
-  $SEQ_IN         Current internal Inbound Sequence Number
-  $SEQ_OUT        Current internal Outbound Sequence Number
-  $STATUS         Current session state (e.g., "Active", "LoggingIn")
-  $LASTIN[T,t]    Extract tag 't' from the last incoming message of MsgType 'T'
-                  (e.g., $LASTIN[8,39] gets OrdStatus from the last ExecutionReport)
-  $LASTOUT[T,t]   Extract tag 't' from the last outgoing message of MsgType 'T'
+  -- System & State --
+  $UNIQUE                 Random UUID (e.g., for ClOrdID generation)
+  $TIMESTAMP              Current UTC timestamp (YYYYMMDD-HH:MM:SS.000)
+  $DATE                   Current date (YYYYMMDD)
+  $DATE[+N]               Date offset by N days (e.g., $DATE[+1] is tomorrow)
+  $STATUS                 Current session state (e.g., "Active", "Closed")
+  $SEQ_IN / $SEQ_OUT      Current internal Inbound/Outbound Sequence Number
+
+  -- Context & Store --
+  $CFG.<key>              Config values
+  $VARS.<key>             Script-defined values (set via 'set' command)
+  $ALIAS.<name>           Saved aliases
+  $ENV.<name>             Environment variables
+  $LASTIN[T,t]            Extract tag 't' from last incoming message of MsgType 'T'
+                          (e.g., $LASTIN[8,39] gets OrdStatus from ExecutionReport)
+  $LASTOUT[T,t]           Extract tag 't' from last outgoing message of MsgType 'T'
 `
 
 func NewScriptContext(
@@ -75,7 +82,7 @@ func NewScriptContext(
 
 // Evaluate a single line with provided context
 func Eval(line string, ctx *script.ScriptContext) error {
-	expandedLine, err := Substitute(line, ctx)
+	expandedLine, err := macros.Substitute(line, ctx.Session(), ctx.Store)
 	if err != nil {
 		return fmt.Errorf("substitution failed: %w", err)
 	}

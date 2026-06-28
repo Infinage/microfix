@@ -1,4 +1,4 @@
-package executor
+package macros
 
 import (
 	"regexp"
@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	script "github.com/infinage/microfix/pkg/executor/internal/handlers"
 	"github.com/infinage/microfix/pkg/session"
 	"github.com/infinage/microfix/pkg/store"
 )
@@ -100,14 +99,11 @@ func TestSubstitute_Variables(t *testing.T) {
 	_, _, _ = st.Set("VARS.Qty", "100")
 	_, _, _ = st.Set("ALIAS.Logon", "35=A|98=0|108=30")
 
-	// Set up the execution context
-	ctx := &script.ScriptContext{Store: &st, Session: nil}
-
 	t.Run("Standard Variables", func(t *testing.T) {
 		input := "35=D|55=$VARS.Symbol|38=$VARS.Qty|"
 		expected := "35=D|55=AAPL|38=100|"
 
-		res, err := Substitute(input, ctx)
+		res, err := Substitute(input, nil, &st)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -120,7 +116,7 @@ func TestSubstitute_Variables(t *testing.T) {
 		input := "send $ALIAS.Logon"
 		expected := "send 35=A|98=0|108=30"
 
-		res, err := Substitute(input, ctx)
+		res, err := Substitute(input, nil, &st)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -131,7 +127,7 @@ func TestSubstitute_Variables(t *testing.T) {
 
 	t.Run("Magics: Unique and Timestamp", func(t *testing.T) {
 		input := "11=$UNIQUE|52=$TIMESTAMP|"
-		res, err := Substitute(input, ctx)
+		res, err := Substitute(input, nil, &st)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -143,7 +139,7 @@ func TestSubstitute_Variables(t *testing.T) {
 
 	t.Run("Missing Variable (Strict Failure)", func(t *testing.T) {
 		input := "35=D|55=$VARS.DoesNotExist|"
-		_, err := Substitute(input, ctx)
+		_, err := Substitute(input, nil, &st)
 		if err == nil {
 			t.Error("Expected an error for a missing variable, got nil")
 		}
@@ -151,7 +147,7 @@ func TestSubstitute_Variables(t *testing.T) {
 
 	t.Run("Missing Namespace (Strict Failure)", func(t *testing.T) {
 		input := "35=D|55=$UNKNOWN.Symbol|"
-		_, err := Substitute(input, ctx)
+		_, err := Substitute(input, nil, &st)
 		if err == nil {
 			t.Error("Expected an error for an unknown prefix, got nil")
 		}
@@ -163,11 +159,8 @@ func TestSubstitute_Variables(t *testing.T) {
 			t.Fatalf("Failed to initialize session for test: %v", err)
 		}
 
-		// Create a separate context containing the active session
-		snapCtx := &script.ScriptContext{Store: &st, Session: func() *session.Session { return sess }}
-
 		input := "Status: $STATUS | In: $SEQ_IN | Out: $SEQ_OUT"
-		res, err := Substitute(input, snapCtx)
+		res, err := Substitute(input, sess, &st)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}

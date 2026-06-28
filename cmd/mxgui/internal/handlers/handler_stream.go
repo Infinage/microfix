@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/infinage/microfix/pkg/macros"
 	"github.com/infinage/microfix/pkg/message"
 	"github.com/infinage/microfix/pkg/pretty"
 	"github.com/infinage/microfix/pkg/spec"
@@ -91,6 +92,13 @@ func (app *Application) handleAPISend(w http.ResponseWriter, r *http.Request) {
 	msgRaw := r.FormValue("message")
 	raw := r.FormValue("raw") == "yes"
 
+	var err error
+	sess := app.Session()
+	if msgRaw, err = macros.Substitute(msgRaw, sess, app.Store); err != nil {
+		toast(w, app.templ, "error", fmt.Sprintf("Failed to substitute macros: %s", err.Error()))
+		return
+	}
+
 	delim := msgRaw[len(msgRaw)-1:]
 	msg, err := message.MessageFromString(msgRaw, delim)
 	if err != nil {
@@ -98,7 +106,7 @@ func (app *Application) handleAPISend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = app.Session().Send(msg, raw); err != nil {
+	if err = sess.Send(msg, raw); err != nil {
 		toast(w, app.templ, "error", fmt.Sprintf("Failed to send message: %s", err.Error()))
 		return
 	}

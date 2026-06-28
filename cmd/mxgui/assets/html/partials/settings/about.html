@@ -1,5 +1,5 @@
 {{define "partials/settings/about"}}
-    <div x-show="settingsTab === 'about'" style="display:none;" class="flex flex-col h-full pb-6">
+    <div x-show="settingsTab === 'about'" style="display:none;" class="flex flex-col pb-6">
         <!-- Header & Logo -->
         <div class="flex items-center space-x-6 mb-8 shrink-0">
             <div class="relative w-24 h-24 flex items-center justify-center">
@@ -54,12 +54,67 @@
                   <div class="flex justify-between border-b border-gray-800 pb-2">
                       <span class="text-gray-400" x-text="s.description"></span>
                       <span 
-                        class="font-mono text-blue-400 bg-blue-950 px-2 py-0.5 rounded border border-blue-900/50 text-xs cursor-help"
+                        class="font-mono text-blue-400 bg-blue-950 px-2 py-0.5 rounded border border-blue-900/50 text-xs cursor-help min-w-[80px] text-center"
                         x-text="(s.ctrl? '⌃ + ': '') + (s.alt? '⌥ + ': '') + (s.shift? '⇧ + ': '') + s.key"
                         :title="(s.ctrl ? 'Ctrl + ' : '') + (s.alt ? 'Alt + ' : '') + (s.shift ? 'Shift + ' : '') + s.key.toUpperCase()"
                       ></span>
                   </div>
                 </template>
+            </div>
+
+            <!-- Variable Substitution Cheat Sheet -->
+            <div class="bg-gray-900 border border-gray-800 p-4 rounded-lg space-y-3">
+                <div class="mb-4 border-b border-gray-800 pb-3">
+                    <h5 class="text-white font-bold mb-1">Global Variables</h5>
+                    <p class="text-xs text-gray-400 leading-relaxed">Inject dynamic values into scripts, CLI commands, or GUI inputs using the <code class="text-blue-400 font-mono font-bold">$</code> prefix.</p>
+                </div>
+                
+                  <div class="space-y-3">
+                    <div class="flex justify-between items-center border-b border-gray-800 pb-2">
+                        <span class="flex-1 text-gray-400">Random UUID</span>
+                        <span class="shrink-0 font-mono text-blue-400 bg-blue-950 px-2 py-0.5 rounded border border-blue-900/50 text-xs min-w-[120px] text-center">$UNIQUE</span>
+                    </div>
+                    
+                    <div class="flex justify-between items-center border-b border-gray-800 pb-2">
+                        <span class="flex-1 text-gray-400">UTC YYYYMMDD-HH:MM:SS.000</span>
+                        <span class="shrink-0 font-mono text-blue-400 bg-blue-950 px-2 py-0.5 rounded border border-blue-900/50 text-xs min-w-[120px] text-center">$TIMESTAMP</span>
+                    </div>
+                    
+                    <div class="flex justify-between items-center border-b border-gray-800 pb-2">
+                        <span class="flex-1 text-gray-400">Date offset by N days</span>
+                        <span class="shrink-0 font-mono text-blue-400 bg-blue-950 px-2 py-0.5 rounded border border-blue-900/50 text-xs min-w-[120px] text-center">$DATE[+N]</span>
+                    </div>
+                    
+                    <div class="flex justify-between items-center border-b border-gray-800 pb-2">
+                        <span class="flex-1 text-gray-400">Session State</span>
+                        <span class="shrink-0 font-mono text-blue-400 bg-blue-950 px-2 py-0.5 rounded border border-blue-900/50 text-xs min-w-[120px] text-center">$STATUS</span>
+                    </div>
+                    
+                    <div class="flex justify-between items-center border-b border-gray-800 pb-2">
+                        <span class="flex-1 text-gray-400">Sequence Numbers</span>
+                        <span class="shrink-0 font-mono text-blue-400 bg-blue-950 px-2 py-0.5 rounded border border-blue-900/50 text-xs min-w-[120px] text-center">$SEQ_IN / OUT</span>
+                    </div>
+                    
+                    <div class="flex justify-between items-center border-b border-gray-800 pb-2">
+                        <span class="flex-1 text-gray-400">Config values</span>
+                        <span class="shrink-0 font-mono text-blue-400 bg-blue-950 px-2 py-0.5 rounded border border-blue-900/50 text-xs min-w-[120px] text-center">$CFG.&lt;key&gt;</span>
+                    </div>
+                    
+                    <div class="flex justify-between items-center border-b border-gray-800 pb-2">
+                        <span class="flex-1 text-gray-400">Script-defined values</span>
+                        <span class="shrink-0 font-mono text-blue-400 bg-blue-950 px-2 py-0.5 rounded border border-blue-900/50 text-xs min-w-[120px] text-center">$VARS.&lt;key&gt;</span>
+                    </div>
+                    
+                    <div class="flex justify-between items-center border-b border-gray-800 pb-2">
+                        <span class="flex-1 text-gray-400">Saved aliases</span>
+                        <span class="shrink-0 font-mono text-blue-400 bg-blue-950 px-2 py-0.5 rounded border border-blue-900/50 text-xs min-w-[120px] text-center">$ALIAS.&lt;name&gt;</span>
+                    </div>
+                    
+                    <div class="flex justify-between items-center border-b border-gray-800 pb-2">
+                        <span class="flex-1 text-gray-400">Extract tag 't' from last MsgType 'T' (e.g. $LASTIN[8,39])</span>
+                        <span class="shrink-0 font-mono text-blue-400 bg-blue-950 px-2 py-0.5 rounded border border-blue-900/50 text-xs min-w-[120px] text-center">$LASTIN[T,t]</span>
+                    </div>
+                </div>
             </div>
 
             <!-- Tech Stack Tags -->

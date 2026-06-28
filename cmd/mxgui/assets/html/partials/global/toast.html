@@ -4,11 +4,12 @@
          x-show="show" 
          x-init="setTimeout(() => show = false, 4000)"
          x-transition.duration.300ms
-         class="px-4 py-3 rounded-lg shadow-2xl flex items-center justify-between space-x-4 mb-3 border text-sm font-bold min-w-[300px] 
+         class="px-4 py-3 rounded-lg shadow-2xl flex items-start justify-between space-x-4 mb-3 border text-sm font-bold 
+                min-w-[300px] max-w-[450px] w-full break-words overflow-wrap-anywhere
                 {{if eq .type "error"}}bg-red-950/90 border-red-900/50 text-red-400{{end}} 
                 {{if eq .type "success"}}bg-green-950/90 border-green-900/50 text-green-400{{end}}">
-        <span>{{ .message }}</span>
-        <button @click="show = false" class="text-gray-500 hover:text-white text-lg leading-none">&times;</button>
+        <span class="flex-1 break-all select-text">{{ .message }}</span>
+        <button @click="show = false" class="text-gray-500 hover:text-white text-lg leading-none shrink-0 mt-0.5">&times;</button>
     </div>
 </div>
 {{end}}
