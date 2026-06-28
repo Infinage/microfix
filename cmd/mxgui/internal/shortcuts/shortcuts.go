@@ -35,15 +35,22 @@ var appShortcuts = []shortcut{
 	{
 		Key:         "s",
 		Alt:         true,
-		Events:      []string{"view-settings"},
-		Description: "Open settings",
+		Events:      []string{"view-session-settings"},
+		Description: "Open session settings",
+	},
+
+	{
+		Key:         "h",
+		Alt:         true,
+		Events:      []string{"view-help"},
+		Description: "Open help",
 	},
 
 	{
 		Key:         "r",
 		Alt:         true,
 		Events:      []string{"view-script-runner"},
-		Description: "Open Script Runner",
+		Description: "Open script runner",
 	},
 }
 

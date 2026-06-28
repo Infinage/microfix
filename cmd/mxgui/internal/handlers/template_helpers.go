@@ -88,10 +88,14 @@ func getThemeForLogType(state string) Theme {
 		textColor = "text-red-500"
 		borderColor = "border-l-red-500"
 		bgColor = "bg-red-950/40"
-	case "SYS ":
+	case "INFO":
 		textColor = "text-yellow-500"
 		borderColor = "border-l-yellow-500"
 		bgColor = "bg-yellow-950/40"
+	case "TRAN":
+		textColor = "text-orange-400"
+		borderColor = "border-l-orange-400"
+		bgColor = "bg-orange-950/40"
 	}
 
 	return Theme{Text: textColor, Border: borderColor, Bg: bgColor}

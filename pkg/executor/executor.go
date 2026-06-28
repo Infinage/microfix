@@ -30,9 +30,20 @@ SESSION COMMANDS
 
 MESSAGING COMMANDS
   send [-r] <msg>         Send a FIX message. Use -r to send raw (skip validation)
+  wait <MsgLike>          Block and wait until a message matching <MsgLike> is received
   expect <MsgLike>        Fail if the *next* app message doesn't match <MsgLike>
                           (Automatically ignores background Heartbeats & Test Requests)
-  wait <MsgLike>          Block and wait until a message matching <MsgLike> is received
+
+MSGLIKE SYNTAX
+  A MsgLike is a boolean expression over FIX tags.
+
+  35=D                    Tag 35 equals D
+  35=D & 11=ABC           AND
+  35=D | 35=G             OR
+  !39=4                   NOT
+  (35=D | 35=G) & !39=4   Grouping with parentheses
+
+  Operator precedence: !, then &, then |
 
 SCRIPT FLOW & UTILITY
   set <key> <val>         Set a variable in the store (e.g., set VARS.Symbol AAPL)
@@ -60,8 +71,8 @@ GLOBAL VARIABLES
   $ALIAS.<name>           Saved aliases
   $ENV.<name>             Environment variables
   $LASTIN[T,t]            Extract tag 't' from last incoming message of MsgType 'T'
-                          (e.g., $LASTIN[8,39] gets OrdStatus from ExecutionReport)
   $LASTOUT[T,t]           Extract tag 't' from last outgoing message of MsgType 'T'
+                          (e.g., $LASTOUT[8,39] gets OrdStatus from ExecutionReport)
 `
 
 func NewScriptContext(

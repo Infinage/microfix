@@ -3,6 +3,7 @@ package gui
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/infinage/microfix/pkg/message"
 	"github.com/infinage/microfix/pkg/spec"
@@ -22,8 +23,33 @@ func (app *Application) handleAPIFinalize(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Finalize the message and return fragment
-	msg.Finalize()
+	// Populate a slice of mandatory field info
+	// we will attempt to salvage
+	type MandatoryField struct {
+		tag   uint16
+		value string
+		pos   int
+	}
+
+	// critical tags: [8, 9, 35, 49, 56, 34, 52, 10]
+	ro := app.Session().Router()
+	beginStr := ro.SessionSpec().BeginString()
+	sendingTime := time.Now().UTC().Format("20060102-15:04:05.000")
+	for _, rf := range []MandatoryField{
+		{tag: 8, value: beginStr, pos: 0},
+		{tag: 9, value: "", pos: 1},
+		{tag: 35, value: "0", pos: 2},
+		{tag: 49, value: "FROM", pos: 3},
+		{tag: 56, value: "TO", pos: 4},
+		{tag: 34, value: "1", pos: 5},
+		{tag: 52, value: sendingTime, pos: 6},
+	} {
+		if _, ok := msg.Get(rf.tag); !ok {
+			msg.Insert(rf.pos, message.Field{Tag: rf.tag, Value: rf.value})
+		}
+	}
+
+	msg.Finalize() // Auto inserts tag 9 and 10 if missing
 	w.Write([]byte(msg.String(delim)))
 }
 

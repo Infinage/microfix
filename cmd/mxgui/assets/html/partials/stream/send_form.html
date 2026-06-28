@@ -73,7 +73,7 @@
         </button>
     </div>
 
-    <form hx-post="/api/send" hx-swap="none">
+    <form hx-post="/api/send" hx-swap="none" @submit="$dispatch('message-sent')">
       <textarea 
         name="message" 
         id="message-input" 

@@ -38,9 +38,25 @@
 {{end}}
 
 {{define "partials/stream/logs"}}
-<div x-data="{
+<div 
+  x-init="
+    let c = document.getElementById('log-stream-container');
+    new MutationObserver(() => {
+        if (isAtBottom || forceScroll) {
+            c.scrollTop = c.scrollHeight;
+            forceScroll = false;
+        }
+        applyFilters();
+    }).observe(c, { childList: true });
+    c.addEventListener('scroll', () => {
+        isAtBottom = Math.abs(c.scrollHeight - c.clientHeight - c.scrollTop) <= 50;
+    });
+  "
+  x-data="{
         regexStr: '',
         activeFilters: [],
+        isAtBottom: true,
+        forceScroll: false,
         
         toggleFilter(f) {
             if (this.activeFilters.includes(f)) {
@@ -76,10 +92,10 @@
                     if (type === 'RECV') tags.push('IN');
                     if (type === 'SEND') tags.push('OUT');
                     if (type === 'ERR') tags.push('Error');
-                    if (type === 'SYS') tags.push('Sys');
-                    
-                    // Renamed from 'App' (Business Level Messages)
-                    if (type === 'RECV' || type === 'SEND') tags.push('App');
+                    if (type === 'INFO' || type === 'TRAN') 
+                      tags.push('Sys');
+                    if (type === 'RECV' || type === 'SEND') 
+                      tags.push('App');
 
                     matchFilter = this.activeFilters.some(f => tags.includes(f));
                 }
@@ -87,54 +103,8 @@
                 el.style.display = (matchRegex && matchFilter) ? '' : 'none';
             });
         },
-
-        exportLogs() {
-            let logText = '';
-            
-            document.querySelectorAll('.log-entry').forEach(el => {
-                // Only process elements that pass the current filter
-                if (el.style.display !== 'none') {
-                    // Extract parts using the known span hierarchy
-                    let timeSpan = el.querySelector('span:nth-child(1)');
-                    let time = timeSpan ? timeSpan.innerText.replace(/\s+/g, ' ').trim() : '';
-
-                    let typeSpan = el.querySelector('span:nth-child(2)');
-                    let type = typeSpan ? typeSpan.innerText.trim() : '';
-
-                    let contentSpan = el.querySelector('span:nth-child(3)');
-                    let content = contentSpan ? contentSpan.innerText.trim() : '';
-
-                    // Format: [2026-06-20 19:45:00.000] SEND  8=FIXT.1.1...
-                    logText += `[${time}] ${type.padEnd(5)} ${content}\n`;
-                }
-            });
-
-            if (!logText) { return; }
-
-            // Create a Blob and trigger the native WebView download dialog
-            const blob = new Blob([logText], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            
-            // Generate a safe, timestamped filename
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            a.download = `microfix_stream_${timestamp}.log`;
-            
-            document.body.appendChild(a);
-            a.click();
-            
-            // Cleanup
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
     }" 
-    @htmx:sse-message.camel="setTimeout(() => { 
-        applyFilters(); 
-        let container = document.getElementById('log-stream-container');
-        container.scrollTop = container.scrollHeight;
-    }, 50)" 
-    @htmx:after-settle="applyFilters()" 
+    @message-sent.window="forceScroll = true"
     class="flex-1 flex flex-col min-w-0 min-h-0"
 >
     <div class="bg-gray-950 px-4 py-2 border-b border-gray-800 flex items-center justify-between gap-x-2 shrink-0">
@@ -210,7 +180,7 @@
         id="log-stream-container"
         sse-connect="{{if .IsWailsApp}}http://localhost:{{.SSEPort}}{{end}}/api/logs/stream" 
         sse-swap="message"
-        hx-swap="beforeend scroll:bottom"
+        hx-swap="beforeend" 
         class="flex-1 overflow-y-auto min-h-0 p-3 font-mono text-sm space-y-1 scroll-smooth"
     >
         <div class="hidden only:block text-gray-600 text-center mt-10"> Waiting for messages... </div>

@@ -120,7 +120,7 @@ func handleWaitStatus(ctx *ScriptContext, args []string) error {
 	}
 	defer unsubscribe()
 
-	// safegaurd against scenario when currentState transitions 
+	// safegaurd against scenario when currentState transitions
 	// to targetstate before log subscription succeeds
 	if checkFromSnap() {
 		return nil
