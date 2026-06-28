@@ -214,13 +214,22 @@ func TestLog(t *testing.T) {
 			expected: "<< 35=ZZZ|", // Should format without a hint block
 		},
 		{
-			name: "System Log event",
+			name: "Info Log event",
 			log: session.Log{
-				Type:      session.LogSys,
+				Type:      session.LogInfo,
 				Timestamp: now,
 				Text:      "Session connected successfully",
 			},
-			expected: "SYS  .. Session connected successfully",
+			expected: "INFO .. Session connected successfully",
+		},
+		{
+			name: "State Transition event",
+			log: session.Log{
+				Type:      session.LogTran,
+				Timestamp: now,
+				States:    [2]string{"OutOfSync", "Active"},
+			},
+			expected: "TRAN :: OutOfSync -> Active",
 		},
 		{
 			name: "Error Log event",

@@ -175,11 +175,12 @@ func handleConnect(ctx *ShellContext, args []string) {
 
 	fmt.Println("\n─── Connect ─────────────────────────────────────")
 
-	if err := ctx.Session().Connect(addr); err != nil {
+	sess := ctx.Session()
+	if err := sess.Connect(addr); err != nil {
 		fmt.Printf("  Status : FAILED\n")
 		fmt.Printf("  Error  : %v\n", err)
 	} else {
-		startLogger(ctx.logBroker, ctx.Logs, *ctx.session.Router())
+		startLogger(ctx.logBroker, ctx.Logs, *sess.Router())
 		fmt.Printf("  Status : OK\n")
 		fmt.Printf("  Remote : %s\n", addr)
 	}
@@ -202,11 +203,12 @@ func handleListen(ctx *ShellContext, args []string) {
 
 	fmt.Println("\n─── Listen ──────────────────────────────────────")
 
-	if err := ctx.Session().Listen(addr); err != nil {
+	sess := ctx.Session()
+	if err := sess.Listen(addr); err != nil {
 		fmt.Printf("  Status : FAILED\n")
 		fmt.Printf("  Error  : %v\n", err)
 	} else {
-		startLogger(ctx.logBroker, ctx.Logs, *ctx.session.Router())
+		startLogger(ctx.logBroker, ctx.Logs, *sess.Router())
 		fmt.Printf("  Status : OK\n")
 		fmt.Printf("  Remote : %s\n", addr)
 	}

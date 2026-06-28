@@ -97,8 +97,10 @@ func (app *Application) handleAPIScriptStream(w http.ResponseWriter, r *http.Req
 					hint := ""
 
 					switch log.Type {
-					case session.LogSys:
+					case session.LogInfo:
 						colorClass = "text-yellow-400"
+					case session.LogTran:
+						colorClass = "text-orange-400"
 					case session.LogErr:
 						colorClass = "text-red-400"
 					case session.LogSend, session.LogRecv:

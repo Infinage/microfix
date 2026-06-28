@@ -101,9 +101,30 @@ func handleWaitStatus(ctx *ScriptContext, args []string) error {
 		return fmt.Errorf("usage: `waitstatus <StateName>`")
 	}
 
-	// Create a ticker to poll the session state
-	ticker := time.NewTicker(100 * time.Millisecond)
-	defer ticker.Stop()
+	// Helper to check from snapshot as a fallback
+	sess := ctx.Session()
+	targetState := strings.ToLower(args[1])
+	checkFromSnap := func() bool {
+		snap := sess.Status()
+		currentState := strings.ToLower(snap.State.String())
+		return currentState == targetState
+	}
+
+	// Subscribe to logs and on failure check from tombstone
+	logCh, unsubscribe, err := sess.SubscribeLog()
+	if err != nil {
+		if checkFromSnap() {
+			return nil
+		}
+		return fmt.Errorf("failed to create wire tap: %w", err)
+	}
+	defer unsubscribe()
+
+	// safegaurd against scenario when currentState transitions 
+	// to targetstate before log subscription succeeds
+	if checkFromSnap() {
+		return nil
+	}
 
 	// Timeout after configured duration - if set to 0 assumes no timeout
 	var timeout <-chan time.Time
@@ -111,34 +132,24 @@ func handleWaitStatus(ctx *ScriptContext, args []string) error {
 		timeout = time.After(time.Duration(timeoutSec) * time.Second)
 	}
 
-	// Case insensitive comparisons
-	sess := ctx.Session()
-	targetState := strings.ToLower(args[1])
-	checkStatus := func() bool {
-		snap := sess.Status()
-		currentState := strings.ToLower(snap.State.String())
-		return currentState == targetState
-	}
-
-	// Compare once before entering polling loop
-	if checkStatus() {
-		return nil
-	}
-
 	for {
 		select {
 		case <-ctx.GoCtx.Done():
 			return fmt.Errorf("interrupt")
 		case <-sess.Done():
-			if checkStatus() {
+			if checkFromSnap() { // Check from tombstone
 				return nil
 			}
-			return fmt.Errorf("session not active")
+			return fmt.Errorf("session closed while waiting for status: %s", targetState)
 		case <-timeout:
-			return fmt.Errorf("timeout waiting for status: %s", targetState)
-		case <-ticker.C:
-			if checkStatus() {
-				return nil
+			return fmt.Errorf("timeout")
+		case log, ok := <-logCh:
+			if !ok {
+				return fmt.Errorf("session closed")
+			} else if log.Type == session.LogTran {
+				if targetState == strings.ToLower(log.States[1]) {
+					return nil
+				}
 			}
 		}
 	}

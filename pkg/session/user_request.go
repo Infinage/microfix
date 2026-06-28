@@ -21,7 +21,7 @@ func (r snapshotRequest) apply(sess *Session) {
 type closeRequest struct{}
 
 func (r closeRequest) apply(sess *Session) {
-	sess.writeLog(newSysEventLog(time.Now(), "Close initiated by user/engine"))
+	sess.writeLog(newInfoLog(time.Now(), "Close initiated by user/engine"))
 	sess.engine.off()
 	sess.base.Close()
 }

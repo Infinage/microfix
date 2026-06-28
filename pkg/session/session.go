@@ -326,8 +326,11 @@ func (sess *Session) execute(actions []Action) {
 		case ActionError:
 			sess.writeLog(newErrorLog(time.Now(), action.Err))
 
-		case ActionLog:
-			sess.writeLog(newSysEventLog(time.Now(), action.Event))
+		case ActionLogInfo:
+			sess.writeLog(newInfoLog(time.Now(), action.Info))
+
+		case ActionLogStateChange:
+			sess.writeLog(newStateTransitionLog(time.Now(), action.States[0], action.States[1]))
 
 		case ActionClose:
 			sess.Close()
@@ -350,7 +353,7 @@ func (sess *Session) closeAllLogs() {
 func (sess *Session) run(isClient bool) {
 	// Cleanup after loop exit
 	defer func() {
-		sess.writeLog(newSysEventLog(time.Now(), "Session loop Ended"))
+		sess.writeLog(newInfoLog(time.Now(), "Session loop Ended"))
 		sess.tombstone.Store(sess.engine.Snapshot())
 		sess.closeRequested.Store(true)
 		sess.closed.Store(true)
@@ -366,7 +369,7 @@ func (sess *Session) run(isClient bool) {
 	if isClient {
 		role = "Initiator"
 	}
-	sess.writeLog(newSysEventLog(time.Now(), fmt.Sprintf("Starting session as %s", role)))
+	sess.writeLog(newInfoLog(time.Now(), fmt.Sprintf("Starting session as %s", role)))
 
 	// Turn on Fix engine as a Server / Client
 	actions := sess.engine.OnStart(isClient)

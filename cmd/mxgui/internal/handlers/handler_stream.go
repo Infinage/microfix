@@ -45,7 +45,6 @@ func (app *Application) handleAPILogs(w http.ResponseWriter, r *http.Request) {
 	sseFormatter := strings.NewReplacer("\r\n", " ", "\r", " ", "\n", " ")
 
 	// Continuously poll the logs and push to the server
-	router := app.Session().Router()
 	for {
 		select {
 		case <-r.Context().Done():
@@ -58,7 +57,7 @@ func (app *Application) handleAPILogs(w http.ResponseWriter, r *http.Request) {
 			// Parse and append logs to temp file logger
 			buf1 := bufferPool.Get().(*bytes.Buffer)
 			buf1.Reset()
-			pretty.Log(buf1, log, router)
+			pretty.Log(buf1, log, app.Session().Router())
 			app.tlogger.Log(buf1.String())
 			bufferPool.Put(buf1)
 

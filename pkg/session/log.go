@@ -10,14 +10,15 @@ import (
 type LogType int
 
 const (
-	LogSend LogType = iota
-	LogRecv
-	LogErr
-	LogSys
+	LogSend LogType = iota // Sent FIX messages
+	LogRecv                // Recieved FIX messages
+	LogErr                 // Critial errors observed
+	LogInfo                // Non critical informational messages
+	LogTran                // State transition
 )
 
 func (typ LogType) String() string {
-	var types = []string{"SEND", "RECV", "ERR ", "SYS "}
+	var types = []string{"SEND", "RECV", "ERR ", "INFO", "TRAN"}
 	if typn := int(typ); typn < 0 || typn >= len(types) {
 		return "UNKN"
 	}
@@ -29,7 +30,8 @@ type Log struct {
 	Timestamp time.Time
 	Msg       message.Message // LogSend, LogRecv
 	Err       error           // LogErr
-	Text      string          // LogSys
+	Text      string          // LogInfo
+	States    [2]string       // LogTran
 }
 
 func (log Log) Content() string {
@@ -40,8 +42,11 @@ func (log Log) Content() string {
 	case LogErr:
 		return log.Err.Error()
 
-	case LogSys:
+	case LogInfo:
 		return log.Text
+
+	case LogTran:
+		return fmt.Sprintf("%s -> %s", log.States[0], log.States[1])
 
 	default:
 		return ""
@@ -62,6 +67,8 @@ func (log Log) String(msgName string) string {
 		symbol = "<<"
 	case LogErr:
 		symbol = "!!"
+	case LogTran:
+		symbol = "::"
 	}
 
 	// Optional message name
@@ -87,6 +94,10 @@ func newMessageLog(now time.Time, msg message.Message, isIncoming bool) Log {
 	return Log{Type: logType, Timestamp: now, Msg: msg}
 }
 
-func newSysEventLog(now time.Time, text string) Log {
-	return Log{Type: LogSys, Timestamp: now, Text: text}
+func newInfoLog(now time.Time, text string) Log {
+	return Log{Type: LogInfo, Timestamp: now, Text: text}
+}
+
+func newStateTransitionLog(now time.Time, prev, current string) Log {
+	return Log{Type: LogTran, Timestamp: now, States: [2]string{prev, current}}
 }

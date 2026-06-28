@@ -49,11 +49,11 @@ func (b *Broker) Bind(producer Producer) error {
 	}
 
 	ch, unsub, err := producer.SubscribeLog()
-	b.cancel = unsub
 	if err != nil {
 		return fmt.Errorf("broker log subscription failed: %w", err)
 	}
 
+	b.cancel = unsub
 	go func() {
 		defer unsub()
 		for log := range ch {

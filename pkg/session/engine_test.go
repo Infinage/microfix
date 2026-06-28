@@ -76,17 +76,41 @@ func buildMessage(t *testing.T, engine *Engine, msgType string, extraTags map[ui
 	return msg
 }
 
+// indexActions returns the index of the first occurrence of each requested action type.
+// The returned indices are in the same order as atypes.
+// If any requested action type is not found, it returns nil, false.
+func indexActions(actions []Action, atypes ...ActionType) ([]int, bool) {
+	var result []int
+	for _, atype := range atypes {
+		idx := slices.IndexFunc(actions, func(action Action) bool { return action.Type == atype })
+		if idx == -1 {
+			return nil, false
+		}
+		result = append(result, idx)
+	}
+	return result, true
+}
+
+func containsInfoAction(actions []Action, info string) bool {
+	return slices.ContainsFunc(actions, func(action Action) bool { return strings.Contains(action.Info, info) })
+}
+
 func TestEngine_LogonFlow(t *testing.T) {
 	engine := setupEngine(t, false)
 	actions := engine.OnStart(true)
 
-	if len(actions) != 1 || actions[0].Type != ActionSend {
-		t.Fatalf("expected logon send action")
+	indices, ok := indexActions(actions, ActionSend, ActionLogStateChange)
+	if !ok {
+		t.Fatalf("expected send action and a log transition action")
 	}
 
-	msg := actions[0].Msg
+	msg := actions[indices[0]].Msg
 	if mt, _ := msg.Get(35); mt != "A" {
-		t.Fatalf("expected MsgType A, got %s", mt)
+		t.Errorf("expected MsgType A, got %s", mt)
+	}
+
+	if tranAction := actions[indices[1]]; tranAction.States[0] != "New" || tranAction.States[1] != "LoggingIn" {
+		t.Errorf("Expected 'New -> LoggingIn' action, got %v", tranAction)
 	}
 }
 
@@ -125,11 +149,13 @@ func TestEngine_HandleLogonRequest(t *testing.T) {
 	actions = engine.OnMessage(&msg, time.Now())
 	if engine.state != SessionActive {
 		t.Errorf("Expected state Active, got %v", engine.state)
-	} else if len(actions) != 3 || actions[0].Type != ActionLog || actions[1].Type != ActionLog || actions[2].Type != ActionSend {
-		t.Error("Expected engine to log state transition and send logon response back")
-	} else if !strings.HasPrefix(actions[0].Event, "Logon InSeq [34] higher than expected") {
-		t.Errorf("Expected MsgSeqNum sync log, got %v", actions[0])
-	} else if msgType, _ := actions[2].Msg.Get(35); msgType != "A" {
+	}
+
+	if indices, ok := indexActions(actions, ActionSend, ActionLogInfo, ActionLogStateChange); !ok {
+		t.Errorf("One or more of expected actions [Send, LogInfo, StateChange] not found: %v", actions)
+	} else if !containsInfoAction(actions, "Logon InSeq [34] higher than expected") {
+		t.Errorf("Expected MsgSeqNum sync log, but not found: %v", actions)
+	} else if msgType, _ := actions[indices[0]].Msg.Get(35); msgType != "A" {
 		t.Errorf("Expected MsgType logon, got %v", msgType)
 	}
 }
@@ -144,8 +170,10 @@ func TestEngine_HandleLogonResponse(t *testing.T) {
 	if engine.state != SessionActive {
 		t.Fatalf("expected state Active")
 	}
-	if len(actions) != 0 {
-		t.Fatalf("expected no actions, got %v", actions)
+
+	indices, ok := indexActions(actions, ActionLogStateChange)
+	if !ok || actions[indices[0]].States[1] != "Active" {
+		t.Fatalf("expected state transition log to Active, got %v", actions)
 	}
 }
 
@@ -429,8 +457,10 @@ func TestEngine_LogoutFlow(t *testing.T) {
 		t.Errorf("Expected engine state SessionClosed, got %v", engine.state)
 	}
 
-	if len(actions) != 2 || actions[0].Type != ActionSend || actions[1].Type != ActionClose {
-		t.Fatalf("Expected [ActionSend(Logout), ActionClose], got %v", actions)
+	if indices, ok := indexActions(actions, ActionSend, ActionClose); !ok {
+		t.Errorf("Expected [ActionSend, ActionClose], got %v", actions)
+	} else if mt, _ := actions[indices[0]].Msg.Get(35); mt != "5" {
+		t.Errorf("Expected a Logout, but got: %s", mt)
 	}
 }
 
@@ -443,13 +473,13 @@ func TestEngine_SequenceGap(t *testing.T) {
 	msg := buildMessage(t, engine, "D", map[uint16]string{34: "10"}, spec.SampleOptions{})
 	actions := engine.OnMessage(&msg, time.Now())
 
-	if len(actions) != 3 || actions[1].Type != ActionSend {
-		t.Fatalf("expected resend request")
-	}
-
-	mt, _ := actions[1].Msg.Get(35)
-	if mt != "2" {
-		t.Fatalf("expected MsgType 2, got %s", mt)
+	indices, ok := indexActions(actions, ActionSend, ActionLogStateChange)
+	if !ok {
+		t.Errorf("expected [ActionSend, ActionLogStateChange]; got %v", actions)
+	} else if mt, _ := actions[indices[0]].Msg.Get(35); mt != "2" {
+		t.Errorf("expected MsgType 2, got %s", mt)
+	} else if action := actions[indices[1]]; action.States[1] != "OutOfSync" {
+		t.Errorf("Expected state transition to OutOfSync, got %v", action)
 	}
 }
 
@@ -644,14 +674,18 @@ func TestEngine_OutOfSyncStateAndRecovery(t *testing.T) {
 			t.Fatalf("Expected state SessionOutOfSync, got %v", engine.state)
 		} else if engine.outOfSyncUntil != 5 {
 			t.Fatalf("Expected outOfSyncUntil to be 5, got %v", engine.outOfSyncUntil)
-		} else if len(actions) != 3 || actions[1].Type != ActionSend {
+		}
+
+		indices, ok := indexActions(actions, ActionSend)
+		if !ok {
 			t.Fatalf("Expected ActionSend in generated actions, got %v", actions)
 		}
 
 		// Check if msg is a ResendRequest and is as expected
-		mt, _ := actions[1].Msg.Get(35)
-		tag7, _ := actions[1].Msg.Get(7)
-		tag16, _ := actions[1].Msg.Get(16)
+		sendAction := actions[indices[0]]
+		mt, _ := sendAction.Msg.Get(35)
+		tag7, _ := sendAction.Msg.Get(7)
+		tag16, _ := sendAction.Msg.Get(16)
 		if mt != "2" || tag7 != "2" || tag16 != "0" {
 			t.Errorf("Expected ResendRequest 2 to 0, got %s to %s", tag7, tag16)
 		}
@@ -669,8 +703,8 @@ func TestEngine_OutOfSyncStateAndRecovery(t *testing.T) {
 		for _, a := range actions {
 			if a.Type == ActionSend {
 				t.Fatal("Expected no messages to be sent (Resend Storm prevented)")
-			} else if a.Type == ActionLog && !strings.Contains(a.Event, "Dropped msg 6") {
-				t.Errorf("Expected drop log, got %s", a.Event)
+			} else if a.Type == ActionLogInfo && !strings.Contains(a.Info, "Dropped msg 6") {
+				t.Errorf("Expected drop log, got %s", a.Info)
 			}
 		}
 	})

@@ -25,10 +25,12 @@ const (
 	// accompanied by an ActionClose.
 	ActionError
 
-	// ActionLog emits an informational system event or state transition
-	// (e.g., "Session transitioning from Active to Stale"). It is strictly for audit
-	// and debug visibility.
-	ActionLog
+	// ActionLogInfo emits an informational system event
+	// It is strictly for audit and debug visibility.
+	ActionLogInfo
+
+	// ActionLogStateChange emits a state transition event
+	ActionLogStateChange
 
 	// ActionClose instructs the session to immediately terminate the
 	// underlying network transport and shut down.
@@ -36,10 +38,11 @@ const (
 )
 
 type Action struct {
-	Type  ActionType
-	Msg   message.Message
-	Err   error
-	Event string
+	Type   ActionType
+	Msg    message.Message
+	Err    error
+	Info   string
+	States [2]string
 }
 
 // Helper to build a Reject ['35=3'] message
@@ -52,11 +55,21 @@ func (engine *Engine) reject(err *RejectError) Action {
 	return Action{Type: ActionSend, Msg: rejectMsg}
 }
 
+// Alter state and produce an action to log the transition
+func (engine *Engine) transition(state SessionState) []Action {
+	if state != engine.state {
+		states := [2]string{engine.state.String(), state.String()}
+		engine.state = state
+		return []Action{{Type: ActionLogStateChange, States: states}}
+	}
+	return nil
+}
+
 func (engine *Engine) off() []Action {
 	if engine.state != SessionClosed {
-		engine.state = SessionClosed
 		logout, _ := engine.Router.Sample("5", spec.SampleOptions{})
-		return []Action{{Type: ActionSend, Msg: logout}, {Type: ActionClose}}
+		actions := []Action{{Type: ActionSend, Msg: logout}, {Type: ActionClose}}
+		return append(actions, engine.transition(SessionClosed)...)
 	}
 	return nil
 }
@@ -69,16 +82,15 @@ func (engine *Engine) OnStart(isClient bool) []Action {
 	engine.lastWriteTime = now
 
 	if isClient {
-		engine.state = SessionLoggingIn
 		logon, _ := engine.Router.Sample("A", spec.SampleOptions{OptionalFields: map[uint16]any{141: nil}})
 		logon.Set(108, fmt.Sprint(engine.heartbeatInt))
 		logon.Set(1137, engine.Router.GetDefaultApplVerID())
 		logon.Set(141, "Y") // Set ResetSeqNumFlag
-		return []Action{{Type: ActionSend, Msg: logon}}
+		actions := []Action{{Type: ActionSend, Msg: logon}}
+		return append(actions, engine.transition(SessionLoggingIn)...)
 	}
 
-	engine.state = SessionListening
-	return nil
+	return engine.transition(SessionListening)
 }
 
 // Handle timeouts, track and send heartbeats
@@ -109,9 +121,9 @@ func (engine *Engine) OnTick(now time.Time) []Action {
 		if engine.state != SessionStale {
 			tr, _ := engine.Router.Sample("1", spec.SampleOptions{})
 			tr.Set(112, engine.testReqID)
-			eventLog := fmt.Sprintf("No message received in %v. Transitioning from %s to Stale", since.Truncate(time.Second), engine.state)
-			actions = append(actions, Action{Type: ActionLog, Event: eventLog}, Action{Type: ActionSend, Msg: tr})
-			engine.state = SessionStale
+			eventMsg := fmt.Sprintf("No message received in %v, sending TestRequest to counterparty", since.Truncate(time.Second))
+			actions = append(actions, Action{Type: ActionLogInfo, Info: eventMsg}, Action{Type: ActionSend, Msg: tr})
+			actions = append(actions, engine.transition(SessionStale)...)
 		} else if since >= hbDuration*3 {
 			engine.off()
 			return []Action{
@@ -165,8 +177,8 @@ func (engine *Engine) OnMessage(msg *message.Message, now time.Time) []Action {
 	case SessionStale, SessionActive:
 		msgAccepted, actions = engine.handleAppMessage(msg)
 		if engine.state == SessionStale {
-			engine.state = SessionActive
-			actions = append(actions, Action{Type: ActionLog, Event: "Message received. Transitioning from Stale to Active."})
+			actions = append(actions, Action{Type: ActionLogInfo, Info: "Message received, transitioning from Stale to Active."})
+			actions = append(actions, engine.transition(SessionActive)...)
 		}
 
 	case SessionOutOfSync:
@@ -197,20 +209,20 @@ func (engine *Engine) OnResetSequence(inSeqNum int64, outSeqNum int64) []Action 
 			// Moving backward is not permitted, silently reset anyway for chaos testing
 			eventLog := fmt.Sprintf("Silently forced OutSeqNum backward from %d to %d. "+
 				"Expect counterparty disconnect on next send.", engine.outSeqNum, outSeqNum)
-			actions = append(actions, Action{Type: ActionLog, Event: eventLog})
+			actions = append(actions, Action{Type: ActionLogInfo, Info: eventLog})
 		}
 
 		// Handle Inbound sequence changes
 		if inSeqNum != engine.inSeqNum {
 			eventLog := fmt.Sprintf("Silently forced InSeqNum from %d to %d. "+
 				"Warning: May cause desync with counterparty.", engine.inSeqNum, inSeqNum)
-			actions = append(actions, Action{Type: ActionLog, Event: eventLog})
+			actions = append(actions, Action{Type: ActionLogInfo, Info: eventLog})
 		}
 
-		// If session state is OutOfSync, heal the session
+		// User has manually requested a sequence reset, force heal the session
 		if engine.state == SessionOutOfSync {
-			actions = append(actions, Action{Type: ActionLog, Event: "Healing out of sync session, transitioning from OutOfSync to Active"})
-			engine.state = SessionActive
+			actions = append(actions, Action{Type: ActionLogInfo, Info: "Sequence reset requested, healing out of sync session"})
+			actions = append(actions, engine.transition(SessionActive)...)
 			engine.outOfSyncUntil = 0
 		}
 	}
@@ -223,8 +235,7 @@ func (engine *Engine) OnResetSequence(inSeqNum int64, outSeqNum int64) []Action 
 }
 
 func (engine *Engine) OnDisconnect() []Action {
-	engine.state = SessionClosed
-	return nil
+	return engine.transition(SessionClosed)
 }
 
 // If we get logon when we are in SessionNew state we accept it and send a logon back
@@ -275,7 +286,7 @@ func (engine *Engine) handleLogon(msg *message.Message) (bool, []Action) {
 		// although such a scenario is unlikely, since we do not persist messages across restarts
 		engine.inSeqNum = inSeqNum
 		eventMsg := fmt.Sprintf("Logon InSeq [34] higher than expected, force set to %d", inSeqNum)
-		actions = append(actions, Action{Type: ActionLog, Event: eventMsg})
+		actions = append(actions, Action{Type: ActionLogInfo, Info: eventMsg})
 	}
 
 	// We are SessionListening and Counterparty sends a logon, accept and send back a logon
@@ -295,12 +306,12 @@ func (engine *Engine) handleLogon(msg *message.Message) (bool, []Action) {
 
 		// Send logon request back and set state to active
 		actions = append(actions,
-			Action{Type: ActionLog, Event: "Logon request received, transitioning from Listening to Active"},
+			Action{Type: ActionLogInfo, Info: "Logon request received, transitioning from Listening to Active"},
 			Action{Type: ActionSend, Msg: logon})
 	}
 
 	// If all good, we proceed to next stage
-	engine.state = SessionActive
+	actions = append(actions, engine.transition(SessionActive)...)
 	return true, actions
 }
 
@@ -386,23 +397,23 @@ func (engine *Engine) handleOutSyncMessage(msg *message.Message) (bool, []Action
 	gapFillFlag, _ := msg.Get(123)
 	if msgType == "4" && gapFillFlag == "N" {
 		accepted, actions := engine.handleAppMessage(msg)
-		engine.state = SessionActive
-		actions = append(actions, Action{Type: ActionLog, Event: "Hard reset received. Transitioning from OutOfSync to Active."})
+		actions = append(actions, Action{Type: ActionLogInfo, Info: "Hard reset received, healing OutOfSync session."})
+		actions = append(actions, engine.transition(SessionActive)...)
 		return accepted, actions
 	}
 
 	// Drop any message that don't match our inSeqNum
 	if inSeqNum != engine.inSeqNum {
 		return false, []Action{
-			{Type: ActionLog, Event: fmt.Sprintf("OutSync: Dropped msg %d, still waiting for MsgSeq# %d", inSeqNum, engine.inSeqNum)},
+			{Type: ActionLogInfo, Info: fmt.Sprintf("OutSync: Dropped msg %d, still waiting for MsgSeq# %d", inSeqNum, engine.inSeqNum)},
 		}
 	}
 
 	// Process replayed message if it matches expected InSeqNum
 	accepted, actions := engine.handleAppMessage(msg)
 	if engine.inSeqNum+1 >= engine.outOfSyncUntil {
-		engine.state = SessionActive
-		actions = append(actions, Action{Type: ActionLog, Event: "Sequence gap resolved, transitioning from OutOfSync to Active."})
+		actions = append(actions, Action{Type: ActionLogInfo, Info: "Sequence gap resolved, transitioning from OutOfSync to Active."})
+		actions = append(actions, engine.transition(SessionActive)...)
 	}
 
 	return accepted, actions
@@ -417,17 +428,16 @@ func (engine *Engine) handleAppMessage(msg *message.Message) (bool, []Action) {
 	gapFillFlag, _ := msg.Get(123)
 	isHardReset := msgType == "4" && gapFillFlag == "N"
 	if inSeqNum, _ := inSeqNumTag.AsInt(); !isHardReset && inSeqNum > engine.inSeqNum {
-		eventMsg := fmt.Sprintf("Transitioning from %s to OutOfSync, waiting for MsgSeq# %d", engine.state, inSeqNum)
-		engine.state = SessionOutOfSync
 		engine.outOfSyncUntil = inSeqNum
 		resend, _ := engine.Router.Sample("2", spec.SampleOptions{})
 		resend.Set(7, fmt.Sprint(engine.inSeqNum))
 		resend.Set(16, "0") // 0 means infinity in FIX Resend requests
-		return false, []Action{
+		actions := []Action{
 			{Type: ActionError, Err: fmt.Errorf("Expected InSeqNum [34] %d, got %d, triggering resend request.", engine.inSeqNum, inSeqNum)},
 			{Type: ActionSend, Msg: resend},
-			{Type: ActionLog, Event: eventMsg},
+			{Type: ActionLogInfo, Info: fmt.Sprintf("Transitioning to OutOfSync, waiting for MsgSeq# %d", inSeqNum)},
 		}
+		return false, append(actions, engine.transition(SessionOutOfSync)...)
 	}
 
 	// Actions based on message type and struct
@@ -471,7 +481,7 @@ func (engine *Engine) handleAppMessage(msg *message.Message) (bool, []Action) {
 		} else {
 			engine.inSeqNum = val
 			eventLog := fmt.Sprintf("InSeqNum has been reset to %v", seqNoTag.Value)
-			actions = append(actions, Action{Type: ActionLog, Event: eventLog})
+			actions = append(actions, Action{Type: ActionLogInfo, Info: eventLog})
 		}
 		return false, actions
 

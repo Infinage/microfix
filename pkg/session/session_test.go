@@ -29,9 +29,9 @@ func TestSession_Lifecycle(t *testing.T) {
 	}
 	defer unsubscribe()
 
-	// Drain out the "Starting session as sys log"
-	if sysLog := <-logCh; sysLog.Type != LogSys {
-		t.Errorf("Expected a %s log type, got %v: %v", LogSys, sysLog.Type, sysLog)
+	// Drain out the "Starting session as info log"
+	if infoLog := <-logCh; infoLog.Type != LogInfo {
+		t.Errorf("Expected a %s log type, got %v: %v", LogInfo, infoLog.Type, infoLog)
 	}
 
 	t.Run("SendsLogonOnStart", func(t *testing.T) {
@@ -54,6 +54,16 @@ func TestSession_Lifecycle(t *testing.T) {
 		case <-time.After(100 * time.Millisecond):
 			t.Fatal("no logon recorded in logs")
 		}
+
+		// Check State transition log
+		select {
+		case l := <-logCh:
+			if l.Type != LogTran {
+				t.Errorf("expected state transition log, got %v", l.Type)
+			}
+		case <-time.After(100 * time.Millisecond):
+			t.Fatal("no state transition log observed")
+		}
 	})
 
 	t.Run("TransitionsToActiveOnLogonResponse", func(t *testing.T) {
@@ -67,12 +77,9 @@ func TestSession_Lifecycle(t *testing.T) {
 
 		mockConn.IncomingCh <- resp
 
-		// We expect a LogRecv and NO LogErr
+		// We expect a LogRecv
 		select {
 		case l := <-logCh:
-			if l.Type == LogErr {
-				t.Fatalf("unexpected error during logon: %v", l.Err)
-			}
 			if l.Type != LogRecv {
 				t.Errorf("expected LogRecv, got %v", l.Type)
 			}
@@ -80,17 +87,16 @@ func TestSession_Lifecycle(t *testing.T) {
 			t.Fatal("timeout waiting for logon response log")
 		}
 
-		// Poll for state change
-		success := false
-		deadline := time.Now().Add(250 * time.Millisecond)
-		for time.Now().Before(deadline) {
-			if sess.Status().State == SessionActive {
-				success = true
-				break
+		// We expect a state transition event
+		select {
+		case l := <-logCh:
+			if l.Type != LogTran {
+				t.Errorf("expected LogTran, got %v", l.Type)
+			} else if state := l.States[1]; state != "Active" {
+				t.Errorf("Expected Active state, got %s", state)
 			}
-		}
-		if !success {
-			t.Errorf("Expected Active state, got %s", sess.Status().State)
+		case <-time.After(100 * time.Millisecond):
+			t.Fatal("timeout waiting for logon response log")
 		}
 	})
 
@@ -329,7 +335,7 @@ func TestSession_PreStartLogging(t *testing.T) {
 	// Since we subscribed before starting, we should catch this log perfectly.
 	select {
 	case l := <-logCh:
-		if l.Type != LogSys || !strings.Contains(fmt.Sprint(l.Text), "Starting session") {
+		if l.Type != LogInfo || !strings.Contains(fmt.Sprint(l.Text), "Starting session") {
 			t.Errorf("Expected startup log, got: %v", l)
 		}
 	case <-time.After(500 * time.Millisecond):

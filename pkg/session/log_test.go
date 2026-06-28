@@ -38,11 +38,20 @@ func TestLogFormatting(t *testing.T) {
 		}
 	})
 
-	t.Run("Sys Event Log Formatting", func(t *testing.T) {
-		l := newSysEventLog(now, "Handshake complete")
+	t.Run("Info Log Formatting", func(t *testing.T) {
+		l := newInfoLog(now, "Handshake complete")
 
 		got := l.String("")
-		want := "[1964-04-07 08:30:00.000] SYS  .. Handshake complete"
+		want := "[1964-04-07 08:30:00.000] INFO .. Handshake complete"
+		if got != want {
+			t.Errorf("\nWant: %s\nGot : %s", want, got)
+		}
+	})
+
+	t.Run("State transition Log Formatting", func(t *testing.T) {
+		l := newStateTransitionLog(now, "Active", "Stale")
+		got := l.String("")
+		want := "[1964-04-07 08:30:00.000] TRAN :: Active -> Stale"
 		if got != want {
 			t.Errorf("\nWant: %s\nGot : %s", want, got)
 		}
