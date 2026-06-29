@@ -4,11 +4,15 @@
 {{$clickable := or (eq $LogType "SEND") (eq $LogType "RECV")}}
 
 <div 
-  data-log-type="{{$LogType}}" {{/* Required for alpine JS filtering */}}
-  class="log-entry group relative flex items-start space-x-4 p-2 rounded border-l-2 {{$theme.Border}} hover:bg-gray-800/50 transition 
+  data-log-type="{{$LogType}}" 
+  x-data="{ isSelected: false }"
+  @log-selected.window="isSelected = ($event.detail === $el)"
+  @close-inspector.window="isSelected = false"
+  :class="isSelected ? 'bg-gray-800/90 shadow-md ring-1 ring-blue-500/50 z-10' : 'hover:bg-gray-800/50'"
+  class="log-entry group relative flex items-start space-x-4 p-2 rounded border-l-2 {{$theme.Border}} transition 
     {{if $clickable}}cursor-pointer{{end}}"
   {{if $clickable}}
-    @open-inspector-tab.window="inspectorOpen = true; inspectorTab = 'decoded'"
+    @click="$dispatch('log-selected', $el); inspectorOpen = true; inspectorTab = 'decoded'"
     hx-get="/api/inspect"
     hx-vals='{"LogType": "{{$LogType}}"}'
     hx-include="find input[name='message']"
@@ -25,7 +29,7 @@
   <span class="text-gray-300 break-all leading-relaxed font-mono text-sm pr-24">{{.Content}}</span>
 
   {{if $clickable}}
-    <div class="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition duration-200">
+    <div x-show="!isSelected" class="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition duration-200">
         <span class="bg-gray-900 border border-blue-500/50 text-blue-400 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded shadow-lg flex items-center space-x-1">
           <span>Inspect</span>
           <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
