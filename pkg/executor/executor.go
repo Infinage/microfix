@@ -1,7 +1,6 @@
 package executor
 
 import (
-	"bufio"
 	"context"
 	"encoding/csv"
 	"fmt"
@@ -121,31 +120,44 @@ func Eval(line string, ctx *script.ScriptContext) error {
 
 // Evaluate from input source line by line, passing each result to callback provided
 func EvalBatch(r io.Reader, ctx *script.ScriptContext) error {
-	lineNo, reader := 0, bufio.NewReader(r)
-	for {
-		// Read a single line
-		line, err := reader.ReadString('\n')
-		lineNo++ // Starts at #1
+	instructions, jumpTable, err := parseJumpTable(r)
+	if err != nil {
+		return fmt.Errorf("failed to compile script: %w", err)
+	}
 
-		// Return on error, if we hit on EOF, it maybe that file ended
-		// without '\n', we want to process line and exit after processing it
-		if err != nil && err != io.EOF {
-			return err
-		}
+	for pc := 0; pc < len(instructions); {
+		instruction := instructions[pc]
+		first, rest, _ := strings.Cut(instruction.Text, " ")
 
-		// Ignore empty lines and comments
-		line = strings.TrimSpace(line)
-		if line != "" && line[0] != '#' {
-			// Evaluate the line and exit early on error
-			if err := Eval(line, ctx); err != nil {
-				return fmt.Errorf("line %d: %w", lineNo, err)
+		switch first {
+		case "if", "elif", "while":
+			err := Eval(rest, ctx)
+			if jump, ok := jumpTable[pc]; !ok {
+				return fmt.Errorf("jump entry not found for line# %d", instruction.LineNo)
+			} else if _, isFalsy := err.(*script.FalsyError); !isFalsy {
+				return fmt.Errorf("line %d: %w", instruction.LineNo, err)
+			} else if isFalsy {
+				pc = jump.TargetOnFalse
+			}
+
+		case "endwhile", "break":
+			jump, ok := jumpTable[pc]
+			if !ok {
+				return fmt.Errorf("jump entry not found for line# %d", instruction.LineNo)
+			}
+			pc = jump.TargetOnEnd
+
+		case "else":
+
+		case "endif": // do nothing
+
+		default:
+			if err := Eval(instruction.Text, ctx); err != nil {
+				return fmt.Errorf("line %d: %w", instruction.LineNo, err)
 			}
 		}
 
-		// Break on EOF
-		if err == io.EOF {
-			break
-		}
+		pc++
 	}
 
 	return nil

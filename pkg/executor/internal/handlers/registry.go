@@ -27,3 +27,20 @@ var ScriptRegistry = map[string]Command{}
 func RegisterCommand(name string, handler Command) {
 	ScriptRegistry[name] = handler
 }
+
+// Typed error to distinguish soft failures that
+// can used in a conditional / looping construct
+type FalsyError struct {
+	Err error
+}
+
+func (e *FalsyError) Error() string {
+	return e.Err.Error()
+}
+
+func Falsy(err error) error {
+	if err == nil {
+		return nil
+	}
+	return &FalsyError{Err: err}
+}

@@ -34,12 +34,12 @@ func handleExpect(ctx *ScriptContext, args []string) error {
 		case <-ctx.GoCtx.Done():
 			return fmt.Errorf("interrupt")
 		case <-sess.Done():
-			return fmt.Errorf("session not active")
+			return Falsy(fmt.Errorf("session not active"))
 		case <-timeout:
-			return fmt.Errorf("timeout")
+			return Falsy(fmt.Errorf("timeout"))
 		case log, ok := <-logCh:
 			if !ok {
-				return fmt.Errorf("session closed")
+				return Falsy(fmt.Errorf("session closed"))
 			} else if log.Type == session.LogRecv {
 				if matcher.Match(&log.Msg) {
 					return nil
@@ -50,7 +50,8 @@ func handleExpect(ctx *ScriptContext, args []string) error {
 					continue
 				}
 
-				return fmt.Errorf("assertion failed [expect], received msg: '%v'", log.Msg.String("|"))
+				err := fmt.Errorf("assertion failed [expect], received msg: '%v'", log.Msg.String("|"))
+				return Falsy(err)
 			}
 		}
 	}
@@ -81,12 +82,12 @@ func handleWait(ctx *ScriptContext, args []string) error {
 		case <-ctx.GoCtx.Done():
 			return fmt.Errorf("interrupt")
 		case <-sess.Done():
-			return fmt.Errorf("session not active")
+			return Falsy(fmt.Errorf("session not active"))
 		case <-timeout:
-			return fmt.Errorf("timeout")
+			return Falsy(fmt.Errorf("timeout"))
 		case log, ok := <-logCh:
 			if !ok {
-				return fmt.Errorf("session closed")
+				return Falsy(fmt.Errorf("session closed"))
 			} else if log.Type == session.LogRecv {
 				if matcher.Match(&log.Msg) {
 					return nil
@@ -140,12 +141,12 @@ func handleWaitStatus(ctx *ScriptContext, args []string) error {
 			if checkFromSnap() { // Check from tombstone
 				return nil
 			}
-			return fmt.Errorf("session closed while waiting for status: %s", targetState)
+			return Falsy(fmt.Errorf("session closed while waiting for status: %s", targetState))
 		case <-timeout:
-			return fmt.Errorf("timeout")
+			return Falsy(fmt.Errorf("timeout"))
 		case log, ok := <-logCh:
 			if !ok {
-				return fmt.Errorf("session closed")
+				return Falsy(fmt.Errorf("session closed"))
 			} else if log.Type == session.LogTran {
 				if targetState == strings.ToLower(log.States[1]) {
 					return nil

@@ -77,6 +77,7 @@ func parseResetSequence(args []string) (int64, bool, error) {
 	return seqNo, subCmd == "in", nil
 }
 
+// connect [<host:port>]
 func handleConnect(ctx *ScriptContext, args []string) error {
 	cfg := ctx.Store.Config()
 	host, port, err := parseStartSession(args, &cfg)
