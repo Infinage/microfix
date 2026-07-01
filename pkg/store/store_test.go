@@ -3,6 +3,8 @@ package store
 import (
 	"path"
 	"testing"
+
+	"github.com/infinage/microfix/pkg/message"
 )
 
 // Helper to create an isolated store for testing without hitting real ~/.mxrc
@@ -179,4 +181,60 @@ func TestStore_ConfigCopy(t *testing.T) {
 	if s.cfg.SenderCompID == "MALICIOUS_SENDER" {
 		t.Error("Store.Config() leaked a reference instead of returning a copy!")
 	}
+}
+
+// Ensure you have a mock or standard way to initialize a message.Message in your test
+func TestStore_Buffer(t *testing.T) {
+	s := setupTestStore(t)
+
+	t.Run("Get from empty buffer", func(t *testing.T) {
+		if buf := s.Buffer(); len(buf) > 0 {
+			t.Errorf("Expected empty buffer, got %v", buf)
+		} else if val, found, err := s.Get("BUF.35"); err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		} else if found || val != "" {
+			t.Errorf("Expected empty buffer to return not found, got %q", val)
+		}
+	})
+
+	t.Run("Invalid tag format", func(t *testing.T) {
+		_, _, err := s.Get("BUF.InvalidTag")
+		if err == nil {
+			t.Error("Expected error when parsing non-integer tag, got nil")
+		}
+	})
+
+	t.Run("Set API is protected", func(t *testing.T) {
+		_, _, err := s.Set("BUF.35", "D")
+		if err == nil {
+			t.Error("Expected an error when attempting to modify BUF via Set, got nil")
+		}
+	})
+
+	t.Run("Set and Get buffer", func(t *testing.T) {
+		original := "8=FIX.4.4|35=D|"
+		msg, err := message.MessageFromString(original, "|")
+		if err != nil {
+			t.Fatalf("Failed to parse message: %v", err)
+		}
+
+		s.SetBuffer(msg)
+
+		buf := s.Buffer()
+		if got := buf.String("|"); got != original {
+			t.Errorf("Buffer contents doesn't match, want %v but got %v", original, got)
+		}
+
+		if got, ok, err := s.Get("BUF.35"); !ok || got != "D" {
+			t.Errorf("Expected GET[35] to return 'D', got '%s'", got)
+		} else if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+
+		if got, ok, err := s.Get("BUF.10"); ok {
+			t.Errorf("Expected GET[10] to return empty, got %s", got)
+		} else if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+	})
 }

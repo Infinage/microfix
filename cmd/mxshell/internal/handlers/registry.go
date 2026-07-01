@@ -1,11 +1,14 @@
 package shell
 
 import (
+	"strings"
 	"sync"
 
 	"github.com/infinage/microfix/pkg/broker"
+	"github.com/infinage/microfix/pkg/pretty"
 	"github.com/infinage/microfix/pkg/ringbuf"
 	"github.com/infinage/microfix/pkg/session"
+	"github.com/infinage/microfix/pkg/spec"
 	"github.com/infinage/microfix/pkg/store"
 )
 
@@ -16,9 +19,26 @@ type ShellContext struct {
 	Store     *store.Store
 	Logs      *ringbuf.CircularBuffer
 
-	session   *session.Session
-	mu        sync.RWMutex
-	logBroker *broker.Broker
+	session     *session.Session
+	mu          sync.RWMutex
+	logBroker   *broker.Broker
+	closeLogger func()
+}
+
+// Read from broker and write into circular buffer
+func startLogger(lbroker *broker.Broker, cb *ringbuf.CircularBuffer, routerFn func() *spec.Router) func() {
+	// Subscribe to the log broker and listen on it
+	logCh, unsubscribe := lbroker.Subscribe()
+	go func() {
+		var sb strings.Builder
+		for log := range logCh {
+			sb.Reset()
+			pretty.Log(&sb, log, routerFn())
+			cb.Write(strings.TrimSpace(sb.String()))
+		}
+	}()
+
+	return unsubscribe
 }
 
 func NewShellContext(Version, GitCommit string) (*ShellContext, error) {
@@ -35,14 +55,35 @@ func NewShellContext(Version, GitCommit string) (*ShellContext, error) {
 		return nil, err
 	}
 
-	return &ShellContext{
+	cb := ringbuf.NewCircularBuffer(1000)
+	ctx := &ShellContext{
 		Version:   Version,
 		GitCommit: GitCommit,
 		Store:     &st,
-		Logs:      ringbuf.NewCircularBuffer(1000),
+		Logs:      cb,
 		session:   sess,
 		logBroker: lbroker,
-	}, nil
+	}
+
+	// Start a goroutine listening on brokers channel
+	// Broker is persisted across resets and outlives session
+	routerFn := func() *spec.Router { return ctx.Session().Router() }
+	ctx.closeLogger = startLogger(lbroker, cb, routerFn)
+
+	return ctx, nil
+}
+
+func (ctx *ShellContext) SubscribeLogs() (<-chan session.Log, func()) {
+	return ctx.logBroker.Subscribe()
+}
+
+func (ctx *ShellContext) Cleanup() {
+	ctx.mu.RLock()
+	defer ctx.mu.RUnlock()
+	ctx.Session().Close()
+	if ctx.closeLogger != nil {
+		ctx.closeLogger()
+	}
 }
 
 func (ctx *ShellContext) Session() *session.Session {

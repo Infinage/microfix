@@ -8,36 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/infinage/microfix/pkg/broker"
 	"github.com/infinage/microfix/pkg/macros"
 	"github.com/infinage/microfix/pkg/message"
-	"github.com/infinage/microfix/pkg/pretty"
-	"github.com/infinage/microfix/pkg/ringbuf"
 	"github.com/infinage/microfix/pkg/session"
-	"github.com/infinage/microfix/pkg/spec"
 	"github.com/infinage/microfix/pkg/store"
 )
-
-// Read from broker and write into circular buffer
-func startLogger(lbroker *broker.Broker, cb *ringbuf.CircularBuffer, router spec.Router) error {
-	// Subscribe to the log broker
-	logCh, unsubscribe := lbroker.Subscribe()
-
-	// Session closes logs on run loop exit
-	go func() {
-		// not required since closeAllLogs already cleans this up
-		defer unsubscribe()
-		var sb strings.Builder
-
-		for log := range logCh {
-			sb.Reset()
-			pretty.Log(&sb, log, &router)
-			cb.Write(strings.TrimSpace(sb.String()))
-		}
-	}()
-
-	return nil
-}
 
 func NewSession(store *store.Store) (*session.Session, error) {
 	// Create new session
@@ -180,7 +155,6 @@ func handleConnect(ctx *ShellContext, args []string) {
 		fmt.Printf("  Status : FAILED\n")
 		fmt.Printf("  Error  : %v\n", err)
 	} else {
-		startLogger(ctx.logBroker, ctx.Logs, *sess.Router())
 		fmt.Printf("  Status : OK\n")
 		fmt.Printf("  Remote : %s\n", addr)
 	}
@@ -208,7 +182,6 @@ func handleListen(ctx *ShellContext, args []string) {
 		fmt.Printf("  Status : FAILED\n")
 		fmt.Printf("  Error  : %v\n", err)
 	} else {
-		startLogger(ctx.logBroker, ctx.Logs, *sess.Router())
 		fmt.Printf("  Status : OK\n")
 		fmt.Printf("  Remote : %s\n", addr)
 	}

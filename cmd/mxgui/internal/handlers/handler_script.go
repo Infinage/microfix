@@ -49,6 +49,15 @@ func (app *Application) handleAPIScriptExecute(w http.ResponseWriter, r *http.Re
 	w.Write([]byte(html))
 }
 
+func (app *Application) handleAPIScriptCancel(w http.ResponseWriter, _ *http.Request) {
+	app.mu.RLock()
+	defer app.mu.RUnlock()
+	if app.cancelScript != nil {
+		app.cancelScript()
+		toast(w, app.templ, "success", "Script cancelled")
+	}
+}
+
 func (app *Application) handleAPIScriptStream(w http.ResponseWriter, r *http.Request) {
 	// Check if flushing is supported
 	flusher, ok := w.(http.Flusher)
@@ -74,6 +83,11 @@ func (app *Application) handleAPIScriptStream(w http.ResponseWriter, r *http.Req
 	writer := sseWriter{stream: sseChan}
 	scriptCtx, stop := executor.NewScriptContext(app.Session, app.resetSession, app.Store, &writer)
 	defer stop() // Failsafe cleanup
+
+	// Store the cancelfunc, callable from another API
+	app.mu.Lock()
+	app.cancelScript = stop
+	app.mu.Unlock()
 
 	var wg sync.WaitGroup
 

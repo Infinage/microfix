@@ -103,7 +103,7 @@ func handleSleep(ctx *ScriptContext, args []string) error {
 func compareAsFloat(arg1, arg2 string) (float64, float64, bool) {
 	f1, err1 := strconv.ParseFloat(arg1, 64)
 	f2, err2 := strconv.ParseFloat(arg2, 64)
-	return f1, f2, err1 != nil && err2 != nil
+	return f1, f2, err1 == nil && err2 == nil
 }
 
 func evaluateExpr[T cmp.Ordered](v1, v2 T, op string) bool {
@@ -153,11 +153,28 @@ func handleAssert(_ *ScriptContext, args []string) error {
 	return nil
 }
 
+func handleLoadMsg(ctx *ScriptContext, args []string) error {
+	typ := strings.TrimSpace(args[1])
+	if len(args) != 3 || (typ != "in" && typ != "out") {
+		return fmt.Errorf("syntax error, expected: `loadmsg <in|out> <msgId>`")
+	}
+
+	msgId := strings.TrimSpace(args[2])
+	msg := ctx.Session().LastMessage(msgId, typ == "in")
+	if msg == nil {
+		return Falsy(fmt.Errorf("MsgId [%s] not found", msgId))
+	}
+
+	ctx.Store.SetBuffer(*msg)
+	return nil
+}
+
 func init() {
-	RegisterCommand("set", handleSet)       // set <key> <value>
-	RegisterCommand("incr", handleIncr)     // incr <var> [<value>]
-	RegisterCommand("decr", handleDecr)     // decr <var> [<value>]
-	RegisterCommand("print", handlePrint)   // print [<value1>, [<value2> [...]]]
-	RegisterCommand("sleep", handleSleep)   // sleep <millis>
-	RegisterCommand("assert", handleAssert) // assert <expr1> <op> <expr2>
+	RegisterCommand("set", handleSet)         // set <key> <value>
+	RegisterCommand("incr", handleIncr)       // incr <var> [<value>]
+	RegisterCommand("decr", handleDecr)       // decr <var> [<value>]
+	RegisterCommand("print", handlePrint)     // print [<value1>, [<value2> [...]]]
+	RegisterCommand("sleep", handleSleep)     // sleep <millis>
+	RegisterCommand("assert", handleAssert)   // assert <expr1> <op> <expr2>
+	RegisterCommand("loadmsg", handleLoadMsg) // loadmsg <in|out> <msgId>
 }

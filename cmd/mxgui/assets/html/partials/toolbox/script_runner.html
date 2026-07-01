@@ -1,25 +1,42 @@
 {{define "partials/toolbox/script_runner"}}
-<div x-data="{ view: 'editor', running: false, showHelp: false }" 
-     @script-error.window="running = false"
-     x-show="toolboxTab === 'scripts'" 
-     class="flex-1 flex flex-col overflow-hidden relative">
+<div x-data="{
+     scriptView: 'editor', 
+     running: false, 
+     showHelp: false,
+     autoScroll: true,
+     cancel() { htmx.ajax('POST', '/api/script/cancel', { swap: 'none' }); },
+   }" 
+   @script-error.window="running = false"
+   @keydown.escape.window="showHelp ? (showHelp = false) : (view === 'toolbox' && toolboxTab === 'scripts' && running && cancel())"
+   @keydown.ctrl.t.window.prevent="
+        scriptView = (scriptView === 'editor' ? 'console' : 'editor'); 
+        if(scriptView === 'console' && autoScroll) $nextTick(() => { $refs.console.scrollTop = $refs.console.scrollHeight })
+   "
+   x-show="toolboxTab === 'scripts'" 
+   class="flex-1 flex flex-col overflow-hidden relative"
+>
     
-    <!-- Header/Control Bar -->
     <div class="flex justify-between items-center mb-4 shrink-0 bg-gray-900/40 p-2 rounded-lg border border-gray-800">
         <div class="flex items-center space-x-4">
             
-            <!-- Professional Mode Selector Switches -->
             <div class="bg-gray-950 p-1 rounded-md border border-gray-800 flex space-x-1">
                 <button type="button" 
-                        @click="view = 'editor'"
-                        :class="view === 'editor' ? 'bg-blue-600 text-white shadow' : 'text-gray-400 hover:text-white'"
+                        title="Toggle Editor (Ctrl+T)"
+                        @click="scriptView = 'editor'"
+                        :class="scriptView === 'editor' ? 'bg-blue-600 text-white shadow' : 'text-gray-400 hover:text-white'"
                         class="px-4 py-1.5 rounded text-xs font-semibold transition tracking-wider uppercase">
                     Editor
                 </button>
                 <button type="button" 
-                        @click="view = 'console'"
-                        :class="view === 'console' ? 'bg-blue-600 text-white shadow' : 'text-gray-400 hover:text-white'"
-                        class="px-4 py-1.5 rounded text-xs font-semibold transition tracking-wider uppercase">
+                    title="Toggle Console (Ctrl+T)"
+                    @click="scriptView = 'console'; if(autoScroll) $nextTick(() => { $refs.console.scrollTop = $refs.console.scrollHeight })"
+                    class="px-4 py-1.5 rounded text-xs font-semibold transition tracking-wider uppercase"
+                    :class="{
+                        'bg-blue-600 text-white shadow': scriptView === 'console',
+                        'text-gray-400 hover:text-white': scriptView !== 'console',
+                        'animate-pulse': running && scriptView !== 'console'
+                    }"
+                >
                     Console
                 </button>
             </div>
@@ -32,15 +49,21 @@
 
         <div class="flex items-center space-x-3">
             <button @click="showHelp = true" type="button"
-                    class="text-xs bg-transparent hover:bg-gray-800 text-gray-400 hover:text-gray-200 px-3 py-1.5 rounded border border-gray-700 transition font-medium">
-                Syntax Reference
-            </button>
+                class="text-xs bg-transparent hover:bg-gray-800 text-gray-400 hover:text-gray-200 px-3 py-1.5 
+                  rounded border border-gray-700 transition font-medium"
+            >Syntax Reference</button>
             
-            <button type="submit" form="script-form" :disabled="running"
-                    class="bg-green-600 hover:bg-green-500 text-white px-5 py-1.5 rounded text-xs font-bold transition shadow-md flex items-center space-x-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
-                <span x-show="!running">Run Script</span>
-                <span x-show="running" class="animate-pulse">Executing...</span>
-            </button>
+            <button type="submit" form="script-form" x-show="!running"
+                title="Run Script (Ctrl+Enter)"
+                class="bg-green-600 hover:bg-green-500 text-white px-5 py-1.5 rounded text-xs font-bold 
+                  transition shadow-md flex items-center space-x-1.5 cursor-pointer"
+            ><span>Run Script</span></button>
+
+            <button type="button" x-show="running" x-cloak hx-post="/api/script/cancel" hx-swap="none"
+              title="Stop Execution (Esc)"
+              class="bg-red-600 hover:bg-red-500 text-white px-5 py-1.5 rounded text-xs font-bold transition 
+                shadow-md flex items-center space-x-1.5 cursor-pointer"
+            >Stop Execution</button>
         </div>
     </div>
 
@@ -53,19 +76,37 @@
               hx-encoding="application/x-www-form-urlencoded" 
               hx-target="#sse-injector" 
               hx-swap="innerHTML"
-              @submit="running = true; view = 'console'; document.getElementById('script-console').innerHTML = '';"
+              @submit="running = true; scriptView = 'console'; $refs.console.innerHTML = ''; autoScroll = true;"
               class="absolute inset-0 flex flex-col"
-              x-show="view === 'editor'"
+              x-show="scriptView === 'editor'"
+              x-ref="scriptForm"
+              x-init="
+                import('/assets/js/script-runner.js')
+                  .then(m => m.initCodeJar($refs.editor, $refs.hiddenInput))
+                  .then(jar => $data.jar = jar)
+              "
         >
-            <!-- Massive full-height Editor View -->
-            <textarea name="scriptContent" autocomplete="off" spellcheck="false"
-              class="w-full flex-1 bg-transparent text-green-400 font-mono text-sm p-4 outline-none resize-none shadow-inner" 
-              placeholder="# Type your MXShell script here...&#10;&#10;connect&#10;waitstatus Active&#10;send 35=D|55=AAPL|54=1..."></textarea>
+            <input type="hidden" name="scriptContent" x-ref="hiddenInput" 
+                   value="# Type your script here...&#10;&#10;connect&#10;waitstatus Active&#10;send 35=D|55=AAPL|54=1...">
+            
+            <div x-ref="editor" spellcheck="false"
+                 @keydown.ctrl.enter.prevent="$refs.scriptForm.requestSubmit()"
+                 @keydown.meta.enter.prevent="$refs.scriptForm.requestSubmit()"
+                 class="w-full flex-1 bg-transparent text-green-400 font-mono text-sm p-4 outline-none 
+                  overflow-y-auto whitespace-pre-wrap break-words shadow-inner" 
+            ></div>
         </form>
 
         <!-- Full View Console Panel -->
         <div id="script-console" 
-             x-show="view === 'console'"
+             x-ref="console"
+             x-show="scriptView === 'console'"
+             @scroll="autoScroll = Math.abs($el.scrollHeight - $el.clientHeight - $el.scrollTop) < 5"
+             x-init="
+                new MutationObserver(() => {
+                    if (autoScroll) $el.scrollTop = $el.scrollHeight;
+                }).observe($el, { childList: true, subtree: true });
+             "
              class="absolute inset-0 p-4 overflow-y-auto font-mono text-sm space-y-2 selection:bg-blue-500/30">
             <div class="text-gray-500 italic flex h-full items-center justify-center select-none">
                 <div class="text-center">

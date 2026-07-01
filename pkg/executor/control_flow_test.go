@@ -105,6 +105,22 @@ func TestParseJumpTable_Success(t *testing.T) {
 				{Text: "", LineNo: 7, Type: "endwhile"},
 			},
 		},
+		{
+			name: "Conditionals with Exit",
+			script: `
+				if assert 1 == 1
+				    exit
+				endif
+			`,
+			wantJumps: map[int]Jump{
+				0: {TargetOnFalse: 2, TargetOnEnd: 2},
+			},
+			wantInstr: []Instruction{
+				{Text: "assert 1 == 1", LineNo: 2, Type: "if"},
+				{Text: "", LineNo: 3, Type: "exit"},
+				{Text: "", LineNo: 4, Type: "endif"},
+			},
+		},
 	}
 
 	for _, tt := range tests {

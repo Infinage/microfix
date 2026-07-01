@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/infinage/microfix/pkg/message"
 	"github.com/infinage/microfix/pkg/session"
 	"github.com/infinage/microfix/pkg/store"
 )
@@ -95,13 +96,20 @@ func TestSubstituteDate(t *testing.T) {
 func TestSubstitute_Variables(t *testing.T) {
 	// Initialize a dummy store
 	st := store.InitStore()
+
 	_, _, _ = st.Set("VARS.Symbol", "AAPL")
 	_, _, _ = st.Set("VARS.Qty", "100")
 	_, _, _ = st.Set("ALIAS.Logon", "35=A|98=0|108=30")
 
+	msg, err := message.MessageFromString("8=FIX.4.4|35=D|", "|")
+	if err != nil {
+		t.Fatalf("failed to parse string as message: %v", err)
+	}
+	st.SetBuffer(msg)
+
 	t.Run("Standard Variables", func(t *testing.T) {
-		input := "35=D|55=$VARS.Symbol|38=$VARS.Qty|"
-		expected := "35=D|55=AAPL|38=100|"
+		input := "8=$BUF.8|35=D|55=$VARS.Symbol|38=$VARS.Qty|"
+		expected := "8=FIX.4.4|35=D|55=AAPL|38=100|"
 
 		res, err := Substitute(input, nil, &st)
 		if err != nil {

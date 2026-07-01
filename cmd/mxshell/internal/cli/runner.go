@@ -39,6 +39,9 @@ func Repl(Version, GitCommit string) {
 		os.Exit(1)
 	}
 
+	// Close session and logs broker
+	defer ctx.Cleanup()
+
 	// Abort prompts on interupt
 	loadHistory(line)
 
@@ -66,7 +69,6 @@ func Repl(Version, GitCommit string) {
 		switch cmdName {
 		// Exit on command
 		case "exit", "quit":
-			ctx.Session().Close()
 			return
 
 		// Dispatch to handler
@@ -91,27 +93,26 @@ func Script(filename string, verbose bool) {
 		os.Exit(1)
 	}
 
-	// Subscribe to logs
-	sess := ctx.Session()
+	// Subscribe to logs broker
 	if verbose {
-		logCh, unsub, err := sess.SubscribeLog()
-		if err != nil {
-			fmt.Printf("Failed to subscribe to logs: %v\n", err)
-			os.Exit(1)
-		}
+		logCh, unsub := ctx.SubscribeLogs()
 		defer unsub()
 
 		go func() {
 			var sb strings.Builder
 			for log := range logCh {
 				sb.Reset()
-				pretty.Log(&sb, log, sess.Router())
+				pretty.Log(&sb, log, ctx.Session().Router())
 				fmt.Fprintf(os.Stdout, "\033[90m[LOG] %s\033[0m\n", strings.TrimSpace(sb.String()))
 			}
 		}()
 	}
 
-	if err := shell.RunFile(ctx, filename, os.Stdout); err != nil {
+	err = shell.RunFile(ctx, filename, os.Stdout)
+	ctx.Cleanup() // Cleanup on both success / failure
+
+	// Exit code based on execution result
+	if err != nil {
 		fmt.Printf("run failed: %v\n", err)
 		os.Exit(1)
 	}

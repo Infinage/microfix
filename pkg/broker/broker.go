@@ -21,6 +21,9 @@ func NewBroker() *Broker {
 	return &Broker{subs: make(map[chan session.Log]any)}
 }
 
+// Channel returned is never closed by broker. DO NOT loop
+// through returned channel without a way to unsubscribe
+// outside of goroutine that would read on it.
 func (b *Broker) Subscribe() (<-chan session.Log, func()) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -39,6 +42,8 @@ func (b *Broker) Subscribe() (<-chan session.Log, func()) {
 	return ch, unsubscribe
 }
 
+// Bind to a new session, existing callers will continue
+// to recv updates from new session.
 func (b *Broker) Bind(producer Producer) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -53,6 +58,7 @@ func (b *Broker) Bind(producer Producer) error {
 		return fmt.Errorf("broker log subscription failed: %w", err)
 	}
 
+	// Spawn a goroutine to listen on new session
 	b.cancel = unsub
 	go func() {
 		defer unsub()
@@ -64,6 +70,7 @@ func (b *Broker) Bind(producer Producer) error {
 	return nil
 }
 
+// Send message to all subscribers
 func (b *Broker) publish(log session.Log) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()

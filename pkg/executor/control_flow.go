@@ -57,7 +57,7 @@ func parseJumpTable(r io.Reader) ([]Instruction, map[int]Jump, error) {
 		switch first, rest, _ := strings.Cut(line, " "); first {
 		case "if", "elif", "while":
 			instr = Instruction{Text: rest, LineNo: lineNo, Type: first}
-		case "else", "endif", "endwhile", "break":
+		case "else", "endif", "endwhile", "break", "exit":
 			// Syntax purity - single worded keywords
 			if rest != "" {
 				err := fmt.Errorf("syntax error: unexpected token following '%s' on line %d", first, lineNo)
@@ -75,6 +75,9 @@ func parseJumpTable(r io.Reader) ([]Instruction, map[int]Jump, error) {
 		}
 
 		switch instr.Type {
+		case "exit":
+			// Do nothing, handled by EvalBatch
+
 		case "if", "while":
 			stack = append(stack, stackframe{typ: instr.Type, pc: pc})
 			if instr.Type == "while" {

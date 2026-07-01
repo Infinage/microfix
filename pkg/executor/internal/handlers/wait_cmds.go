@@ -42,6 +42,7 @@ func handleExpect(ctx *ScriptContext, args []string) error {
 				return Falsy(fmt.Errorf("session closed"))
 			} else if log.Type == session.LogRecv {
 				if matcher.Match(&log.Msg) {
+					ctx.Store.SetBuffer(log.Msg)
 					return nil
 				}
 
@@ -90,6 +91,7 @@ func handleWait(ctx *ScriptContext, args []string) error {
 				return Falsy(fmt.Errorf("session closed"))
 			} else if log.Type == session.LogRecv {
 				if matcher.Match(&log.Msg) {
+					ctx.Store.SetBuffer(log.Msg)
 					return nil
 				}
 			}
