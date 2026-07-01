@@ -32,15 +32,19 @@
 
         <div class="flex items-center space-x-3">
             <button @click="showHelp = true" type="button"
-                    class="text-xs bg-transparent hover:bg-gray-800 text-gray-400 hover:text-gray-200 px-3 py-1.5 rounded border border-gray-700 transition font-medium">
-                Syntax Reference
-            </button>
+                class="text-xs bg-transparent hover:bg-gray-800 text-gray-400 hover:text-gray-200 px-3 py-1.5 
+                  rounded border border-gray-700 transition font-medium"
+            >Syntax Reference</button>
             
-            <button type="submit" form="script-form" :disabled="running"
-                    class="bg-green-600 hover:bg-green-500 text-white px-5 py-1.5 rounded text-xs font-bold transition shadow-md flex items-center space-x-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
-                <span x-show="!running">Run Script</span>
-                <span x-show="running" class="animate-pulse">Executing...</span>
-            </button>
+            <button type="submit" form="script-form" x-show="!running"
+                class="bg-green-600 hover:bg-green-500 text-white px-5 py-1.5 rounded text-xs font-bold 
+                  transition shadow-md flex items-center space-x-1.5 cursor-pointer"
+            ><span>Run Script</span></button>
+
+            <button type="button" x-show="running" x-cloak hx-post="/api/script/cancel" hx-swap="none"
+              class="bg-red-600 hover:bg-red-500 text-white px-5 py-1.5 rounded text-xs font-bold transition 
+                shadow-md flex items-center space-x-1.5 cursor-pointer"
+            >Stop Execution</button>
         </div>
     </div>
 
@@ -56,11 +60,15 @@
               @submit="running = true; view = 'console'; document.getElementById('script-console').innerHTML = '';"
               class="absolute inset-0 flex flex-col"
               x-show="view === 'editor'"
+              x-init="import('/assets/js/script-runner.js').then(m => m.initCodeJar($refs.editor, $refs.hiddenInput));"
         >
-            <!-- Massive full-height Editor View -->
-            <textarea name="scriptContent" autocomplete="off" spellcheck="false"
-              class="w-full flex-1 bg-transparent text-green-400 font-mono text-sm p-4 outline-none resize-none shadow-inner" 
-              placeholder="# Type your MXShell script here...&#10;&#10;connect&#10;waitstatus Active&#10;send 35=D|55=AAPL|54=1..."></textarea>
+            <input type="hidden" name="scriptContent" x-ref="hiddenInput" 
+                   value="# Type your script here...&#10;&#10;connect&#10;waitstatus Active&#10;send 35=D|55=AAPL|54=1..."
+            >
+            <div x-ref="editor" spellcheck="false"
+                 class="w-full flex-1 bg-transparent text-green-400 font-mono text-sm p-4 outline-none 
+                  overflow-y-auto whitespace-pre-wrap break-words shadow-inner" 
+            ></div>
         </form>
 
         <!-- Full View Console Panel -->

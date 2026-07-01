@@ -25,12 +25,12 @@ type Application struct {
 	session   *session.Session
 	logBroker *broker.Broker
 	Store     *store.Store
-	Ctx       context.Context
 
-	port   int
-	assets embed.FS
-	templ  *template.Template
-	mu     sync.RWMutex
+	port         int
+	assets       embed.FS
+	templ        *template.Template
+	cancelScript context.CancelFunc
+	mu           sync.RWMutex
 
 	// conditional rendering of templates
 	isWailsApp bool
@@ -94,7 +94,6 @@ func NewApplication(version, commit string, assets embed.FS) (*Application, erro
 		session:   sess,
 		logBroker: lbroker,
 		Store:     &st,
-		Ctx:       context.Background(),
 		assets:    assets,
 		templ:     templ,
 		tlogger:   tlogger,
@@ -259,6 +258,7 @@ func (app *Application) webRoutes() http.Handler {
 	mux.HandleFunc("POST /api/diff", app.handleAPIMessageDiff)
 	mux.HandleFunc("POST /api/script/execute", app.handleAPIScriptExecute)
 	mux.HandleFunc("GET /api/script/stream", app.handleAPIScriptStream)
+	mux.HandleFunc("POST /api/script/cancel", app.handleAPIScriptCancel)
 
 	// No caching except for endpoints under '/assets'
 	return app.noCacheMiddleware(mux)

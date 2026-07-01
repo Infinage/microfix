@@ -33,6 +33,7 @@ MESSAGING COMMANDS
   wait <MsgLike>          Block and wait until a message matching <MsgLike> is received
   expect <MsgLike>        Fail if the *next* app message doesn't match <MsgLike>
                           (Automatically ignores background Heartbeats & Test Requests)
+  loadmsg <in|out> <id>   Load a specific message from session history into the buffer
 
 MSGLIKE SYNTAX
   A MsgLike is a boolean expression over FIX tags.
@@ -45,8 +46,20 @@ MSGLIKE SYNTAX
 
   Operator precedence: !, then &, then |
 
+CONTROL FLOW
+  if <cmd>                Execute block if <cmd> succeeds (e.g., if assert 1 == 1)
+  elif <cmd>              Execute block if previous conditions failed and <cmd> succeeds
+  else                    Execute block if all previous conditions failed
+  endif                   Close an if/elif/else block
+  while <cmd>             Loop block as long as <cmd> succeeds
+  endwhile                Close a while loop
+  break                   Exit the current while loop early
+  exit					  Immediately terminate script execution
+
 SCRIPT FLOW & UTILITY
   set <key> <val>         Set a variable in the store (e.g., set VARS.Symbol AAPL)
+  incr <key> [<val>]      Increment a numeric variable by 1 (or by optional <val>)
+  decr <key> [<val>]      Decrement a numeric variable by 1 (or by optional <val>)
   print <val> [...]       Print text or variables to the console
   sleep <millis>          Pause execution for N milliseconds
   assert <exp1> <exp2>    Fail the script if exp1 != exp2
@@ -70,6 +83,10 @@ GLOBAL VARIABLES
   $VARS.<key>             Script-defined values (set via 'set' command)
   $ALIAS.<name>           Saved aliases
   $ENV.<name>             Environment variables
+  $BUF.<tag>              Extract integer <tag> from the currently buffered message.
+                          Message is loaded into buffer upon a successful 'wait', 
+                          'expect', or explicit 'loadmsg'. Will fail if buffer is empty.
+                          (e.g., $BUF.35 or $BUF.11)
   $LASTIN[T,t]            Extract tag 't' from last incoming message of MsgType 'T'
   $LASTOUT[T,t]           Extract tag 't' from last outgoing message of MsgType 'T'
                           (e.g., $LASTOUT[8,39] gets OrdStatus from ExecutionReport)
@@ -128,10 +145,18 @@ func EvalBatch(r io.Reader, ctx *script.ScriptContext) error {
 
 	var justJumped bool
 	for pc := 0; pc < len(instructions); {
-		instr := instructions[pc]
+		// Check context cancellation
+		select {
+		case <-ctx.GoCtx.Done():
+			return fmt.Errorf("script cancelled")
 
+		default:
+		}
+
+		// Ensure jump table exists for required commands
+		instr := instructions[pc]
 		jump, ok := jumpTable[pc]
-		if instr.Type != "" && instr.Type != "endif" && !ok {
+		if instr.Type != "" && instr.Type != "endif" && instr.Type != "exit" && !ok {
 			return fmt.Errorf("jump entry not found for [%s], line# %d", instr.Type, instr.LineNo)
 		}
 
@@ -145,6 +170,9 @@ func EvalBatch(r io.Reader, ctx *script.ScriptContext) error {
 		justJumped = false
 
 		switch instr.Type {
+		case "exit":
+			return nil
+
 		// justJumped was true => do nothing (incr pc)
 		case "endif", "else", "endwhile":
 

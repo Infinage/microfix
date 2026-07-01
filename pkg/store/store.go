@@ -3,8 +3,11 @@ package store
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/infinage/microfix/pkg/message"
 )
 
 // Store is the unified state manager for Microfix.
@@ -13,6 +16,7 @@ import (
 type Store struct {
 	cfg        *Config           // Strongly typed and persistent configuration
 	vars       map[string]string // Loosely typed and non-persistent runtime variables
+	buffer     message.Message   // Scratch pad to store utmost one message of interest
 	configPath string            // Stored path of the config file for auto-saving changes
 	mu         sync.RWMutex      // Concurrent access across GUI
 }
@@ -43,46 +47,64 @@ func InitStore() Store {
 	}
 }
 
+func (s *Store) Buffer() message.Message {
+	return s.buffer
+}
+
+func (s *Store) SetBuffer(msg message.Message) {
+	s.buffer = msg
+}
+
+func (s *Store) getTagFromBuffer(key string) (string, bool, error) {
+	tag, err := strconv.ParseUint(key, 10, 16)
+	if err != nil {
+		return "", false, fmt.Errorf("failed to parse '%s' as a tag: %w", key, err)
+	}
+
+	val, ok := s.buffer.Get(uint16(tag))
+	return val, ok, nil
+}
+
 // Config returns a safe, by-value copy of the underlying typed configuration.
-func (c *Store) Config() Config {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return *c.cfg
+func (s *Store) Config() Config {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return *s.cfg
 }
 
 // LoadConfig dynamically overwrites the current store's config by loading from the specified path.
-func (c *Store) LoadConfig(filepath string) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+func (s *Store) LoadConfig(filepath string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	newCfg, err := loadConfig(filepath)
 	if err == nil {
-		c.cfg = newCfg
-		c.configPath = filepath
+		s.cfg = newCfg
+		s.configPath = filepath
 	}
 	return err
 }
 
 // Writes the current configuration state to the specified path.
-func (c *Store) DumpConfig(filepath string) error {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.cfg.dump(filepath)
+func (s *Store) DumpConfig(filepath string) error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.cfg.dump(filepath)
 }
 
 // Read only copy of path config was loaded from
-func (c *Store) ConfigPath() string {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.configPath
+func (s *Store) ConfigPath() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.configPath
 }
 
 // Get retrieves a value based on its namespace prefix.
 // The key must be in the format `PREFIX.Name` (e.g., "CFG.Port", "ENV.USER").
 // It returns the value, a boolean indicating if the key was found, and any potential errors.
-func (c *Store) Get(key string) (string, bool, error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+func (s *Store) Get(key string) (string, bool, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 
 	prefix, name, err := splitKeyPrefix(key)
 	if err != nil {
@@ -91,20 +113,23 @@ func (c *Store) Get(key string) (string, bool, error) {
 
 	switch strings.ToUpper(prefix) {
 	case "CFG":
-		oldVal, err := c.cfg.getField(name)
+		oldVal, err := s.cfg.getField(name)
 		return oldVal, err == nil, err
 
 	case "ALIAS":
-		val, ok := c.cfg.getAlias(name)
+		val, ok := s.cfg.getAlias(name)
 		return val, ok, nil
 
 	case "VARS":
-		val, ok := c.vars[name]
+		val, ok := s.vars[name]
 		return val, ok, nil
 
 	case "ENV":
 		val, ok := os.LookupEnv(name)
 		return val, ok, nil
+
+	case "BUF":
+		return s.getTagFromBuffer(name)
 
 	default:
 		return "", false, fmt.Errorf("Unsupported prefix: '%s'", prefix)
@@ -113,9 +138,9 @@ func (c *Store) Get(key string) (string, bool, error) {
 
 // Set updates a value in the store and returns the previous value, a boolean
 // indicating if it was an update to an existing key, and an error.
-func (c *Store) Set(key, value string) (string, bool, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+func (s *Store) Set(key, value string) (string, bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	prefix, name, err := splitKeyPrefix(key)
 	if err != nil {
@@ -124,23 +149,26 @@ func (c *Store) Set(key, value string) (string, bool, error) {
 
 	switch strings.ToUpper(prefix) {
 	case "CFG":
-		oldVal, err := c.cfg.setField(name, value)
+		oldVal, err := s.cfg.setField(name, value)
 		if err != nil {
 			return "", false, err
 		}
 		return oldVal, true, nil
 
 	case "ALIAS":
-		val, ok := c.cfg.setAlias(name, value)
+		val, ok := s.cfg.setAlias(name, value)
 		return val, ok, nil
 
 	case "VARS":
-		oldVal, ok := c.vars[name]
-		c.vars[name] = value
+		oldVal, ok := s.vars[name]
+		s.vars[name] = value
 		return oldVal, ok, nil
 
 	case "ENV":
 		return "", false, fmt.Errorf("Cannot modify system env variables")
+
+	case "BUF":
+		return "", false, fmt.Errorf("Cannot modify message buffer")
 
 	default:
 		return "", false, fmt.Errorf("Unsupported prefix: '%s'", prefix)
@@ -149,9 +177,9 @@ func (c *Store) Set(key, value string) (string, bool, error) {
 
 // Unset removes a key from loosely typed namespaces (ALIAS, VARS).
 // It returns the deleted value, a boolean indicating if it existed before deletion, and an error.
-func (c *Store) Unset(key string) (string, bool, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+func (s *Store) Unset(key string) (string, bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	prefix, name, err := splitKeyPrefix(key)
 	if err != nil {
@@ -163,13 +191,13 @@ func (c *Store) Unset(key string) (string, bool, error) {
 		return "", false, fmt.Errorf("Can only delete from ALIAS and VARS namespaces")
 
 	case "ALIAS":
-		val, ok := c.cfg.deleteAlias(name)
+		val, ok := s.cfg.deleteAlias(name)
 		return val, ok, nil
 
 	case "VARS":
-		oldVal, ok := c.vars[name]
+		oldVal, ok := s.vars[name]
 		if ok {
-			delete(c.vars, name)
+			delete(s.vars, name)
 		}
 		return oldVal, ok, nil
 
