@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -125,39 +126,55 @@ func EvalBatch(r io.Reader, ctx *script.ScriptContext) error {
 		return fmt.Errorf("failed to compile script: %w", err)
 	}
 
+	var justJumped bool
 	for pc := 0; pc < len(instructions); {
-		instruction := instructions[pc]
-		first, rest, _ := strings.Cut(instruction.Text, " ")
+		instr := instructions[pc]
 
-		switch first {
-		case "if", "elif", "while":
-			err := Eval(rest, ctx)
-			if jump, ok := jumpTable[pc]; !ok {
-				return fmt.Errorf("jump entry not found for line# %d", instruction.LineNo)
-			} else if _, isFalsy := err.(*script.FalsyError); !isFalsy {
-				return fmt.Errorf("line %d: %w", instruction.LineNo, err)
-			} else if isFalsy {
-				pc = jump.TargetOnFalse
-			}
+		jump, ok := jumpTable[pc]
+		if instr.Type != "" && instr.Type != "endif" && !ok {
+			return fmt.Errorf("jump entry not found for [%s], line# %d", instr.Type, instr.LineNo)
+		}
 
-		case "endwhile", "break":
-			jump, ok := jumpTable[pc]
-			if !ok {
-				return fmt.Errorf("jump entry not found for line# %d", instruction.LineNo)
-			}
+		// Reached sequentially (!justJumped) => jump to TargetOnEnd
+		if (instr.Type == "elif" || instr.Type == "else" || instr.Type == "endwhile") && !justJumped {
 			pc = jump.TargetOnEnd
+			continue
+		}
 
-		case "else":
+		// jumps already handled, reset flag
+		justJumped = false
 
-		case "endif": // do nothing
+		switch instr.Type {
+		// justJumped was true => do nothing (incr pc)
+		case "endif", "else", "endwhile":
 
+		// Unconditionally jump to end
+		case "break":
+			pc = jump.TargetOnEnd
+			justJumped = true
+			continue
+
+		// If evaluates to true  => continue into block (incr pc)
+		// If evaluates to falsy => jump to TargetOnFalse
+		// If evaluates as error => return as error
+		case "if", "elif", "while":
+			err := Eval(instr.Text, ctx)
+			if _, isFalsy := errors.AsType[*script.FalsyError](err); isFalsy {
+				pc = jump.TargetOnFalse
+				justJumped = true
+				continue
+			} else if err != nil {
+				return fmt.Errorf("line %d: %w", instr.LineNo, err)
+			}
+
+		// Normal commands
 		default:
-			if err := Eval(instruction.Text, ctx); err != nil {
-				return fmt.Errorf("line %d: %w", instruction.LineNo, err)
+			if err := Eval(instr.Text, ctx); err != nil {
+				return fmt.Errorf("line %d: %w", instr.LineNo, err)
 			}
 		}
 
-		pc++
+		pc++ // sequential execution
 	}
 
 	return nil

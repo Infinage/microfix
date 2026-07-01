@@ -17,7 +17,7 @@ func updateVariable(args []string, st *store.Store) error {
 
 	// Parse the 2nd argument and resolve it
 	key := strings.TrimSpace(args[1])
-	val, ok, _ := st.Get("$VARS." + key)
+	val, ok, _ := st.Get("VARS." + key)
 	if !ok {
 		return fmt.Errorf("variable not found: %s", key)
 	}
@@ -48,7 +48,7 @@ func updateVariable(args []string, st *store.Store) error {
 	}
 
 	// Always succeeds
-	st.Set("$VARS."+key, strconv.Itoa(original))
+	st.Set("VARS."+key, strconv.Itoa(original))
 	return nil
 }
 
@@ -127,12 +127,17 @@ func evaluateExpr[T cmp.Ordered](v1, v2 T, op string) bool {
 
 // Just compare, already substituted before call
 func handleAssert(_ *ScriptContext, args []string) error {
-	if len(args) != 4 {
-		return fmt.Errorf("syntax error, expected: `assert <expr1> <op> <expr2>`")
+	if len(args) != 4 && len(args) != 3 {
+		return fmt.Errorf("syntax error, expected: `assert <expr1> [<op>] <expr2>`")
 	}
 
-	expr1, expr2 := strings.TrimSpace(args[1]), strings.TrimSpace(args[3])
-	op := strings.TrimSpace(args[2])
+	op, expr1 := "==", strings.TrimSpace(args[1])
+	var expr2 string
+	if len(args) == 4 {
+		op, expr2 = strings.TrimSpace(args[2]), strings.TrimSpace(args[3])
+	} else {
+		expr2 = strings.TrimSpace(args[2])
+	}
 
 	var result bool
 	if f1, f2, numOk := compareAsFloat(expr1, expr2); numOk {

@@ -165,7 +165,7 @@ sleep 10
 
 # Close the connection and check status as Closed
 disconnect
-assert $STATUS Closed
+waitstatus Closed
 `
 
 	// Define the Client Script (Initiator)
@@ -191,7 +191,7 @@ print Client received Heartbeat!
 
 # Close the connection and check status as Closed
 disconnect
-assert $STATUS Closed
+waitstatus Closed
 `
 	// Run test harness
 	res := runE2E(t, "FIX44.xml", clientScript, serverScript)
@@ -255,7 +255,7 @@ send 8=FIX.4.4|9=68|35=1|49=CLIENT|56=SERVER|34=1|52=20260519-11:13:39|112=PING|
 
 # The native server should instantly detect the violation and kick us out
 sleep 10
-assert $STATUS Closed
+waitstatus Closed
 print Client received Fatal Logout!
 `
 	res := runNativeE2E(t, "FIX44.xml", addr, clientScript)
@@ -263,6 +263,62 @@ print Client received Fatal Logout!
 	if !strings.Contains(res.clientOut, "Client received Fatal Logout!") {
 		t.Errorf("Server failed to issue Logout for low sequence. Output:\n%s", res.clientOut)
 	}
+
+	// Helpful for debugging if tests fail
+	t.Log("\n--- Server Logs ---\n" + strings.Join(res.serverLogs, "\n"))
+	t.Log("\n--- Client Logs ---\n" + strings.Join(res.clientLogs, "\n"))
+}
+
+func TestEvalBatch_ControlFlowE2E(t *testing.T) {
+	// Define the Server Script (Acceptor)
+	serverScript := `
+# Listen for incoming connections
+listen 127.0.0.1:5008
+waitstatus Active
+print Connected to Client
+
+# Wait for client to send a test requests
+set VARS.received 0
+while assert $VARS.received < 3
+	wait 35=1
+	incr received
+	print Server received TestRequest# $VARS.received
+endwhile
+
+# Disconnect after 3rd test request
+sleep 10
+disconnect
+waitstatus Closed
+`
+
+	// Define the Client Script (Initiator)
+	clientScript := `
+# Connect to server
+sleep 10
+connect 127.0.0.1:5008
+waitstatus Active
+print Connected to Server
+
+# Send a TestRequest and wait for Heartbeat
+set VARS.sent 0
+while assert $VARS.sent < 5
+	send 8=FIX.4.4|9=68|35=1|49=STRING|56=STRING|34=704|52=20260519-11:13:39.976|112=PING|10=173|
+	if wait 35=0
+		incr sent
+		print Send successful for TestRequest# $VARS.sent
+	else
+		print Send failed for TestRequest# $VARS.sent
+		assert $VARS.sent 3
+		break
+	endif
+endwhile
+
+# Close the connection
+disconnect
+waitstatus Closed
+`
+	// Run test harness
+	res := runE2E(t, "FIX44.xml", clientScript, serverScript)
 
 	// Helpful for debugging if tests fail
 	t.Log("\n--- Server Logs ---\n" + strings.Join(res.serverLogs, "\n"))

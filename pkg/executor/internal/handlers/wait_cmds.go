@@ -19,7 +19,7 @@ func handleExpect(ctx *ScriptContext, args []string) error {
 	sess := ctx.Session()
 	logCh, unsubscribe, err := sess.SubscribeLog()
 	if err != nil {
-		return fmt.Errorf("failed to create wire tap: %w", err)
+		return Falsy(fmt.Errorf("failed to create wire tap: %w", err))
 	}
 	defer unsubscribe()
 
@@ -67,7 +67,7 @@ func handleWait(ctx *ScriptContext, args []string) error {
 	sess := ctx.Session()
 	logCh, unsubscribe, err := sess.SubscribeLog()
 	if err != nil {
-		return fmt.Errorf("failed to create wire tap: %w", err)
+		return Falsy(fmt.Errorf("failed to create wire tap: %w", err))
 	}
 	defer unsubscribe()
 

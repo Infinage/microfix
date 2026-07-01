@@ -146,7 +146,7 @@ func handleSend(ctx *ScriptContext, args []string) error {
 		return fmt.Errorf("invalid fix string: %w", err)
 	}
 
-	return ctx.Session().Send(msg, isRaw)
+	return Falsy(ctx.Session().Send(msg, isRaw))
 }
 
 func handleResetSequence(ctx *ScriptContext, args []string) error {
@@ -169,7 +169,7 @@ func handleResetSequence(ctx *ScriptContext, args []string) error {
 	}
 
 	// Engine handles the state changes and emit the appropriate logs
-	return sess.ResetSequence(inSeq, outSeq)
+	return Falsy(sess.ResetSequence(inSeq, outSeq))
 }
 
 func init() {

@@ -93,3 +93,123 @@ func TestEval_Substitution(t *testing.T) {
 		}
 	})
 }
+
+func TestEvalBatch_ControlFlow(t *testing.T) {
+	// Define test cases
+	tests := []struct {
+		name     string
+		script   string
+		expected string
+	}{
+		{
+			name: "Simple If - True",
+			script: `
+				if assert 1 == 1
+					print YES
+				endif
+			`,
+			expected: "YES\n",
+		},
+		{
+			name: "Simple If - False",
+			script: `
+				if assert 1 == 2
+					print YES
+				endif
+			`,
+			expected: "",
+		},
+		{
+			name: "If Else - Falls to Else",
+			script: `
+				if assert 1 == 2
+					print NO
+				else
+					print YES
+				endif
+			`,
+			expected: "YES\n",
+		},
+		{
+			name: "If Elif Else - Elif matches",
+			script: `
+				if assert 1 == 2
+					print 1
+				elif assert 1 == 1
+					print 2
+				else
+					print 3
+				endif
+			`,
+			expected: "2\n",
+		},
+		{
+			name: "If Elif Else - Skips Elif when If matches",
+			script: `
+				if assert 1 == 1
+					print 1
+				elif assert 1 == 1
+					print 2
+				else
+					print 3
+				endif
+			`,
+			expected: "1\n",
+		},
+		{
+			name: "While Loop",
+			script: `
+				set VARS.loop 3
+				while assert $VARS.loop > 0
+					print ITER
+					decr loop
+				endwhile
+			`,
+			expected: "ITER\nITER\nITER\n",
+		},
+		{
+			name: "While Loop with Break",
+			script: `
+				set VARS.loop 3
+				while assert $VARS.loop > 0
+					print ITER
+					if assert $VARS.loop == 3
+						break
+					endif
+					decr loop
+				endwhile
+			`,
+			expected: "ITER\n",
+		},
+		{
+			name: "Nested Logic",
+			script: `
+				set VARS.loop 3
+				while assert $VARS.loop > 0
+					if assert 1 == 2
+						print FAIL
+					else
+						print PASS
+					endif
+					decr loop
+				endwhile
+			`,
+			expected: "PASS\nPASS\nPASS\n",
+		},
+	}
+
+	// Run the tests
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, buf := setupTestContext(t, nil)
+
+			if err := EvalBatch(strings.NewReader(tt.script), ctx); err != nil {
+				t.Fatalf("EvalBatch failed: %v", err)
+			}
+
+			if got := buf.String(); got != tt.expected {
+				t.Errorf("\nExpected:\n%q\nGot:\n%q", tt.expected, got)
+			}
+		})
+	}
+}

@@ -19,6 +19,7 @@ type Jump struct {
 type Instruction struct {
 	Text   string
 	LineNo int
+	Type   string
 }
 
 type stackframe struct {
@@ -52,8 +53,20 @@ func parseJumpTable(r io.Reader) ([]Instruction, map[int]Jump, error) {
 			continue
 		}
 
-		instructions = append(instructions, Instruction{Text: line, LineNo: lineNo})
-		first, rest, _ := strings.Cut(line, " ")
+		var instr Instruction
+		switch first, rest, _ := strings.Cut(line, " "); first {
+		case "if", "elif", "while":
+			instr = Instruction{Text: rest, LineNo: lineNo, Type: first}
+		case "else", "endif", "endwhile", "break":
+			// Syntax purity - single worded keywords
+			if rest != "" {
+				err := fmt.Errorf("syntax error: unexpected token following '%s' on line %d", first, lineNo)
+				return nil, nil, err
+			}
+			instr = Instruction{Text: rest, LineNo: lineNo, Type: first}
+		default:
+			instr = Instruction{Text: line, LineNo: lineNo}
+		}
 
 		// Prev stackframe if available
 		var prev stackframe
@@ -61,16 +74,16 @@ func parseJumpTable(r io.Reader) ([]Instruction, map[int]Jump, error) {
 			prev = stack[len(stack)-1]
 		}
 
-		switch first {
+		switch instr.Type {
 		case "if", "while":
-			stack = append(stack, stackframe{typ: first, pc: pc})
-			if first == "while" {
+			stack = append(stack, stackframe{typ: instr.Type, pc: pc})
+			if instr.Type == "while" {
 				loopLvl++
 			}
 
 		case "elif", "else":
 			if prev.typ != "if" && prev.typ != "elif" {
-				err := fmt.Errorf("syntax error: '%s' block without a preceding if/elif block at line %d", first, lineNo)
+				err := fmt.Errorf("syntax error: '%s' block without a preceding if/elif block at line %d", instr.Type, lineNo)
 				return nil, nil, err
 			}
 
@@ -79,7 +92,7 @@ func parseJumpTable(r io.Reader) ([]Instruction, map[int]Jump, error) {
 
 			// We still need to set 'TargetOnEnd' for prev,
 			// for now just add current frame into stack
-			stack = append(stack, stackframe{typ: first, pc: pc})
+			stack = append(stack, stackframe{typ: instr.Type, pc: pc})
 
 		case "endif":
 			if prev.typ != "if" && prev.typ != "elif" && prev.typ != "else" {
@@ -147,14 +160,7 @@ func parseJumpTable(r io.Reader) ([]Instruction, map[int]Jump, error) {
 			breakpoints = append(breakpoints, breakPoint{loopLvl: loopLvl, pc: pc})
 		}
 
-		// Syntax purity - ensure nothing follows these single worded keywords
-		switch first {
-		case "else", "endif", "endwhile", "break":
-			if rest != "" {
-				return nil, nil, fmt.Errorf("syntax error: unexpected token following '%s' on line %d", first, lineNo)
-			}
-		}
-
+		instructions = append(instructions, instr)
 		pc++
 	}
 
