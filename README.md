@@ -180,20 +180,36 @@ Scripts can be executed directly from MXGUI or MXShell using the exact same dete
 
 ```bash
 connect
-
 waitstatus Active
 
-send 35=D|11=$UNIQUE|55=AAPL|54=1|38=100|
+set VARS.counter 0
+set VARS.max_orders 5
 
-expect "35=8 & 39=0"
+# Execute a batch of orders and verify acknowledgments
+while assert $VARS.counter < $VARS.max_orders
+    # Route order with a dynamically generated ClOrdID
+    send 35=D|11=$UNIQUE|55=AAPL|54=1|38=100|40=2|
+    
+    # Wait for the Execution Report (Order ACK)
+    if wait "35=8 & 39=0"
+        print Order $VARS.counter acknowledged with ExecID: $BUF.17
+        incr VARS.counter
+        sleep 500
+    else
+        print ✗ Order acknowledgment timed out!
+        disconnect
+        exit
+    endif
+endwhile
 
-print OrderID: $LASTIN[8,37]
+print ✓ Successfully routed $VARS.counter orders.
+disconnect
 
 ```
 
 <div align="center">
-  <h3><a href="https://github.com/user-attachments/assets/55a5ef5b-6adb-450d-b8db-ab0bbf476012">MXGUI: Script runner example</a></h3>
-  <video src="https://github.com/user-attachments/assets/55a5ef5b-6adb-450d-b8db-ab0bbf476012" controls muted autoplay playsinline width="800"></video>
+  <h3><a href="https://github.com/user-attachments/assets/13b34478-cb32-4522-8d3a-15142be344da">MXGUI: Script runner example</a></h3>
+  <video src="https://github.com/user-attachments/assets/13b34478-cb32-4522-8d3a-15142be344da" controls muted autoplay playsinline width="800"></video>
 </div>
 
 #### Global Variables
@@ -277,12 +293,20 @@ jobs:
 ## Architecture
 
 ```text
-cmd/mxgui        Desktop GUI and script runner
-cmd/mxshell      Interactive REPL and automation
-pkg/spec         Dictionary parsing and validation
-pkg/message      Zero-allocation FIX message representation
-pkg/session      Session engine and state machine
-pkg/executor     Script parser and evaluator
+cmd/mxgui       Desktop GUI application and script runner
+cmd/mxshell     Interactive CLI REPL and headless automation
+pkg/session     Core engine utilizing an actor model to power FIX sessions
+pkg/executor    Script parsing and evaluation API invoked by both frontends
+pkg/ast         Abstract Syntax Tree powering flexible `wait`/`expect` expressions
+pkg/macros      Dynamic variable substitution engine
+pkg/message     FIX message structures powering the entire suite
+pkg/spec        XML dictionary parser providing schema data structures
+pkg/store       In-memory state management (configs, variables)
+pkg/broker      Pub/sub event broker handling smooth log streaming and reconnects
+pkg/ringbuf     Efficient circular buffer for CLI log history
+pkg/transport   Low-level TCP/network API utilized by the session engine
+pkg/pretty      Console formatting utilities
+
 ```
 
 ---
