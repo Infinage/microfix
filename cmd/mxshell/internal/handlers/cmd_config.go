@@ -3,6 +3,8 @@ package shell
 import (
 	"bytes"
 	"fmt"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 
@@ -10,19 +12,41 @@ import (
 )
 
 func printConfig(st *store.Store) {
-	fmt.Println("\n─── Configuration ────────────────────────────────")
+	fmt.Println("\n─── Configuration ───────────────────────────────────────────────")
 
 	t := reflect.TypeFor[store.Config]()
 	v := reflect.ValueOf(st.Config())
 
 	// Find max field name length for alignment
-	maxLen := 0
+	maxLen := len("ConfigPath")
 	for i := 0; i < v.NumField(); i++ {
 		name := t.Field(i).Name
 		if len(name) > maxLen {
 			maxLen = len(name)
 		}
 	}
+
+	// Get the path config is loaded from
+	cpath := st.ConfigPath()
+
+	// Would relative path give us a shorter filepath string?
+	if wd, err := os.Getwd(); err == nil {
+		ncpath, err := filepath.Rel(wd, cpath)
+		if err == nil && len(ncpath) < len(cpath) {
+			cpath = ncpath
+		}
+	}
+
+	// Can we use '~' instead?
+	if homeDir, err := os.UserHomeDir(); err == nil && strings.HasPrefix(cpath, homeDir) {
+		ncpath := strings.Replace(cpath, homeDir, "~", 1)
+		if len(ncpath) < len(cpath) {
+			cpath = ncpath
+		}
+	}
+
+	// Print the read-only environment path first
+	fmt.Printf("  %-*s : %s\n", maxLen, "ConfigPath", cpath)
 
 	for i := 0; i < v.NumField(); i++ {
 		field := t.Field(i)
@@ -34,7 +58,7 @@ func printConfig(st *store.Store) {
 		fmt.Printf("  %-*s : %v\n", maxLen, field.Name, value)
 	}
 
-	fmt.Println("──────────────────────────────────────────────────")
+	fmt.Println("─────────────────────────────────────────────────────────────────")
 }
 
 func loadConfig(fpath string, st *store.Store) {
@@ -132,9 +156,6 @@ func handleConfig(ctx *ShellContext, args []string) {
 func buildConfigHelp() string {
 	var buf bytes.Buffer
 	buf.WriteString(`config [save [<path>] | load <path> | set <key> <val>]
-
-Use 'config set <key> <val>' to modify session parameters in-memory.
-Changes can be persisted to disk using 'config save'.
 
 Available Parameters:
 `)

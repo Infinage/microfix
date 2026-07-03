@@ -33,6 +33,7 @@ func (app *Application) handleHome(w http.ResponseWriter, r *http.Request) {
 		"GitCommit":          app.Commit,
 		"Snapshot":           snap,
 		"Config":             cfg,
+		"ConfigPath":         app.Store.ConfigPath(),
 		"ConfigHelp":         store.ConfigHelp,
 		"Router":             sess.Router(),
 		"Aliases":            &cfg.Alias,

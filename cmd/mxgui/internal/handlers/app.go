@@ -124,11 +124,16 @@ func (app *Application) startSSEHandler() (net.Listener, error) {
 	sseMux.HandleFunc("GET /api/script/stream", app.handleAPIScriptStream)
 
 	// Spin a new goroutine
-	go http.Serve(sseListener, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
-		sseMux.ServeHTTP(w, r)
-	}))
+	go func() {
+		sseHandler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+			sseMux.ServeHTTP(w, r)
+		}
+		if err := http.Serve(sseListener, http.HandlerFunc(sseHandler)); err != nil {
+			fmt.Printf("SSE server stopped: %v\n", err)
+		}
+	}()
 
 	return sseListener, nil
 }
@@ -286,9 +291,16 @@ func (app *Application) noCacheMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// Safely reset session
 func (app *Application) resetSession() error {
 	// Create a new session from latest config
 	newSess, err := newSession(app.Store.Config())
+	if err != nil {
+		return err
+	}
+
+	// Attempt to bind log broker to new session
+	err = app.logBroker.Bind(newSess)
 	if err != nil {
 		return err
 	}
@@ -304,8 +316,7 @@ func (app *Application) resetSession() error {
 		oldSess.Close()
 	}
 
-	// Bind the log broker to new session
-	return app.logBroker.Bind(newSess)
+	return nil
 }
 
 // Access session pointer through a RWMutex

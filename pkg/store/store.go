@@ -48,10 +48,14 @@ func InitStore() Store {
 }
 
 func (s *Store) Buffer() message.Message {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	return s.buffer
 }
 
 func (s *Store) SetBuffer(msg message.Message) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.buffer = msg
 }
 

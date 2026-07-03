@@ -2,7 +2,6 @@ package shell
 
 import (
 	"fmt"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -196,7 +195,7 @@ func handleReset(ctx *ShellContext, _ []string) {
 		fmt.Printf("  Status : FAILED\n")
 		fmt.Printf("  Error  : %v\n", err)
 		fmt.Println("──────────────────────────────────────────────────")
-		os.Exit(1)
+		return
 	}
 
 	fmt.Printf("  Status : OK\n")

@@ -1,6 +1,7 @@
 package spec
 
 import (
+	"os"
 	"testing"
 )
 
@@ -182,5 +183,71 @@ func TestFIXT11DeepValidation(t *testing.T) {
 	}
 	if !foundHeartbeat {
 		t.Error("Field 35 missing HEARTBEAT enum")
+	}
+}
+
+func TestCheckSpecPath(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "custom_spec_*.xml")
+	if err != nil {
+		t.Fatalf("Failed to create temporary file for testing: %v", err)
+	}
+
+	defer os.Remove(tmpFile.Name())
+	tmpFile.Close()
+
+	tests := []struct {
+		name     string
+		specPath string
+		expected bool
+	}{
+		{
+			name:     "Empty path",
+			specPath: "",
+			expected: false,
+		},
+		{
+			name:     "Valid embedded spec without extension",
+			specPath: "FIX44",
+			expected: true,
+		},
+		{
+			name:     "Valid embedded spec with extension",
+			specPath: "FIXT11.xml",
+			expected: true,
+		},
+		{
+			name:     "Invalid embedded spec",
+			specPath: "FIX99",
+			expected: false,
+		},
+		{
+			name:     "Valid custom file path on disk",
+			specPath: tmpFile.Name(),
+			expected: true,
+		},
+		{
+			name:     "Invalid custom file path",
+			specPath: "/path/that/definitely/does/not/exist.xml",
+			expected: false,
+		},
+		{
+			name:     "Invalid directories",
+			specPath: "/tmp",
+			expected: false,
+		},
+		{
+			name:     "Invalid CWD",
+			specPath: ".",
+			expected: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := CheckPath(tc.specPath)
+			if got != tc.expected {
+				t.Errorf("CheckSpecPath(%q) = %v, expected %v", tc.specPath, got, tc.expected)
+			}
+		})
 	}
 }

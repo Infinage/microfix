@@ -7,6 +7,9 @@ import (
 	"path"
 	"reflect"
 	"strconv"
+	"strings"
+
+	"github.com/infinage/microfix/pkg/spec"
 )
 
 // Reflect and store the config fields
@@ -53,17 +56,49 @@ type Config struct {
 	DefaultTimeoutSec uint32 `json:"DefaultTimeoutSec"`
 }
 
-func (cfg *Config) dump(filepath string) error {
+// os.Rename on same directory is atomic
+// Implementation below ensures no corruption on concurrent writes
+func (cfg *Config) dump(fpath string) error {
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath, data, 0644)
+
+	f, err := os.CreateTemp(path.Dir(fpath), ".*.mxrc.tmp")
+	if err != nil {
+		return fmt.Errorf("failed to create temp file for write: %w", err)
+	}
+
+	tmpName := f.Name()
+	defer os.Remove(tmpName)
+
+	if _, err = f.Write(data); err != nil {
+		f.Close()
+		return fmt.Errorf("failed to dump config to file: %w", err)
+	}
+
+	if err = f.Sync(); err != nil {
+		f.Close()
+		return fmt.Errorf("failed to sync temp file: %w", err)
+	}
+
+	if err = f.Close(); err != nil {
+		return fmt.Errorf("failed to close temp file: %w", err)
+	}
+
+	return os.Rename(tmpName, fpath)
 }
 
 // Attempt to load and unmarshal into config, returns err on failure
-func loadConfig(filepath string) (*Config, error) {
-	file, err := os.Open(filepath)
+func loadConfig(fpath string) (*Config, error) {
+	// Resolve `~` if we can, os.Open doesn't do it
+	if strings.HasPrefix(fpath, "~/") {
+		if wd, err := os.UserHomeDir(); err == nil {
+			fpath = path.Join(wd, fpath[2:])
+		}
+	}
+
+	file, err := os.Open(fpath)
 	if err != nil {
 		return nil, err
 	}
@@ -169,6 +204,12 @@ func (cfg *Config) setField(key, value string) (string, error) {
 	// Disallow access to Alias, user should use GetAlias instead
 	if !field.IsValid() || !field.CanSet() || key == "Alias" {
 		return "", fmt.Errorf("Config field '%s' not found or cannot be modified", key)
+	}
+
+	// Validate dictionary XML path before allowing write
+	pathOk := spec.CheckPath(value)
+	if (key == "SessionSpec" && !pathOk) || (key == "ApplicationSpec" && value != "" && !pathOk) {
+		return "", fmt.Errorf("Invalid spec path: '%s' not found", value)
 	}
 
 	oldVal := fmt.Sprint(field.Interface())

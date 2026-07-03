@@ -46,7 +46,8 @@ func parseJumpTable(r io.Reader) ([]Instruction, map[int]Jump, error) {
 	var loopLvl int
 	var breakpoints []breakPoint
 
-	for scanner := bufio.NewScanner(r); scanner.Scan(); {
+	scanner := bufio.NewScanner(r)
+	for scanner.Scan() {
 		lineNo++
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" || line[0] == '#' {
@@ -165,6 +166,10 @@ func parseJumpTable(r io.Reader) ([]Instruction, map[int]Jump, error) {
 
 		instructions = append(instructions, instr)
 		pc++
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, nil, fmt.Errorf("failed to read script: %w", err)
 	}
 
 	if len(stack) > 0 {

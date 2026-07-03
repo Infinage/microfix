@@ -156,6 +156,40 @@ func TestConfig_StrictFieldReflection(t *testing.T) {
 		}
 	})
 
+	t.Run("Set SessionSpec / ApplicationSpec", func(t *testing.T) {
+		for _, valid := range []string{"FIX40", "FIX41", "FIX42", "FIX43", "FIX44", "FIX50",
+			"FIX50SP1", "FIX50SP2", "FIXT11"} {
+			_, err := cfg.setField("SessionSpec", valid)
+			if err != nil {
+				t.Errorf("Unexpected error when setting SessionSpec to '%s': %v", valid, err)
+			}
+
+			_, err = cfg.setField("ApplicationSpec", valid)
+			if err != nil {
+				t.Errorf("Unexpected error when setting ApplicationSpec to '%s': %v", valid, err)
+			}
+		}
+
+		// Allow empty application spec path
+		if _, err := cfg.setField("ApplicationSpec", ""); err != nil {
+			t.Errorf("Unexpected error when unsetting ApplicationSpec: %v", err)
+		}
+	})
+
+	t.Run("Set Invalid Spec", func(t *testing.T) {
+		for _, invalid := range []string{"FIX99", "FIX99.xml", ".xml", "xml", ".", "/etc/passwd"} {
+			_, err := cfg.setField("SessionSpec", invalid)
+			if err == nil {
+				t.Errorf("Expected error when setting SessionSpec to '%s'", invalid)
+			}
+
+			_, err = cfg.setField("ApplicationSpec", invalid)
+			if err == nil {
+				t.Errorf("Expected error when setting ApplicationSpec to '%s'", invalid)
+			}
+		}
+	})
+
 	t.Run("Access Invalid Fields", func(t *testing.T) {
 		_, err := cfg.getField("MissingField")
 		if err == nil {
@@ -258,4 +292,28 @@ func TestConfig_InitConfig(t *testing.T) {
 			t.Errorf("Expected SenderCompID 'HOME_SENDER', got %s", cfg.SenderCompID)
 		}
 	})
+}
+
+func TestConfig_LoadTildePath(t *testing.T) {
+	// Setup a mocked home directory
+	mockHome := t.TempDir()
+	t.Setenv("HOME", mockHome)
+	t.Setenv("USERPROFILE", mockHome)
+
+	// Create a dummy config inside the mocked home
+	expectedSender := "TILDE_SENDER"
+	dummyCfg := &Config{SenderCompID: expectedSender}
+
+	// Write it to /mock/home/.mxrc
+	actualPath := path.Join(mockHome, ".mxrc")
+	if err := dummyCfg.dump(actualPath); err != nil {
+		t.Fatalf("Failed to dump mock home config: %v", err)
+	}
+
+	// Attempt to load it using the ~ prefix
+	if loaded, err := loadConfig("~/.mxrc"); err != nil {
+		t.Fatalf("Failed to load config using tilde expansion: %v", err)
+	} else if loaded.SenderCompID != expectedSender {
+		t.Errorf("Expected SenderCompID %s, got %s", expectedSender, loaded.SenderCompID)
+	}
 }

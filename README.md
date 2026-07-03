@@ -208,8 +208,8 @@ disconnect
 ```
 
 <div align="center">
-  <h3><a href="https://github.com/user-attachments/assets/13b34478-cb32-4522-8d3a-15142be344da">MXGUI: Script runner example</a></h3>
-  <video src="https://github.com/user-attachments/assets/13b34478-cb32-4522-8d3a-15142be344da" controls muted autoplay playsinline width="800"></video>
+  <h3><a href="https://github.com/user-attachments/assets/8fa59d40-7dfa-4b31-8fe4-5d79fbc22744">MXGUI: Script runner example</a></h3>
+  <video src="https://github.com/user-attachments/assets/8fa59d40-7dfa-4b31-8fe4-5d79fbc22744" controls muted autoplay playsinline width="800"></video>
 </div>
 
 #### Global Variables
@@ -252,16 +252,21 @@ send $ALIAS.AAPL
 
 MicroFIX is fully dictionary-driven. It supports standard FIX versions natively and can load custom XML dictionaries for venue-specific extensions or proprietary dialects.
 
-| Standard |
-|----------|
-| FIX 4.0 |
-| FIX 4.1 |
-| FIX 4.2 |
-| FIX 4.3 |
-| FIX 4.4 |
-| FIX 5.0 |
-| FIX 5.0 SP1 |
-| FIX 5.0 SP2 |
+Use the following exact values to load the internal dictionaries:
+
+| Protocol | Spec Config Value |
+| --- | --- |
+| FIX 4.0 | `FIX40` |
+| FIX 4.1 | `FIX41` |
+| FIX 4.2 | `FIX42` |
+| FIX 4.3 | `FIX43` |
+| FIX 4.4 | `FIX44` |
+| FIXT 1.1 | `FIXT11` |
+| FIX 5.0 | `FIX50` |
+| FIX 5.0 SP1 | `FIX50SP1` |
+| FIX 5.0 SP2 | `FIX50SP2` |
+
+> **Custom Dictionaries:** You may also provide an absolute or relative path to a custom XML file if your venue requires a modified dialect.
 
 ---
 

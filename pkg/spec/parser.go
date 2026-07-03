@@ -97,3 +97,35 @@ func loadRawSpec(fpath string) (rawSpec, error) {
 
 	return data, nil
 }
+
+// Return true if given file is available on disk or on embed FS.
+// Default entries: FIX40, FIX41, FIX42, FIX43, FIX44, FIX50, FIX50SP1, FIX50SP2, FIXT11
+func CheckPath(specPath string) bool {
+	if specPath == "" {
+		return false
+	}
+
+	// Lookup for built-in specs
+	builtIns := map[string]bool{
+		"FIX40": true, "FIX41": true, "FIX42": true, "FIX43": true,
+		"FIX44": true, "FIX50": true, "FIX50SP1": true, "FIX50SP2": true,
+		"FIXT11": true,
+	}
+
+	// Strip .xml just in case the user typed "FIX44.xml"
+	baseName := strings.TrimSuffix(specPath, ".xml")
+	if builtIns[baseName] {
+		return true
+	}
+
+	// Check the physical disk
+	if info, err := os.Stat(specPath); err == nil {
+		// Reject directories and non XML extensions
+		if info.IsDir() || strings.ToLower(path.Ext(specPath)) != ".xml" {
+			return false
+		}
+		return true
+	}
+
+	return false
+}

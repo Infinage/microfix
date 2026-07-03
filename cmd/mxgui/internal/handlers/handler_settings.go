@@ -4,10 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
-	"strings"
 
 	"github.com/infinage/microfix/pkg/session"
+	"github.com/infinage/microfix/pkg/spec"
 	"github.com/infinage/microfix/pkg/store"
 )
 
@@ -134,8 +133,14 @@ func (app *Application) handleAPIResetConfig(w http.ResponseWriter, r *http.Requ
 	data := map[string]string{"type": "success", "message": "Reload successful"}
 	renderTemplate(app.templ, w, "partials/global/toast", data)
 
-	// Reload the config page
-	formData := map[string]any{"Config": app.Store.Config(), "ConfigHelp": store.ConfigHelp}
+	// Data for rendering config form
+	formData := map[string]any{
+		"Config":     app.Store.Config(),
+		"ConfigPath": app.Store.ConfigPath(),
+		"ConfigHelp": store.ConfigHelp,
+	}
+
+	// Reload config page
 	renderTemplate(app.templ, w, "partials/settings/config/form", formData)
 }
 
@@ -165,17 +170,9 @@ func (app *Application) handleAPIConfigSpecPathCheck(w http.ResponseWriter, r *h
 		return
 	}
 
-	// Embedded dictionary paths
-	validSpecs := map[string]any{
-		"FIX40": nil, "FIX41": nil, "FIX42": nil, "FIX43": nil, "FIX44": nil,
-		"FIX50": nil, "FIX50SP1": nil, "FIX50SP2": nil, "FIXT11": nil,
-	}
-
+	// Check if path available and return a nice cue
 	var checkResults = make(map[string]string)
-	_, err := os.Stat(specPath)
-	_, ok1 := validSpecs[specPath]
-	_, ok2 := validSpecs[strings.TrimSuffix(specPath, ".xml")]
-	if ok1 || ok2 || err == nil {
+	if ok := spec.CheckPath(specPath); ok {
 		checkResults["Color"] = "green"
 		checkResults["PathData"] = "M5 13l4 4L19 7"
 		checkResults["Text"] = "Valid dictionary found"

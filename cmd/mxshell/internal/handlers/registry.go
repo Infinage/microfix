@@ -78,9 +78,9 @@ func (ctx *ShellContext) SubscribeLogs() (<-chan session.Log, func()) {
 }
 
 func (ctx *ShellContext) Cleanup() {
+	ctx.Session().Close()
 	ctx.mu.RLock()
 	defer ctx.mu.RUnlock()
-	ctx.Session().Close()
 	if ctx.closeLogger != nil {
 		ctx.closeLogger()
 	}
@@ -100,6 +100,12 @@ func (ctx *ShellContext) resetSession() error {
 		return err
 	}
 
+	// Attempt to bind log broker to new session
+	err = ctx.logBroker.Bind(newSess)
+	if err != nil {
+		return err
+	}
+
 	// Reset session
 	ctx.mu.Lock()
 	oldSess := ctx.session
@@ -111,7 +117,7 @@ func (ctx *ShellContext) resetSession() error {
 		oldSess.Close()
 	}
 
-	return ctx.logBroker.Bind(newSess)
+	return nil
 }
 
 // Typing a command handler

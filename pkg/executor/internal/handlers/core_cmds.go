@@ -86,11 +86,7 @@ func handleConnect(ctx *ScriptContext, args []string) error {
 	}
 
 	addr := fmt.Sprintf("%s:%d", host, port)
-	if err = ctx.Session().Connect(addr); err != nil {
-		return fmt.Errorf("connect exec failed: %w", err)
-	}
-
-	return nil
+	return Falsy(ctx.Session().Connect(addr))
 }
 
 // listen [<host:port>]
@@ -102,11 +98,7 @@ func handleListen(ctx *ScriptContext, args []string) error {
 	}
 
 	addr := fmt.Sprintf("%s:%d", host, port)
-	if err = ctx.Session().Listen(addr); err != nil {
-		return fmt.Errorf("listen exec failed: %w", err)
-	}
-
-	return nil
+	return Falsy(ctx.Session().Listen(addr))
 }
 
 func handleDisconnect(ctx *ScriptContext, args []string) error {

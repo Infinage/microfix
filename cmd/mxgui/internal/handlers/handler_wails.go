@@ -39,8 +39,14 @@ func (app *Application) handleWailsImportConfig(w http.ResponseWriter, _ *http.R
 		return
 	}
 
-	// Reload the config page
-	formData := map[string]any{"Config": app.Store.Config(), "ConfigHelp": store.ConfigHelp}
+	// Data for rendering config form
+	formData := map[string]any{
+		"Config":     app.Store.Config(),
+		"ConfigPath": app.Store.ConfigPath(),
+		"ConfigHelp": store.ConfigHelp,
+	}
+
+	// Reload config page
 	renderTemplate(app.templ, w, "partials/settings/config/form", formData)
 }
 

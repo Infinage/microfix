@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -76,6 +77,14 @@ func (app *Application) handleAPIScriptStream(w http.ResponseWriter, r *http.Req
 	verbose := r.URL.Query().Get("verbose") == "true"
 	defer os.Remove(fpath) // Cleanup when done
 
+	// Reject in case this API is invoked externally
+	clean := filepath.Clean(fpath)
+	if !strings.HasPrefix(clean, filepath.Clean(os.TempDir())) ||
+		!strings.HasPrefix(filepath.Base(clean), "microfix-script-") {
+		http.Error(w, "Invalid file path", http.StatusBadRequest)
+		return
+	}
+
 	// Add a small buffer
 	sseChan := make(chan string, 20)
 
@@ -140,7 +149,7 @@ func (app *Application) handleAPIScriptStream(w http.ResponseWriter, r *http.Req
 
 	// Script Runner (Goroutine 2)
 	wg.Go(func() {
-		defer stop() // Cancels scriptCtx, which tells the Logger to exit
+		defer stop() // Cancels scriptCtx, which tells the Logger to exit (Goroutine 1)
 
 		// Read temp file created via api `/api/script/execute`
 		f, err := os.Open(fpath)
@@ -165,9 +174,18 @@ func (app *Application) handleAPIScriptStream(w http.ResponseWriter, r *http.Req
 	}()
 
 	// Main Event Loop
-	for htmlContent := range sseChan {
-		fmt.Fprintf(w, "event: log\ndata: %s\n\n", htmlContent)
-		flusher.Flush()
+Loop:
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case htmlContent, ok := <-sseChan:
+			if !ok {
+				break Loop
+			}
+			fmt.Fprintf(w, "event: log\ndata: %s\n\n", htmlContent)
+			flusher.Flush()
+		}
 	}
 
 	// Safely send termination signal ONLY after sseChan is completely drained
