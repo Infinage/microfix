@@ -13,6 +13,24 @@ import (
 // This will be used for auto completion
 var configFields []string
 
+// ConfigHelp provides descriptions for each configuration field.
+// Single source of truth for both CLI help and GUI tooltips.
+var ConfigHelp = map[string]string{
+	"SenderCompID":               "Local institution's assigned ID (Tag 49).",
+	"TargetCompID":               "Counterparty's assigned ID (Tag 56).",
+	"HeartbeatInt":               "Seconds between Heartbeat (0) messages (Tag 108).",
+	"SessionSpec":                "XML DataDictionary path for headers/admin messages.",
+	"ApplicationSpec":            "XML DataDictionary path for business msgs (FIX 5.0+).",
+	"SpecDisplayOptFields":       "Toggle visibility of optional FIX fields in UI.",
+	"SkipLatencyCheckInValidate": "Disable SendingTime (Tag 52) latency check.",
+	"FixValidateStrict":          "Enforce strict XML validation on incoming/outgoing msgs.",
+	"FixSampleOptional":          "Include optional fields in auto-generated templates.",
+	"IpAddr":                     "IPv4 addr/hostname. Bind interface (Server) or target (Client).",
+	"Port":                       "TCP port number for the FIX session socket.",
+	"Alias":                      "Map of saved aliases for quick message generation.",
+	"DefaultTimeoutSec":          "Default timeout in seconds for script 'wait' and 'expect' commands.",
+}
+
 type Config struct {
 	SenderCompID string `json:"SenderCompID"`
 	TargetCompID string `json:"TargetCompID"`

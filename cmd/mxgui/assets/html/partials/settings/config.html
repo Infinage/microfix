@@ -36,7 +36,7 @@
         <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition [&:first-child>td:first-child]:rounded-tl-lg [&:first-child>td:last-child]:rounded-tr-lg">
           <td class="p-4 text-gray-400 font-bold w-1/3">
             IpAddr 
-            {{template "partials/settings/config/tooltip" "The IPv4 address or hostname. Acts as the bind interface in Server mode, or the target destination in Client mode."}}
+            {{template "partials/settings/config/tooltip" .ConfigHelp.IpAddr}}
           </td>
           <td class="p-4">
             <input type="text" name="IpAddr" value="{{.Config.IpAddr}}" 
@@ -48,7 +48,7 @@
         <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
           <td class="p-4 text-gray-400 font-bold">
             Port
-            {{template "partials/settings/config/tooltip" "The TCP port number used to establish the FIX session socket."}}
+            {{template "partials/settings/config/tooltip" .ConfigHelp.Port}}
           </td>
           <td class="p-4">
             <input type="number" name="Port" value="{{.Config.Port}}" 
@@ -60,7 +60,7 @@
         <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
           <td class="p-4 text-gray-400 font-bold">
             SenderCompID
-            {{template "partials/settings/config/tooltip" "Your local institution's assigned identification string (Tag 49)."}}
+            {{template "partials/settings/config/tooltip" .ConfigHelp.SenderCompID}}
           </td>
           <td class="p-4">
             <input type="text" name="SenderCompID" value="{{.Config.SenderCompID}}" 
@@ -72,7 +72,7 @@
         <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
           <td class="p-4 text-gray-400 font-bold">
             TargetCompID
-            {{template "partials/settings/config/tooltip" "The counterparty's assigned identification string (Tag 56)."}}
+            {{template "partials/settings/config/tooltip" .ConfigHelp.TargetCompID}}
           </td>
           <td class="p-4">
             <input type="text" name="TargetCompID" value="{{.Config.TargetCompID}}" 
@@ -84,7 +84,7 @@
         <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
           <td class="p-4 text-gray-400 font-bold">
             HeartbeatInt <span class="text-gray-600 text-[10px] font-sans font-normal ml-1">(Sec)</span>
-            {{template "partials/settings/config/tooltip" "Time in seconds between Heartbeat (0) messages to monitor link status (Tag 108)."}}
+            {{template "partials/settings/config/tooltip" .ConfigHelp.HeartbeatInt}}
           </td>
           <td class="p-4">
             <input type="number" name="HeartbeatInt" value="{{.Config.HeartbeatInt}}" 
@@ -96,7 +96,7 @@
         <tr class="hover:bg-gray-800/30 transition [&:last-child>td:first-child]:rounded-bl-lg [&:last-child>td:last-child]:rounded-br-lg">
           <td class="p-4 text-gray-400 font-bold">
             DefaultTimeoutSec
-            {{template "partials/settings/config/tooltip" "Maximum seconds to wait for a network response or expected sequence message before dropping the connection."}}
+            {{template "partials/settings/config/tooltip" .ConfigHelp.DefaultTimeoutSec}}
           </td>
           <td class="p-4">
             <input type="number" name="DefaultTimeoutSec" value="{{.Config.DefaultTimeoutSec}}" 
@@ -122,7 +122,7 @@
         <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition [&:first-child>td:first-child]:rounded-tl-lg [&:first-child>td:last-child]:rounded-tr-lg">
           <td class="p-4 text-gray-400 font-bold w-1/3">
             SessionSpec <span class="text-gray-600 text-[10px] font-sans font-normal ml-1">(XML Path)</span>
-            {{template "partials/settings/config/tooltip" "Path to the XML DataDictionary defining the FIX version header, trailer, and admin messages (e.g., FIXT11)."}}
+            {{template "partials/settings/config/tooltip" .ConfigHelp.SessionSpec}}
           </td>
           <td class="p-4">
             <div class="flex items-center space-x-3">
@@ -146,7 +146,7 @@
         <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
           <td class="p-4 text-gray-400 font-bold">
             ApplicationSpec <span class="text-gray-600 text-[10px] font-sans font-normal ml-1">(XML Path)</span>
-            {{template "partials/settings/config/tooltip" "Path to the XML DataDictionary for business messages. Only required for FIX 5.0 and above (FIXT)."}}
+            {{template "partials/settings/config/tooltip" .ConfigHelp.ApplicationSpec}}
           </td>
           <td class="p-4">
             <div class="flex items-center space-x-3">
@@ -170,7 +170,7 @@
         <tr class="hover:bg-gray-800/30 transition [&:last-child>td:first-child]:rounded-bl-lg [&:last-child>td:last-child]:rounded-br-lg">
           <td class="p-4 text-gray-400 font-bold">
             SpecDisplayOptFields
-            {{template "partials/settings/config/tooltip" "Toggles whether optional FIX fields are visible in the UI when constructing or inspecting messages."}}
+            {{template "partials/settings/config/tooltip" .ConfigHelp.SpecDisplayOptFields}}
           </td>
           <td class="p-4">
               <label class="relative inline-flex items-center cursor-pointer">
@@ -196,7 +196,7 @@
         <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition [&:first-child>td:first-child]:rounded-tl-lg [&:first-child>td:last-child]:rounded-tr-lg">
           <td class="p-4 text-gray-400 font-bold w-1/3">
             FixValidateStrict
-            {{template "partials/settings/config/tooltip" "Enforces strict XML dictionary validation. Rejects incoming messages and blocks outgoing messages that fail structure checks."}}
+            {{template "partials/settings/config/tooltip" .ConfigHelp.FixValidateStrict}}
           </td>
           <td class="p-4">
             <label class="relative inline-flex items-center cursor-pointer">
@@ -211,7 +211,7 @@
         <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
           <td class="p-4 text-gray-400 font-bold">
             FixSampleOptional
-            {{template "partials/settings/config/tooltip" "Includes optional dictionary fields when auto-generating sample payload templates in the Form Builder."}}
+            {{template "partials/settings/config/tooltip" .ConfigHelp.FixSampleOptional}}
           </td>
           <td class="p-4">
             <label class="relative inline-flex items-center cursor-pointer">
@@ -225,7 +225,7 @@
         <tr class="hover:bg-gray-800/30 transition [&:last-child>td:first-child]:rounded-bl-lg [&:last-child>td:last-child]:rounded-br-lg">
           <td class="p-4 text-gray-400 font-bold">
             SkipLatencyCheck
-            {{template "partials/settings/config/tooltip" "Disables the SendingTime (Tag 52) latency check. Useful for testing against delayed networks or historical logs."}}
+            {{template "partials/settings/config/tooltip" .ConfigHelp.SkipLatencyCheckInValidate}}
           </td>
           <td class="p-4">
             <label class="relative inline-flex items-center cursor-pointer">

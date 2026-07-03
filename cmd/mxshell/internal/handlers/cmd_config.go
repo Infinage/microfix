@@ -1,6 +1,7 @@
 package shell
 
 import (
+	"bytes"
 	"fmt"
 	"reflect"
 	"strings"
@@ -128,12 +129,39 @@ func handleConfig(ctx *ShellContext, args []string) {
 	}
 }
 
+func buildConfigHelp() string {
+	var buf bytes.Buffer
+	buf.WriteString(`config [save [<path>] | load <path> | set <key> <val>]
+
+Use 'config set <key> <val>' to modify session parameters in-memory.
+Changes can be persisted to disk using 'config save'.
+
+Available Parameters:
+`)
+
+	fields := store.ConfigFields()
+
+	// Compute max length for pretty printing
+	maxLen := 0
+	for _, f := range fields {
+		maxLen = max(maxLen, len(f))
+	}
+
+	// Pretty print to buffer
+	for _, f := range fields {
+		desc := store.ConfigHelp[f]
+		fmt.Fprintf(&buf, "  %-*s : %s\n", maxLen, f, desc)
+	}
+
+	return strings.TrimRight(buf.String(), "\n")
+}
+
 func init() {
 	RegisterCommand(
 		"config",
 		handleConfig,
 		"View, modify or save the current session configuration.",
-		"config [save [<path>] | load <path> | set <key> <val>]",
+		buildConfigHelp(),
 		[]string{"save", "load", "set"}, // For autocompletion
 	)
 }

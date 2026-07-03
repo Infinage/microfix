@@ -3,6 +3,8 @@ package gui
 import (
 	"fmt"
 	"net/http"
+
+	"github.com/infinage/microfix/pkg/store"
 )
 
 func (app *Application) handleWailsAboutRepository(http.ResponseWriter, *http.Request) {
@@ -38,8 +40,8 @@ func (app *Application) handleWailsImportConfig(w http.ResponseWriter, _ *http.R
 	}
 
 	// Reload the config page
-	renderTemplate(app.templ, w, "partials/settings/config/form",
-		map[string]any{"partials/settings/config": app.Store.Config()})
+	formData := map[string]any{"Config": app.Store.Config(), "ConfigHelp": store.ConfigHelp}
+	renderTemplate(app.templ, w, "partials/settings/config/form", formData)
 }
 
 func (app *Application) handleWailsExportConfig(w http.ResponseWriter, _ *http.Request) {

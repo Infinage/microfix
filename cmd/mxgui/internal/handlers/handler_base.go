@@ -8,6 +8,7 @@ import (
 
 	"github.com/infinage/microfix/cmd/mxgui/internal/shortcuts"
 	"github.com/infinage/microfix/pkg/executor"
+	"github.com/infinage/microfix/pkg/store"
 )
 
 func renderTemplate(templ *template.Template, w io.Writer, templateName string, data any) {
@@ -32,6 +33,7 @@ func (app *Application) handleHome(w http.ResponseWriter, r *http.Request) {
 		"GitCommit":          app.Commit,
 		"Snapshot":           snap,
 		"Config":             cfg,
+		"ConfigHelp":         store.ConfigHelp,
 		"Router":             sess.Router(),
 		"Aliases":            &cfg.Alias,
 		"IsWailsApp":         app.isWailsApp,

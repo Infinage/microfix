@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/infinage/microfix/pkg/session"
+	"github.com/infinage/microfix/pkg/store"
 )
 
 func (app *Application) handleAPIGetAlias(w http.ResponseWriter, r *http.Request) {
@@ -134,8 +135,8 @@ func (app *Application) handleAPIResetConfig(w http.ResponseWriter, r *http.Requ
 	renderTemplate(app.templ, w, "partials/global/toast", data)
 
 	// Reload the config page
-	renderTemplate(app.templ, w, "partials/settings/config/form",
-		map[string]any{"Config": app.Store.Config()})
+	formData := map[string]any{"Config": app.Store.Config(), "ConfigHelp": store.ConfigHelp}
+	renderTemplate(app.templ, w, "partials/settings/config/form", formData)
 }
 
 func (app *Application) handleAPIDumpConfig(w http.ResponseWriter, r *http.Request) {
