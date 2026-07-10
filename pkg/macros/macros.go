@@ -142,7 +142,7 @@ func Substitute(input string, sess *session.Session, st *store.Store) (string, e
 			return res
 		}
 
-		// Handle State (CFG, ALIAS, VARS, ENV)
+		// Handle State (CFG, ALIAS, VARS, ENV, BUF)
 		// Strip the '$' and ask the store
 		storeKey := strings.TrimPrefix(match, "$")
 		val, ok, err := st.Get(storeKey)

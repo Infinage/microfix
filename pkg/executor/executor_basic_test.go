@@ -196,6 +196,58 @@ func TestEvalBatch_ControlFlow(t *testing.T) {
 			`,
 			expected: "PASS\nPASS\nPASS\n",
 		},
+		{
+			name: "While Loop with Continue",
+			script: `
+				set VARS.loop 3
+				while assert $VARS.loop > 0
+					decr loop
+					if assert $VARS.loop == 1
+						continue
+					endif
+					print ITER $VARS.loop
+				endwhile
+			`,
+			expected: "ITER 2\nITER 0\n",
+		},
+		{
+			name: "Nested While Loops with Break",
+			script: `
+				set VARS.outer 2
+				while assert $VARS.outer > 0
+					set VARS.inner 2
+					while assert $VARS.inner > 0
+						if assert $VARS.inner == 1
+							break
+						endif
+						print INNER $VARS.inner
+						decr inner
+					endwhile
+					print OUTER $VARS.outer
+					decr outer
+				endwhile
+			`,
+			expected: "INNER 2\nOUTER 2\nINNER 2\nOUTER 1\n",
+		},
+		{
+			name: "Nested While Loops with Continue",
+			script: `
+				set VARS.outer 2
+				while assert $VARS.outer > 0
+					set VARS.inner 2
+					while assert $VARS.inner > 0
+						decr inner
+						if assert 1 == 1
+							continue
+						endif
+						print SHOULD_NOT_SEE
+					endwhile
+					print OUTER $VARS.outer
+					decr outer
+				endwhile
+			`,
+			expected: "OUTER 2\nOUTER 1\n",
+		},
 	}
 
 	// Run the tests

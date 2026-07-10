@@ -12,7 +12,7 @@ import (
 // On true, we always execute the next immediate line.
 type Jump struct {
 	TargetOnFalse int // If -> elif; elif -> else; while -> endwhile
-	TargetOnEnd   int // If/elif/else -> endif; endwhile -> while
+	TargetOnEnd   int // If/elif/else -> endif; endwhile -> while; break -> endwhile; continue -> while
 }
 
 // We strip out comments and blanks, so track original line# for debugging
@@ -41,9 +41,10 @@ func parseJumpTable(r io.Reader) ([]Instruction, map[int]Jump, error) {
 	pc, lineNo := 0, 0
 	var stack []stackframe
 
-	// Breaks requiring cutting across if blocks, easier to track it seperately
-	// On reaching endwhile we will only set those breaks encountered within scope
-	var loopLvl int
+	// 'break/continue' requires cutting across if blocks, easier to track them seperately
+	// On reaching a continue, we track 'whilePCs' and already know the start of while block to jump to
+	// On reaching a break, simply track them. We need to reach endwhile to know where to jump to
+	var whilePCs []int
 	var breakpoints []breakPoint
 
 	scanner := bufio.NewScanner(r)
@@ -58,7 +59,7 @@ func parseJumpTable(r io.Reader) ([]Instruction, map[int]Jump, error) {
 		switch first, rest, _ := strings.Cut(line, " "); first {
 		case "if", "elif", "while":
 			instr = Instruction{Text: rest, LineNo: lineNo, Type: first}
-		case "else", "endif", "endwhile", "break", "exit":
+		case "else", "endif", "endwhile", "break", "exit", "continue":
 			// Syntax purity - single worded keywords
 			if rest != "" {
 				err := fmt.Errorf("syntax error: unexpected token following '%s' on line %d", first, lineNo)
@@ -82,7 +83,7 @@ func parseJumpTable(r io.Reader) ([]Instruction, map[int]Jump, error) {
 		case "if", "while":
 			stack = append(stack, stackframe{typ: instr.Type, pc: pc})
 			if instr.Type == "while" {
-				loopLvl++
+				whilePCs = append(whilePCs, pc)
 			}
 
 		case "elif", "else":
@@ -144,8 +145,9 @@ func parseJumpTable(r io.Reader) ([]Instruction, map[int]Jump, error) {
 			// Set all break's pc to this endwhile
 			for len(breakpoints) > 0 {
 				size := len(breakpoints)
-				if bp := breakpoints[size-1]; bp.loopLvl < loopLvl {
+				if bp := breakpoints[size-1]; bp.loopLvl < len(whilePCs) {
 					// break in outer while (while ... BREAK .. while .. endwhile)
+					// len(whilePCs) denote the current loop level we are at
 					break
 				} else {
 					// bp.loopLvl can never be > loopLvl logically, only ==
@@ -154,14 +156,24 @@ func parseJumpTable(r io.Reader) ([]Instruction, map[int]Jump, error) {
 				}
 			}
 
-			// Decrement post assigning bkpts TargetOnEnd
-			loopLvl--
+			// A single while block has ended, pop out the while pointers
+			whilePCs = whilePCs[:len(whilePCs)-1]
 
-		case "break":
-			if loopLvl <= 0 {
-				return nil, nil, fmt.Errorf("syntax error: 'break' outside of a looping construct at line %d", lineNo)
+		case "break", "continue":
+			currLoopLvl := len(whilePCs)
+			if currLoopLvl == 0 {
+				return nil, nil, fmt.Errorf("syntax error: 'break/continue' outside of a looping construct at line %d", lineNo)
 			}
-			breakpoints = append(breakpoints, breakPoint{loopLvl: loopLvl, pc: pc})
+
+			switch instr.Type {
+			case "break":
+				// accumulate breakpoints until we hit an endwhile
+				breakpoints = append(breakpoints, breakPoint{loopLvl: currLoopLvl, pc: pc})
+
+			case "continue":
+				// continue.TargetOnEnd = while
+				jumpTable[pc] = Jump{TargetOnEnd: whilePCs[currLoopLvl-1]}
+			}
 		}
 
 		instructions = append(instructions, instr)

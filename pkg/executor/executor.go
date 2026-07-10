@@ -22,74 +22,78 @@ Use quotes (" ") to group arguments containing spaces.
 Lines starting with '#' are ignored as comments.
 
 SESSION COMMANDS
-  connect [<host:port>]   Connect to target (defaults to config if omitted)
-  listen [<host:port>]    Listen for incoming connection (defaults to config)
-  disconnect              Close the active connection
-  reset                   Close and re-initialize a fresh session
-  seq <in|out> <SeqNum>   Manually override the inbound or outbound sequence number
+  connect [<host:port>]		Connect to target (defaults to config if omitted)
+  listen [<host:port>]		Listen for incoming connection (defaults to config)
+  disconnect				Close the active connection
+  reset						Close and re-initialize a fresh session
+  seq <in|out> <SeqNum>		Manually override the inbound or outbound sequence number
 
 MESSAGING COMMANDS
-  send [-r] <msg>         Send a FIX message. Use -r to send raw (skip validation)
-  wait <MsgLike>          Block and wait until a message matching <MsgLike> is received
-  expect <MsgLike>        Fail if the *next* app message doesn't match <MsgLike>
-                          (Automatically ignores background Heartbeats & Test Requests)
-  loadmsg <in|out> <id>   Load a specific message from session history into the buffer
+  send [-r] <msg>			Send a FIX message. Use -r to send raw (skip validation)
+  wait <MsgLike>			Block and wait until a message matching <MsgLike> is received
+  expect <MsgLike>			Fail if the *next* app message doesn't match <MsgLike>
+							(Automatically ignores background Heartbeats & Test Requests)
+  loadmsg <in|out> <id>		Load a specific message from session history into the buffer
 
 MSGLIKE SYNTAX
   A MsgLike is a boolean expression over FIX tags.
 
-  35=D                    Tag 35 equals D
-  35=D & 11=ABC           AND
-  35=D | 35=G             OR
-  !39=4                   NOT
-  (35=D | 35=G) & !39=4   Grouping with parentheses
+  35=D						Tag 35 equals D
+  35=D & 11=ABC				AND
+  35=D | 35=G				OR
+  !39=4						NOT
+  (35=D | 35=G) & !39=4		Grouping with parentheses
 
   Operator precedence: !, then &, then |
 
 CONTROL FLOW
-  if <cmd>                Execute block if <cmd> succeeds (e.g., if assert 1 == 1)
-  elif <cmd>              Execute block if previous conditions failed and <cmd> succeeds
-  else                    Execute block if all previous conditions failed
-  endif                   Close an if/elif/else block
-  while <cmd>             Loop block as long as <cmd> succeeds
-  endwhile                Close a while loop
-  break                   Exit the current while loop early
-  exit					  Immediately terminate script execution
+  if <cmd>					Execute block if <cmd> succeeds (e.g., if assert 1 == 1)
+  elif <cmd>				Execute block if previous conditions failed and <cmd> succeeds
+  else						Execute block if all previous conditions failed
+  endif						Close an if/elif/else block
+  while <cmd>				Loop block as long as <cmd> succeeds
+  endwhile					Close a while loop
+  break						Exit the current while loop early
+  continue					Skip to the next iteration of the current while loop
+  exit						Immediately terminate script execution
 
 SCRIPT FLOW & UTILITY
-  set <key> <val>         Set a variable in the store (e.g., set VARS.Symbol AAPL)
-  incr <key> [<val>]      Increment a numeric variable by 1 (or by optional <val>)
-  decr <key> [<val>]      Decrement a numeric variable by 1 (or by optional <val>)
-  print <val> [...]       Print text or variables to the console
-  sleep <millis>          Pause execution for N milliseconds
-  assert <exp1> <exp2>    Fail the script if exp1 != exp2
-  include <filepath>      Include and execute another script file
-  waitstatus <state>      Block until session enters state (New, Listening, 
-                          LoggingIn, Active, Stale, OutOfSync, Closed)
+  set <key> <val>           Set a variable in the store (e.g., set VARS.Symbol AAPL)
+  unset <key>               Remove a variable from the store (e.g., unset VARS.Symbol)
+  isset <key1> [...]        Succeeds only if all specified keys exist in the store
+  incr <key> [<val>]        Increment a numeric variable by 1 (or by optional <val>)
+  decr <key> [<val>]        Decrement a numeric variable by 1 (or by optional <val>)
+  print <val> [...]         Print text or variables to the console
+  sleep <millis>            Pause execution for N milliseconds
+  include <path>            Include and execute another script file
+  assert <e1> [<op>] <e2>   Fail script if expression is false.
+                            Ops: ==, !=, >, <, >=, <=, ~, !~
+  waitstatus <state>        Block until session enters state (New, Listening, 
+                            LoggingIn, Active, Stale, OutOfSync, Closed)
 
 GLOBAL VARIABLES
   Variables can be injected into any command using the '$' prefix.
 
   -- System & State --
-  $UNIQUE                 Random UUID (e.g., for ClOrdID generation)
-  $TIMESTAMP              Current UTC timestamp (YYYYMMDD-HH:MM:SS.000)
-  $DATE                   Current date (YYYYMMDD)
-  $DATE[+N]               Date offset by N days (e.g., $DATE[+1] is tomorrow)
-  $STATUS                 Current session state (e.g., "Active", "Closed")
-  $SEQ_IN / $SEQ_OUT      Current internal Inbound/Outbound Sequence Number
+  $UNIQUE					Random UUID (e.g., for ClOrdID generation)
+  $TIMESTAMP				Current UTC timestamp (YYYYMMDD-HH:MM:SS.000)
+  $DATE						Current date (YYYYMMDD)
+  $DATE[+N]					Date offset by N days (e.g., $DATE[+1] is tomorrow)
+  $STATUS					Current session state (e.g., "Active", "Closed")
+  $SEQ_IN / $SEQ_OUT		Current internal Inbound/Outbound Sequence Number
 
   -- Context & Store --
-  $CFG.<key>              Config values
-  $VARS.<key>             Script-defined values (set via 'set' command)
-  $ALIAS.<name>           Saved aliases
-  $ENV.<name>             Environment variables
-  $BUF.<tag>              Extract integer <tag> from the currently buffered message.
-                          Message is loaded into buffer upon a successful 'wait', 
-                          'expect', or explicit 'loadmsg'. Will fail if buffer is empty.
-                          (e.g., $BUF.35 or $BUF.11)
-  $LASTIN[T,t]            Extract tag 't' from last incoming message of MsgType 'T'
-  $LASTOUT[T,t]           Extract tag 't' from last outgoing message of MsgType 'T'
-                          (e.g., $LASTOUT[8,39] gets OrdStatus from ExecutionReport)
+  $CFG.<key>				Config values
+  $VARS.<key>				Script-defined values (set via 'set' command)
+  $ALIAS.<name>				Saved aliases
+  $ENV.<name>				Environment variables
+  $BUF.<tag>				Extract integer <tag> from the currently buffered message.
+							Message is loaded into buffer upon a successful 'wait', 
+							'expect', or explicit 'loadmsg'. Will fail if buffer is empty.
+							(e.g., $BUF.35 or $BUF.11)
+  $LASTIN[T,t]				Extract tag 't' from last incoming message of MsgType 'T'
+  $LASTOUT[T,t]				Extract tag 't' from last outgoing message of MsgType 'T'
+							(e.g., $LASTOUT[8,39] gets OrdStatus from ExecutionReport)
 `
 
 func NewScriptContext(
@@ -176,8 +180,8 @@ func EvalBatch(r io.Reader, ctx *script.ScriptContext) error {
 		// justJumped was true => do nothing (incr pc)
 		case "endif", "else", "endwhile":
 
-		// Unconditionally jump to end
-		case "break":
+		// Unconditionally jump to TargetOnEnd
+		case "break", "continue":
 			pc = jump.TargetOnEnd
 			justJumped = true
 			continue

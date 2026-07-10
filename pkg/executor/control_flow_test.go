@@ -121,6 +121,56 @@ func TestParseJumpTable_Success(t *testing.T) {
 				{Text: "", LineNo: 4, Type: "endif"},
 			},
 		},
+		{
+			name: "While with Continue",
+			script: `
+				while 1=1
+					if 2=2
+						continue
+					endif
+				endwhile
+			`,
+			wantJumps: map[int]Jump{
+				0: {TargetOnFalse: 4},                 // while -> endwhile on false
+				1: {TargetOnFalse: 3, TargetOnEnd: 3}, // if -> endif
+				2: {TargetOnEnd: 0},                   // continue -> while
+				4: {TargetOnEnd: 0},                   // endwhile -> while
+			},
+			wantInstr: []Instruction{
+				{Text: "1=1", LineNo: 2, Type: "while"},
+				{Text: "2=2", LineNo: 3, Type: "if"},
+				{Text: "", LineNo: 4, Type: "continue"},
+				{Text: "", LineNo: 5, Type: "endif"},
+				{Text: "", LineNo: 6, Type: "endwhile"},
+			},
+		},
+		{
+			name: "Nested while with continue and break",
+			script: `
+				while 1=1
+					while 2=2
+						continue
+					endwhile
+					continue
+				endwhile
+			`,
+			wantJumps: map[int]Jump{
+				0: {TargetOnFalse: 5}, // outer while -> outer endwhile
+				1: {TargetOnFalse: 3}, // inner while -> inner endwhile
+				2: {TargetOnEnd: 1},   // inner continue -> inner while
+				3: {TargetOnEnd: 1},   // inner endwhile -> inner while
+				4: {TargetOnEnd: 0},   // outer continue -> outer while
+				5: {TargetOnEnd: 0},   // outer endwhile -> outer while
+			},
+			wantInstr: []Instruction{
+				{Text: "1=1", LineNo: 2, Type: "while"},
+				{Text: "2=2", LineNo: 3, Type: "while"},
+				{Text: "", LineNo: 4, Type: "continue"},
+				{Text: "", LineNo: 5, Type: "endwhile"},
+				{Text: "", LineNo: 6, Type: "continue"},
+				{Text: "", LineNo: 7, Type: "endwhile"},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -164,7 +214,7 @@ func TestParseJumpTable_SyntaxErrors(t *testing.T) {
 					break
 				endif
 			`,
-			errContains: "'break' outside of a looping construct",
+			errContains: "'break/continue' outside of a looping construct",
 		},
 		{
 			name: "Double Else",
@@ -202,6 +252,15 @@ func TestParseJumpTable_SyntaxErrors(t *testing.T) {
 				endwhile
 			`,
 			errContains: "'endwhile' without a preceding while",
+		},
+		{
+			name: "Continue outside loop",
+			script: `
+				if 1=1
+					continue
+				endif
+			`,
+			errContains: "'break/continue' outside of a looping construct",
 		},
 	}
 

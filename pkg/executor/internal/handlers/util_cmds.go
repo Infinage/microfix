@@ -3,6 +3,7 @@ package script
 import (
 	"cmp"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -73,6 +74,29 @@ func handleSet(ctx *ScriptContext, args []string) error {
 	return nil
 }
 
+func handleIsSet(ctx *ScriptContext, args []string) error {
+	for i := 1; i < len(args); i++ {
+		key := strings.TrimSpace(args[i])
+		if _, ok, _ := ctx.Store.Get(key); !ok {
+			return Falsy(fmt.Errorf("key '%s' not set", key))
+		}
+	}
+	return nil
+}
+
+func handleUnSet(ctx *ScriptContext, args []string) error {
+	if len(args) != 2 {
+		return fmt.Errorf("syntax error, expected `unset <key>`")
+	}
+
+	key := strings.TrimSpace(args[1])
+	if _, _, err := ctx.Store.Unset(key); err != nil {
+		return fmt.Errorf("failed to unset: %w", err)
+	}
+
+	return nil
+}
+
 func handlePrint(ctx *ScriptContext, args []string) error {
 	fmt.Fprintln(ctx.Writer, strings.Join(args[1:], " "))
 	return nil
@@ -104,6 +128,22 @@ func compareAsFloat(arg1, arg2 string) (float64, float64, bool) {
 	f1, err1 := strconv.ParseFloat(arg1, 64)
 	f2, err2 := strconv.ParseFloat(arg2, 64)
 	return f1, f2, err1 == nil && err2 == nil
+}
+
+func evaluateFuzzy(raw, pattern, op string) (bool, error) {
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return false, fmt.Errorf("not a valid regex: `%s`: %w", pattern, err)
+	}
+
+	switch matched := re.MatchString(raw); op {
+	case "~":
+		return matched, nil
+	case "!~":
+		return !matched, nil
+	default:
+		return false, fmt.Errorf("unexpected operator: %q", op)
+	}
 }
 
 func evaluateExpr[T cmp.Ordered](v1, v2 T, op string) bool {
@@ -139,8 +179,14 @@ func handleAssert(_ *ScriptContext, args []string) error {
 		expr2 = strings.TrimSpace(args[2])
 	}
 
+	var err error
 	var result bool
-	if f1, f2, numOk := compareAsFloat(expr1, expr2); numOk {
+	if op == "~" || op == "!~" {
+		result, err = evaluateFuzzy(expr1, expr2, op)
+		if err != nil {
+			return err // invalid regex
+		}
+	} else if f1, f2, numOk := compareAsFloat(expr1, expr2); numOk {
 		result = evaluateExpr(f1, f2, op)
 	} else {
 		result = evaluateExpr(expr1, expr2, op)
@@ -171,6 +217,8 @@ func handleLoadMsg(ctx *ScriptContext, args []string) error {
 
 func init() {
 	RegisterCommand("set", handleSet)         // set <key> <value>
+	RegisterCommand("isset", handleIsSet)     // isset [<key1>, [<key2> [...]]]
+	RegisterCommand("unset", handleUnSet)     // unset <key>
 	RegisterCommand("incr", handleIncr)       // incr <var> [<value>]
 	RegisterCommand("decr", handleDecr)       // decr <var> [<value>]
 	RegisterCommand("print", handlePrint)     // print [<value1>, [<value2> [...]]]
