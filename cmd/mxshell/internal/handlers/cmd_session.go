@@ -94,7 +94,7 @@ func handleSend(ctx *ShellContext, args []string) {
 	// Substitute placeholders if any (even if sending as 'raw')
 	sess := ctx.Session()
 	if err == nil {
-		raw, err = macros.Substitute(raw, sess, ctx.Store)
+		raw, err = macros.Substitute(raw, sess, ctx.Store, false)
 	}
 
 	// Parse the text into message struct

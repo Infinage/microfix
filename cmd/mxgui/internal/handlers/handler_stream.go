@@ -93,7 +93,7 @@ func (app *Application) handleAPISend(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	sess := app.Session()
-	if msgRaw, err = macros.Substitute(msgRaw, sess, app.Store); err != nil {
+	if msgRaw, err = macros.Substitute(msgRaw, sess, app.Store, false); err != nil {
 		toast(w, app.templ, "error", fmt.Sprintf("Failed to substitute macros: %s", err.Error()))
 		return
 	}

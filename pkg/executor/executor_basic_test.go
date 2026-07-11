@@ -265,3 +265,64 @@ func TestEvalBatch_ControlFlow(t *testing.T) {
 		})
 	}
 }
+
+func TestEval_IssetUnset(t *testing.T) {
+	ctx, _ := setupTestContext(t, nil)
+
+	// Test isset on a missing variable (Should fail)
+	if err := Eval("isset VARS.Missing", ctx); err == nil {
+		t.Error("Expected isset to fail for missing variable, but it passed")
+	}
+
+	// Set variable and test isset (Should pass)
+	if err := Eval("set VARS.Found 123", ctx); err != nil {
+		t.Fatalf("Failed to set variable: %v", err)
+	}
+	if err := Eval("isset VARS.Found", ctx); err != nil {
+		t.Errorf("Expected isset to pass for existing variable, got error: %v", err)
+	}
+
+	// Test multi-isset (Should pass when all exist)
+	Eval("set VARS.Second 456", ctx)
+	if err := Eval("isset VARS.Found VARS.Second", ctx); err != nil {
+		t.Errorf("Expected multi-isset to pass, got error: %v", err)
+	}
+
+	// Unset one and test multi-isset again (Should fail)
+	if err := Eval("unset VARS.Found", ctx); err != nil {
+		t.Fatalf("Failed to unset variable: %v", err)
+	}
+	if err := Eval("isset VARS.Found VARS.Second", ctx); err == nil {
+		t.Error("Expected multi-isset to fail after unsetting one variable, but it passed")
+	}
+}
+
+func TestEval_AssertRegex(t *testing.T) {
+	ctx, _ := setupTestContext(t, nil)
+	ctx.Store.Set("VARS.LogMsg", "ExecutionReport: Filled")
+
+	// Test Regex Prefix Match (~)
+	if err := Eval("assert $VARS.LogMsg ~ ^ExecutionReport.*", ctx); err != nil {
+		t.Errorf("Expected regex prefix match to pass, got: %v", err)
+	}
+
+	// Test Regex Suffix Match (~)
+	if err := Eval("assert $VARS.LogMsg ~ .*Filled$", ctx); err != nil {
+		t.Errorf("Expected regex suffix match to pass, got: %v", err)
+	}
+
+	// Test Regex Negative Match (!~)
+	if err := Eval("assert $VARS.LogMsg !~ ^OrderSingle.*", ctx); err != nil {
+		t.Errorf("Expected negative regex match (!~) to pass, got: %v", err)
+	}
+
+	// Test Failing Regex Match
+	if err := Eval("assert $VARS.LogMsg ~ ^OrderSingle.*", ctx); err == nil {
+		t.Error("Expected regex match to fail for incorrect pattern, but it passed")
+	}
+
+	// Test Invalid Regex Pattern
+	if err := Eval("assert string ~ [broken-regex", ctx); err == nil {
+		t.Error("Expected invalid regex compilation to fail gracefully, but it passed")
+	}
+}

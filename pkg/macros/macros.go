@@ -107,10 +107,14 @@ func substituteSnapshot(raw string, sess *session.Session) string {
 	}
 }
 
-// Expand takes a string like "35=D|11=$UNIQUE|55=$VAR.Symbol" and fills it in.
-// Magic vars: $UNIQUE, $TIMESTAMP, $DATE, $DATE[+days], $LASTIN[MsgType, tag], $LASTOUT[MsgType,tag]
-// Store vars: $CFG.*, $ALIAS.*, $VARS.*, $ENV.*
-func Substitute(input string, sess *session.Session, st *store.Store) (string, error) {
+// Substitute resolves variables in a string (e.g. "35=D|11=$UNIQUE|55=$VARS.Symbol").
+//
+// Supports: $UNIQUE, $TIMESTAMP, $DATE[+days], $SEQ_IN, $SEQ_OUT, $STATUS,
+// $LASTIN/$LASTOUT extractors and $CFG/$ALIAS/$VARS/$ENV/$BUF namespaces.
+//
+// If quoteIfSpaces is true, resolved values containing whitespace are CSV-quoted
+// so downstream tokenizers treat them as a single argument.
+func Substitute(input string, sess *session.Session, st *store.Store, quoteIfSpaces bool) (string, error) {
 	var expandErr error
 
 	// match is the full string: "$VAR.Symbol" or "$UNIQUE" or "$LASTIN[35]"
@@ -150,6 +154,13 @@ func Substitute(input string, sess *session.Session, st *store.Store) (string, e
 			expandErr = fmt.Errorf("variable resolution failed for '%s': %w", match, err)
 			return match
 		}
+
+		// Enclose multi word strings inside quotes for a CSV reader to understand
+		if quoteIfSpaces && strings.ContainsAny(val, " \t\r\n") {
+			val = strings.ReplaceAll(val, `"`, `""`)
+			val = `"` + val + `"`
+		}
+
 		return val
 	})
 

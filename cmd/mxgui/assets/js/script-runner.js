@@ -32,7 +32,8 @@ export async function initCodeJar(editorDiv, hiddenInput) {
     });
     
     // Load initial state from storage or default
-    const saved = localStorage.getItem("mxshell-script") || hiddenInput.value;
+    let saved = localStorage.getItem("mxshell-script");
+    if (!saved.trim()) saved = hiddenInput.value;
     jar.updateCode(saved);
     
     } catch (error) {

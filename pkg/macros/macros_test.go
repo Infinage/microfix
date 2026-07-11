@@ -94,7 +94,7 @@ func TestSubstituteDate(t *testing.T) {
 }
 
 func TestSubstitute_Variables(t *testing.T) {
-	// Initialize a dummy store
+	// Initialize a dummy store for the table-driven tests
 	st := store.InitStore()
 
 	_, _, _ = st.Set("VARS.Symbol", "AAPL")
@@ -107,57 +107,98 @@ func TestSubstitute_Variables(t *testing.T) {
 	}
 	st.SetBuffer(msg)
 
-	t.Run("Standard Variables", func(t *testing.T) {
-		input := "8=$BUF.8|35=D|55=$VARS.Symbol|38=$VARS.Qty|"
-		expected := "8=FIX.4.4|35=D|55=AAPL|38=100|"
+	tests := []struct {
+		name          string
+		input         string
+		expected      string
+		quoteIfSpaces bool
+		expectErr     bool
+		setup         func(*store.Store)
+	}{
+		{
+			name:     "Standard Variables",
+			input:    "8=$BUF.8|35=D|55=$VARS.Symbol|38=$VARS.Qty|",
+			expected: "8=FIX.4.4|35=D|55=AAPL|38=100|",
+		},
+		{
+			name:     "Alias Expansion",
+			input:    "send $ALIAS.Logon",
+			expected: "send 35=A|98=0|108=30",
+		},
+		{
+			name:      "Missing Variable (Strict Failure)",
+			input:     "35=D|55=$VARS.DoesNotExist|",
+			expectErr: true,
+		},
+		{
+			name:      "Missing Namespace (Strict Failure)",
+			input:     "35=D|55=$UNKNOWN.Symbol|",
+			expectErr: true,
+		},
+		{
+			name:          "quoteIfSpaces: False with Multi-Word String",
+			setup:         func(s *store.Store) { s.Set("VARS.MultiWord", "Execution Report") },
+			input:         "assert $VARS.MultiWord == 'Execution Report'",
+			expected:      "assert Execution Report == 'Execution Report'",
+			quoteIfSpaces: false,
+		},
+		{
+			name:          "quoteIfSpaces: True with Single-Word String",
+			setup:         func(s *store.Store) { s.Set("VARS.SingleWord", "New") },
+			input:         "assert $VARS.SingleWord == 'New'",
+			expected:      "assert New == 'New'",
+			quoteIfSpaces: true,
+		},
+		{
+			name:          "quoteIfSpaces: True with Multi-Word String",
+			setup:         func(s *store.Store) { s.Set("VARS.MultiWord", "Execution Report") },
+			input:         "assert $VARS.MultiWord == 'Execution Report'",
+			expected:      `assert "Execution Report" == 'Execution Report'`,
+			quoteIfSpaces: true,
+		},
+		{
+			name:          "quoteIfSpaces: True with Multi-Word String and Internal Quotes",
+			setup:         func(s *store.Store) { s.Set("VARS.QuotedString", `Execution "Filled" Report`) },
+			input:         "print $VARS.QuotedString",
+			expected:      `print "Execution ""Filled"" Report"`,
+			quoteIfSpaces: true,
+		},
+	}
 
-		res, err := Substitute(input, nil, &st)
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
-		if res != expected {
-			t.Errorf("Expected %q, got %q", expected, res)
-		}
-	})
+	// Run table-driven tests
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.setup != nil {
+				tt.setup(&st)
+			}
 
-	t.Run("Alias Expansion", func(t *testing.T) {
-		input := "send $ALIAS.Logon"
-		expected := "send 35=A|98=0|108=30"
+			res, err := Substitute(tt.input, nil, &st, tt.quoteIfSpaces)
+			if tt.expectErr {
+				if err == nil {
+					t.Fatalf("Expected an error but got nil")
+				}
+				return // Test passes if error is expected and caught
+			}
 
-		res, err := Substitute(input, nil, &st)
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
-		if res != expected {
-			t.Errorf("Expected %q, got %q", expected, res)
-		}
-	})
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			if res != tt.expected {
+				t.Errorf("Expected %q, got %q", tt.expected, res)
+			}
+		})
+	}
 
 	t.Run("Magics: Unique and Timestamp", func(t *testing.T) {
 		input := "11=$UNIQUE|52=$TIMESTAMP|"
-		res, err := Substitute(input, nil, &st)
+		res, err := Substitute(input, nil, &st, false)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 
 		if strings.Contains(res, "$UNIQUE") || strings.Contains(res, "$TIMESTAMP") {
 			t.Errorf("Variables were not fully expanded: %s", res)
-		}
-	})
-
-	t.Run("Missing Variable (Strict Failure)", func(t *testing.T) {
-		input := "35=D|55=$VARS.DoesNotExist|"
-		_, err := Substitute(input, nil, &st)
-		if err == nil {
-			t.Error("Expected an error for a missing variable, got nil")
-		}
-	})
-
-	t.Run("Missing Namespace (Strict Failure)", func(t *testing.T) {
-		input := "35=D|55=$UNKNOWN.Symbol|"
-		_, err := Substitute(input, nil, &st)
-		if err == nil {
-			t.Error("Expected an error for an unknown prefix, got nil")
 		}
 	})
 
@@ -168,7 +209,7 @@ func TestSubstitute_Variables(t *testing.T) {
 		}
 
 		input := "Status: $STATUS | In: $SEQ_IN | Out: $SEQ_OUT"
-		res, err := Substitute(input, sess, &st)
+		res, err := Substitute(input, sess, &st, false)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
