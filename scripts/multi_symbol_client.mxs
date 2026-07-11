@@ -1,0 +1,44 @@
+# multi_symbol_client.mxs
+#
+# Demonstrates `include` for reusable script logic: routes one order each
+# for a small basket of symbols by setting VARS.Symbol/Qty/Side and
+# including send_order.mxs for every symbol, instead of duplicating the
+# send/wait block per symbol.
+#
+# Basket is unrolled explicitly (3 blocks) rather than looped, since each
+# symbol has different Qty/Side - a while loop would need a parallel
+# array/index scheme that adds more complexity than it saves for 3 items.
+#
+# Usage: PORT=<port> mxshell -f run multi_symbol_client.mxs
+
+# Load setup script and reset for changes to reflect
+include scripts/setup.mxs
+reset
+waitstatus New
+
+connect :$VARS.PORT
+if waitstatus Active
+    set VARS.Symbol AAPL
+    set VARS.Qty 100
+    set VARS.Side 1
+    include scripts/send_order.mxs
+    sleep $VARS.SLEEP
+
+    set VARS.Symbol MSFT
+    set VARS.Qty 200
+    set VARS.Side 1
+    include scripts/send_order.mxs
+    sleep $VARS.SLEEP
+
+    set VARS.Symbol GOOG
+    set VARS.Qty 50
+    set VARS.Side 2
+    include scripts/send_order.mxs
+
+    print "Basket routed."
+    disconnect
+    reset
+    waitstatus New
+else
+    print Session disconnect from acceptor
+endif

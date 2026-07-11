@@ -1,6 +1,7 @@
 package store
 
 import (
+	"fmt"
 	"path"
 	"testing"
 
@@ -237,4 +238,21 @@ func TestStore_Buffer(t *testing.T) {
 			t.Errorf("Unexpected error: %v", err)
 		}
 	})
+}
+
+func TestStore_LastError(t *testing.T) {
+	s := setupTestStore(t)
+	if err := s.LastError(); err != nil {
+		t.Errorf("Unexpected last error: %v", err)
+	}
+
+	s.SetLastError(fmt.Errorf("Session has already started"))
+	if err := s.LastError(); err == nil {
+		t.Error("Expected to see an error but got nil")
+	}
+
+	s.SetLastError(nil)
+	if err := s.LastError(); err != nil {
+		t.Errorf("Unexpected last error: %v", err)
+	}
 }

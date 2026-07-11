@@ -1,0 +1,38 @@
+# setup.mxs
+#
+# Shared config loader, included at the top of every other script in this
+# folder. Centralizes the PORT / SenderCompID / TargetCompID / SLEEP knobs
+# so each script doesn't have to redefine its own ENV-override boilerplate.
+#
+# Any script that includes this should `reset` + `waitstatus New`
+# immediately after, since CFG changes only take effect on a fresh session -
+# see the comment in acceptor.mxs/initiator.mxs for why.
+
+# Listening/connecting port -> defaults to 3001, override via ENV.PORT
+set VARS.PORT 3001
+if isset ENV.PORT
+    set VARS.PORT $ENV.PORT
+endif
+
+# SenderCompID -> defaults to CLIENT, override via ENV.SENDER
+# (acceptor.mxs overrides this again to SERVER after including this file,
+# since the two sides of a session need opposite Sender/Target CompIDs)
+if isset ENV.SENDER
+    set CFG.SenderCompID $ENV.SENDER
+else
+    set CFG.SenderCompID "CLIENT"
+endif
+
+# TargetCompID -> defaults to SERVER, override via ENV.TARGET
+if isset ENV.TARGET
+    set CFG.TargetCompID $ENV.TARGET
+else
+    set CFG.TargetCompID "SERVER"
+endif
+
+# Pause between consecutive messages in the calling script's loops -
+# gives the acceptor breathing room and keeps console output readable
+set VARS.SLEEP 250
+if isset ENV.SLEEP
+    set VARS.SLEEP $ENV.SLEEP
+endif

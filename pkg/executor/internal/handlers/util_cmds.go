@@ -193,7 +193,7 @@ func handleAssert(_ *ScriptContext, args []string) error {
 	}
 
 	if !result {
-		return Falsy(fmt.Errorf("assert failed for expression: \"'%s' %s '%s'\"", expr1, op, expr2))
+		return Falsy(fmt.Errorf("assertion failed: '%s %s %s'", expr1, op, expr2))
 	}
 
 	return nil

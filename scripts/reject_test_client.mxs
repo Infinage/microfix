@@ -1,0 +1,69 @@
+# reject_test_client.mxs
+#
+# Exercises the acceptor's three rejection paths and checks both the
+# reason code (tag 380) and the human-readable text (tag 58) on each:
+#   1. An unsupported message type (35=F instead of 35=D)
+#   2. A NewOrderSingle missing required tags (55, 38)
+#   3. A NewOrderSingle with an unsupported OrdType (Limit instead of Market)
+#
+# Usage: PORT=<port> mxshell -f run reject_test_client.mxs
+
+include scripts/setup.mxs
+reset
+waitstatus New
+
+connect :$VARS.PORT
+if waitstatus Active
+    print "Connected. Running rejection scenarios..."
+
+    # --- Scenario 1: unsupported message type ---
+    # 35=F is Order Cancel Request, which this acceptor doesn't handle at all
+    print "Scenario 1: unsupported message type"
+    send "8=|9=|35=F|49=|56=|34=|52=|41=$UNIQUE|11=$UNIQUE|54=1|60=$TIMESTAMP|10=|"
+    if expect 35=j
+        assert $BUF.380 == 3
+        assert $BUF.58 == "Unsupported application message"
+        print Rejected as expected. Reason code (380): $BUF.380
+    else
+        print "FAIL: expected a Business Message Reject"
+        disconnect
+        exit
+    endif
+
+    sleep $VARS.SLEEP
+
+    # --- Scenario 2: missing required fields (no 55/38) ---
+    print "Scenario 2: missing required fields"
+    send "8=|9=|35=D|49=|56=|34=|52=|11=$UNIQUE|54=1|60=$TIMESTAMP|40=1|10=|"
+    if expect 35=j
+        assert $BUF.380 == 5
+        # Fuzzy match (~) since the exact tag list in the message can vary -
+        # only care that the reason text mentions missing fields
+        assert $BUF.58 ~ "Missing required fields.+"
+        print Rejected as expected. Reason code (380): $BUF.380
+    else
+        print "FAIL: expected a Business Message Reject"
+        disconnect
+        exit
+    endif
+
+    sleep $VARS.SLEEP
+
+    # --- Scenario 3: unsupported order type (Limit, 40=2, instead of Market) ---
+    print "Scenario 3: unsupported order type"
+    send "8=|9=|35=D|49=|56=|34=|52=|11=$UNIQUE|54=1|55=AAPL|38=1000|60=$TIMESTAMP|40=2|10=|"
+    if expect 35=j
+        assert $BUF.380 == 3
+        assert $BUF.58 == "Unsupported order type"
+        print "Rejected as expected. Reason code (380): " $BUF.380
+    else
+        print "FAIL: expected a Business Message Reject"
+        disconnect
+        exit
+    endif
+
+    print "All rejection scenarios passed."
+    disconnect
+    reset
+    waitstatus New
+endif

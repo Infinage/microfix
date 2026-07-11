@@ -4,6 +4,7 @@
     x-data="{
         tagMap: {{ getAllFieldNamesAsJSON .Router }},
         fields: [],
+        draggedId: null,
         
         initFromRaw() {
             let raw = document.getElementById('message-input').value.trim();
@@ -15,9 +16,9 @@
             if (!raw) {
                 // If textarea is empty, provide a sensible starter template
                 this.fields = [
-                    { tag: '35', value: '' },
-                    { tag: '49', value: '' },
-                    { tag: '56', value: '' }
+                    { id: 1, tag: '35', value: '' },
+                    { id: 2, tag: '49', value: '' },
+                    { id: 3, tag: '56', value: '' }
                 ];
                 return;
             }
@@ -28,14 +29,28 @@
                 if (parts.length >= 2) {
                     let tag = parts.shift().trim();
                     let val = parts.join('=').trim(); // re-join in case value contains an '='
-                    this.fields.push({ tag: tag, value: val });
+                    // Add a unique ID so Alpine can track DOM elements during reorder
+                    this.fields.push({ id: Math.random().toString(36).substring(2, 9), tag: tag, value: val });
                 }
             });
         },
         
-        addField() { this.fields.push({ tag: '', value: '' }); },
+        addField() { this.fields.push({ id: Math.random().toString(36).substring(2, 9), tag: '', value: '' }); },
         
         removeField(index) { this.fields.splice(index, 1); },
+
+        // Handles array reordering when dropping
+        drop(toIndex) {
+          if (!this.draggedId) return;
+          const fromIndex = this.fields.findIndex(f => f.id === this.draggedId);
+          if (fromIndex === -1 || fromIndex === toIndex) {
+              this.draggedId = null;
+              return;
+          }
+          const item = this.fields.splice(fromIndex, 1)[0];
+          this.fields.splice(toIndex, 0, item);
+          this.draggedId = null;
+        },
         
         applyToEditor() {
             // Re-serialize valid fields back into the FIX format
@@ -46,7 +61,7 @@
                 
             let ta = document.getElementById('message-input');
             if (ta) {
-                ta.value = fixString + (fixString ? '|' : ''); // Optional: append trailing pipe
+                ta.value = fixString + (fixString ? '|' : ''); 
                 ta.dispatchEvent(new Event('input', { bubbles: true }));
             }
             
@@ -60,7 +75,6 @@
     }"
     
     x-init="$watch('modal', value => { if (value === 'form') initFromRaw() })"
-    
     @mousedown.outside="modal = ''" 
     class="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-[600px] max-h-[80vh] flex flex-col z-50 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
 >
@@ -76,25 +90,50 @@
         </button>
     </div>
 
-    <div class="p-4 overflow-y-auto flex-1 bg-[#0a0d12] space-y-1">
-        <template x-for="(field, index) in fields" :key="index">
-            <div class="flex items-center space-x-3 hover:bg-gray-900 p-1.5 rounded transition group">
-                
+    <div 
+      class="p-4 overflow-y-auto flex-1 bg-[#0a0d12] space-y-1"
+      @dragover.window="
+          if (draggedId) {
+              let rect = $el.getBoundingClientRect();
+              if ($event.clientX < rect.left || $event.clientX > rect.right || $event.clientY < rect.top || $event.clientY > rect.bottom) {
+                  draggedId = null;
+              }
+          }
+      "
+    >
+        <template x-for="(field, index) in fields" :key="field.id">
+              <div 
+                @dragenter.prevent=""
+                @dragover.prevent="$event.dataTransfer.dropEffect = 'move'"
+                @drop.prevent="drop(index)"
+                :class="{'opacity-40 border-dashed border-gray-600 bg-gray-900': draggedId === field.id, 'border-transparent': draggedId !== field.id}"
+                class="flex items-center space-x-3 hover:bg-gray-900 p-1.5 rounded transition group border cursor-move"
+              >
+                <div 
+                    draggable="true"
+                    @dragstart="draggedId = field.id; $event.dataTransfer.effectAllowed = 'move'; $event.dataTransfer.setData('text/plain', field.id)"
+                    @dragend="draggedId = null" class="text-gray-600 group-hover:text-gray-400 shrink-0 cursor-move" title="Drag to reorder"
+                >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9h8M8 15h8"></path>
+                    </svg>
+                </div>
+
                 <div class="w-48 flex items-center space-x-2 shrink-0">
-                    <input x-model="field.tag" type="text" placeholder="Tag"
-                        class="w-12 bg-gray-950 border border-gray-700 rounded px-1.5 py-1 text-sm text-blue-300 font-mono 
-                          focus:border-blue-500 focus:outline-none text-center placeholder-gray-700" 
+                    <input x-model="field.tag" type="text" placeholder="Tag" @focus="draggedId = null"
+                      class="w-12 bg-gray-950 border border-gray-700 rounded px-1.5 py-1 text-sm text-blue-300 font-mono 
+                        focus:border-blue-500 focus:outline-none text-center placeholder-gray-700" 
                     >
                     <span 
-                        class="text-xs font-mono truncate max-w-[130px]" 
-                        x-text="getTagName(field.tag)" 
-                        :class="!tagMap[field.tag] && field.tag.trim() !== '' ? 'text-yellow-600 italic' : 'text-gray-500'"
+                      class="text-xs font-mono truncate max-w-[130px]" 
+                      x-text="getTagName(field.tag)" 
+                      :class="!tagMap[field.tag] && field.tag.trim() !== '' ? 'text-yellow-600 italic' : 'text-gray-500'"
                     ></span>
                 </div>
                 
                 <input 
-                    x-model="field.value" type="text" placeholder="Value"
-                    class="flex-1 bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-sm text-white font-mono focus:border-blue-500 focus:outline-none placeholder-gray-800" 
+                  x-model="field.value" type="text" placeholder="Value" @focus="draggedId = null"
+                  class="flex-1 bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-sm text-white font-mono focus:border-blue-500 focus:outline-none placeholder-gray-800" 
                 >
                 
                 <button @click="removeField(index)" class="opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-400 transition p-1" title="Remove Field" >

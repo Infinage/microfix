@@ -1,0 +1,79 @@
+# acceptor.mxs
+#
+# Long-running acceptor: listens for a connection, then for every incoming
+# app-level message checks whether it's a valid market NewOrderSingle (35=D).
+# Valid orders get an ExecutionReport ack; anything else gets a Business
+# Message Reject (35=j). Loops forever, re-listening after each disconnect.
+
+# Pull in shared config, then override the CompIDs the acceptor side needs -
+# setup.mxs defaults to CLIENT/SERVER (for the initiator scripts), so flip
+# them here since this side of the session needs the opposite identity
+include scripts/setup.mxs
+set CFG.SenderCompID "SERVER"
+set CFG.TargetCompID "CLIENT"
+
+# Reset once so the CFG overrides above actually take effect before we
+# start listening (same reasoning as the client scripts - CFG is only
+# read on session (re)init)
+reset
+waitstatus New
+
+# Outer loop: accept one client, run the session to completion, then reset
+# and go back to listening - runs forever (assert 1 1 is always truthy)
+while assert 1 1
+    if listen :$VARS.PORT
+        print Inbound Connection Request
+
+        if waitstatus Active
+            print Logon Successful
+
+            # Inner loop: process app messages until the session drops
+            # (STATUS flips to Closed on disconnect, ending this loop)
+            while assert $STATUS != Closed
+
+                # Ignore admin/session-level messages (Heartbeat=0,
+                # TestRequest=1, ResendRequest=2, Reject=3, SequenceReset=4,
+                # Logout=5, Logon=A) - only match actual application traffic
+                if wait "!35=0 & !35=1 & !35=2 & !35=3 & !35=4 & !35=5 & !35=A"
+                    print (App) R << $BUF.35
+
+                    if assert $BUF.35 D
+                        # It's a NewOrderSingle - validate required tags first
+                        if not isset BUF.11 BUF.55 BUF.54 BUF.38
+                            print Rejecting: Missing Required Fields [11, 55, 54, 38]
+                            set VARS.msg "8=|9=|35=j|34=|49=|52=|56=|45=$BUF.34|372=D|380=5|58=Missing required fields [11, 55, 54, 38]|10=|"
+
+                        # Only market orders (40=1) are supported by this demo
+                        elif not assert $BUF.40 == 1
+                            print Rejecting: Unsupported Order Type
+                            set VARS.msg "8=|9=|35=j|34=|49=|52=|56=|45=$BUF.34|372=D|380=3|58=Unsupported order type|10=|"
+
+                        # Valid market order - ack with an ExecutionReport (New)
+                        else
+                            print Sending Execution Report for ClOrdID $BUF.11
+                            set VARS.msg "8=|9=|35=8|34=|49=|52=|56=|37=$UNIQUE|17=$UNIQUE|150=0|39=0|11=$BUF.11|55=$BUF.55|54=$BUF.54|38=$BUF.38|151=$BUF.38|14=0|6=0|10=|"
+                        endif
+                    else
+                        # Not a NewOrderSingle at all - reject with a
+                        # Business Message Reject naming the unsupported type
+                        print Rejecting: Unsupported Message Type $BUF.35
+                        set VARS.msg "8=...|9=...|35=j|34=...|49=...|52=...|56=...|45=$BUF.34|372=$BUF.35|380=3|58=Unsupported application message|10=...|"
+                    endif
+
+                    # Dispatch whichever response was constructed above
+                    if not send $VARS.msg
+                        print Send failed: $ERROR
+                    endif
+
+                endif
+            endwhile
+
+            print Connection Closed
+        endif
+    endif
+
+    # Client disconnected (or logon failed) - reset session state and
+    # go back to listening for the next connection
+    reset
+    waitstatus New
+endwhile

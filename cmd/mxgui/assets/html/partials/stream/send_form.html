@@ -59,6 +59,7 @@
   x-data="{ mode: 'alias', selectedAlias: '', selectedMsgType: '' }" 
   @config-reloaded.window="selectedAlias = ''; selectedMsgType = ''"
   @refresh-alias.window="selectedAlias = ''"
+  @mousedown="inspectorOpen = false"
   class="bg-gray-900/40 border-b border-gray-800 flex flex-col shrink-0 p-4"
 >
     <div class="flex flex-wrap lg:flex-nowrap justify-between items-center gap-3 mb-3">

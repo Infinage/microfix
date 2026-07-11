@@ -123,6 +123,12 @@ func Substitute(input string, sess *session.Session, st *store.Store, quoteIfSpa
 		if match == "$UNIQUE" {
 			return uuid()
 		}
+		if match == "$ERROR" {
+			if err := st.LastError(); err != nil {
+				return err.Error()
+			}
+			return ""
+		}
 		if match == "$TIMESTAMP" {
 			return time.Now().UTC().Format("20060102-15:04:05.000")
 		}

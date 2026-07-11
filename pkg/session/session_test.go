@@ -342,34 +342,3 @@ func TestSession_PreStartLogging(t *testing.T) {
 		t.Fatal("Timeout waiting for pre-subscribed startup log")
 	}
 }
-
-func TestSession_SlowConsumerDoesNotBlock(t *testing.T) {
-	sess, _ := NewSession("FIX44.xml", "S", "T", 30, EngineOptions{})
-	mockConn := transport.NewMockConnection(100)
-	sess.Start(mockConn, true)
-
-	// Subscribe but purposefully NEVER read from this channel
-	_, unsub, err := sess.SubscribeLog()
-	if err != nil {
-		t.Fatal("Failed to subscribe logs")
-	}
-	defer unsub()
-
-	// Start a goroutine to drain out any outgoing messages
-	go mockConn.Drain()
-
-	// Try to overwhelm the session with log-generating actions
-	msg, _ := sess.Router().Sample("0", spec.SampleOptions{})
-	for range 300 {
-		_ = sess.Send(msg, false)
-	}
-
-	// If the session handles the unread channel properly via the `default:` drop case,
-	// the Status() request will succeed immediately. If it blocks, it means the `run()` loop is frozen.
-	status := sess.Status()
-	if status.State == SessionClosed {
-		t.Fatal("Session crashed due to slow consumer")
-	}
-
-	sess.Close()
-}

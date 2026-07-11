@@ -248,6 +248,75 @@ func TestEvalBatch_ControlFlow(t *testing.T) {
 			`,
 			expected: "OUTER 2\nOUTER 1\n",
 		},
+		{
+			name: "Falsy Error Storage - If/Else",
+			script: `
+                if assert 1 == 2
+                    print SHOULD_NOT_RUN
+                else
+                    print $ERROR
+                endif
+            `,
+			expected: "assertion failed: '1 == 2'\n",
+		},
+		{
+			name: "Falsy Error Storage - Elif Chain",
+			script: `
+                if assert AAPL == MSFT
+                    print ONE
+                elif assert 50 > 100
+                    print TWO
+                else
+                    print $ERROR
+                endif
+            `,
+			expected: "assertion failed: '50 > 100'\n",
+		},
+		{
+			name: "Falsy Error Cleared/Not present initially",
+			script: `
+                if assert 1 == 1
+                    print NO_ERROR_$ERROR
+                endif
+            `,
+			expected: "NO_ERROR_\n",
+		},
+		{
+			name: "Not Command - Inverts True to Falsy",
+			script: `
+                if not assert 1 == 1
+                    print SHOULD_NOT_RUN
+                endif
+				print $ERROR
+            `,
+			expected: "assertion failed: 'not assert 1 == 1'\n",
+		},
+		{
+			name: "Not Command - Inverts Falsy to True",
+			script: `
+                if not assert 1 == 2
+                    print INVERTED_SUCCESS
+                endif
+            `,
+			expected: "INVERTED_SUCCESS\n",
+		},
+		{
+			name: "Standalone Not captures FalsyError without interrupting flow",
+			script: `
+				not assert 1 2
+				print $ERROR
+			`,
+			expected: "assertion failed: '1 == 2'\n",
+		},
+		{
+			name: "Control flow overrides NOT's captures",
+			script: `
+				if not assert 1 2
+				endif
+				print $ERROR
+			`,
+			expected: "\n",
+		},
 	}
 
 	// Run the tests
@@ -269,9 +338,12 @@ func TestEvalBatch_ControlFlow(t *testing.T) {
 func TestEval_IssetUnset(t *testing.T) {
 	ctx, _ := setupTestContext(t, nil)
 
-	// Test isset on a missing variable (Should fail)
+	// Test isset on a missing variable
 	if err := Eval("isset VARS.Missing", ctx); err == nil {
 		t.Error("Expected isset to fail for missing variable, but it passed")
+	}
+	if err := Eval("not isset VARS.Missing", ctx); err != nil {
+		t.Errorf("Expected 'not isset' to pass for missing variable, got error: %v", err)
 	}
 
 	// Set variable and test isset (Should pass)
@@ -280,6 +352,9 @@ func TestEval_IssetUnset(t *testing.T) {
 	}
 	if err := Eval("isset VARS.Found", ctx); err != nil {
 		t.Errorf("Expected isset to pass for existing variable, got error: %v", err)
+	}
+	if err := Eval("not isset VARS.Found", ctx); err == nil {
+		t.Error("Expected 'not isset' to fail for existing variable, but it passed")
 	}
 
 	// Test multi-isset (Should pass when all exist)

@@ -1,0 +1,48 @@
+# initiator.mxs
+#
+# Test driver for acceptor.mxs. Connects, fires off a batch of
+# NewOrderSingle orders, and asserts each one comes back acked (New).
+#
+# Usage: `PORT=<port> SLEEP=<millis> mxshell -f run initiator.mxs`
+# PORT and SLEEP are optional; defaults of 3001 and 250ms apply if unset.
+
+# Pull in shared PORT/CompID/SLEEP config, then reset so those CFG values
+# actually take effect (CFG is only read when a session is (re)initialized,
+# so changing it mid-session has no effect until the next reset)
+include scripts/setup.mxs
+reset
+waitstatus New
+
+# Host left blank -> falls back to config default; only port is overridden
+connect :$VARS.PORT
+if waitstatus Active
+    print Connected, sending test orders...
+
+    set VARS.OrderCount 0
+    set VARS.MaxOrders 100
+
+    while assert $VARS.OrderCount < $VARS.MaxOrders
+        # Fresh ClOrdID per order so the acceptor treats each as distinct
+        set VARS.ClOrdID $UNIQUE
+
+        # Market order (40=1), quantity 1000 AAPL, buy side (54=1)
+        send "8=|9=|35=D|49=|56=|34=|52=|11=$VARS.ClOrdID|54=1|55=AAPL|38=1000|60=$TIMESTAMP|40=1|10=|"
+
+        # Acceptor should respond with ExecutionReport, OrdStatus=New (39=0)
+        expect 35=8 & 39=0
+        print Order $VARS.ClOrdID acked, OrderID=$BUF.37
+
+        # incr takes a bare VARS key (no $, no VARS. prefix) - it always
+        # operates on the VARS namespace internally
+        incr OrderCount
+        sleep $VARS.SLEEP
+    endwhile
+
+    print $VARS.OrderCount orders completed.
+
+    disconnect
+    reset
+    waitstatus New
+else
+    print Session disconnect from acceptor
+endif

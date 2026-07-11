@@ -66,6 +66,7 @@ SCRIPT FLOW & UTILITY
   print <val> [...]         Print text or variables to the console
   sleep <millis>            Pause execution for N milliseconds
   include <path>            Include and execute another script file
+  not <cmd>                 Inverts the result of a command, succeeds if <cmd> is falsy
   assert <e1> [<op>] <e2>   Fail script if expression is false.
                             Ops: ==, !=, >, <, >=, <=, ~, !~
   waitstatus <state>        Block until session enters state (New, Listening,
@@ -81,6 +82,7 @@ GLOBAL VARIABLES
   $DATE[+N]                 Date offset by N days (e.g., $DATE[+1] is tomorrow)
   $STATUS                   Current session state (e.g., "Active", "Closed")
   $SEQ_IN / $SEQ_OUT        Current internal Inbound/Outbound Sequence Number
+  $ERROR                    Message of the last failed condition (e.g., from an if/while)
 
   -- Context & Store --
   $CFG.<key>                Config values
@@ -134,6 +136,9 @@ func Eval(line string, ctx *script.ScriptContext) error {
 	}
 
 	if err := cmdHandler(ctx, args); err != nil {
+		if _, isFalsy := errors.AsType[*script.FalsyError](err); isFalsy {
+			return err // return error as is for cleaner $ERROR message
+		}
 		return fmt.Errorf("execute failed for '%v': %w", strings.Join(args, " "), err)
 	}
 
@@ -192,12 +197,16 @@ func EvalBatch(r io.Reader, ctx *script.ScriptContext) error {
 		case "if", "elif", "while":
 			err := Eval(instr.Text, ctx)
 			if _, isFalsy := errors.AsType[*script.FalsyError](err); isFalsy {
+				ctx.Store.SetLastError(err)
 				pc = jump.TargetOnFalse
 				justJumped = true
 				continue
 			} else if err != nil {
 				return fmt.Errorf("line %d: %w", instr.LineNo, err)
 			}
+
+			// No error, clear up last error before proceeding
+			ctx.Store.SetLastError(nil)
 
 		// Normal commands
 		default:
@@ -226,6 +235,33 @@ func handleInclude(ctx *script.ScriptContext, args []string) error {
 	return EvalBatch(f, ctx)
 }
 
+func handleNotExpr(ctx *script.ScriptContext, args []string) error {
+	if len(args) == 1 {
+		return fmt.Errorf("syntax error, usage: `not <expr>`")
+	}
+
+	cmdName := strings.ToLower(strings.TrimSpace(args[1]))
+	cmdHandler, ok := script.ScriptRegistry[cmdName]
+	if !ok {
+		return fmt.Errorf("unknown command: %v", cmdName)
+	}
+
+	// Evaluate the expr and ensure that it returns a Falsy error.
+	// Bubble up the error if it is non falsy.
+	// If 'not' is used outside of a control flow context, useful to have the lastError set
+	// This will be overridden if called from EvalBatch control flow loop
+	if err := cmdHandler(ctx, args[1:]); err == nil {
+		ctx.Store.SetLastError(nil)
+		return script.Falsy(fmt.Errorf("assertion failed: '%s'", strings.Join(args, " ")))
+	} else if _, isFalsy := errors.AsType[*script.FalsyError](err); isFalsy {
+		ctx.Store.SetLastError(err)
+		return nil
+	} else {
+		return err
+	}
+}
+
 func init() {
 	script.RegisterCommand("include", handleInclude) // include <file>
+	script.RegisterCommand("not", handleNotExpr)     // not <expr>
 }

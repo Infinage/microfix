@@ -29,10 +29,11 @@ func (r closeRequest) apply(sess *Session) {
 type messageSendRequest struct {
 	passthrough bool
 	message     message.Message
+	reply       chan error
 }
 
 func (r messageSendRequest) apply(sess *Session) {
-	sess.handleSend(r.message, r.passthrough)
+	r.reply <- sess.handleSend(r.message, r.passthrough)
 }
 
 type resetSequenceRequest struct {

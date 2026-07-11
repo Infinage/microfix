@@ -212,6 +212,8 @@ disconnect
   <video src="https://github.com/user-attachments/assets/8fa59d40-7dfa-4b31-8fe4-5d79fbc22744" controls muted autoplay playsinline width="800"></video>
 </div>
 
+Additional sample scripts (acceptor/client test harnesses, order routing examples, etc.) are available in the [`scripts/`](./scripts) folder.
+
 #### Global Variables
 
 Inject dynamic values into scripts, CLI commands, or GUI inputs using the `$` prefix.

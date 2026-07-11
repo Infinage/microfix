@@ -146,15 +146,20 @@ func (sess *Session) Router() *spec.Router {
 	return &sess.engine.Router
 }
 
-// Send to the connected client, if passthrough is true fields are sent as is
-// Otherwise fields such as MsgType, Checksum are calculated fresh and set
+// Send synchronously pushes a message to the connected client.
+//
+// If passthrough is true, the message is sent exactly as-is without the engine
+// calculating or modifying fields like MsgType or Checksum.
+//
+// Returns an error if the session is inactive, validation fails or the transport closes.
 func (sess *Session) Send(msg message.Message, passthrough bool) error {
 	if !sess.started.Load() || sess.closeRequested.Load() {
 		return fmt.Errorf("Send failed, session not active: %v", msg.String("|"))
 	}
 
-	sess.requests <- messageSendRequest{message: msg, passthrough: passthrough}
-	return nil
+	reply := make(chan error, 1)
+	sess.requests <- messageSendRequest{message: msg, passthrough: passthrough, reply: reply}
+	return <-reply
 }
 
 // Query the session status
@@ -284,12 +289,12 @@ func (sess *Session) deliverMessage(msg *message.Message) {
 
 // From World / Run loop to the external client we are connected to
 // Exposed via run loop, so safe to call engine altering methods inside
-func (sess *Session) handleSend(msg message.Message, passthrough bool) {
+func (sess *Session) handleSend(msg message.Message, passthrough bool) error {
 	if !passthrough {
 		now := time.Now()
 		if err := sess.engine.finalizeMessage(&msg, now); err != nil {
 			sess.writeLog(newErrorLog(now, err))
-			return
+			return err
 		}
 	}
 
@@ -308,8 +313,11 @@ func (sess *Session) handleSend(msg message.Message, passthrough bool) {
 		}
 
 		sess.writeLog(newMessageLog(now, msg, false))
+		return nil
 	case <-sess.Done():
-		sess.writeLog(newErrorLog(time.Now(), fmt.Errorf("Send failed, session closed: %v", msg.String("|"))))
+		err := fmt.Errorf("Send failed, session closed: %s", msg.String("|"))
+		sess.writeLog(newErrorLog(time.Now(), err))
+		return err
 	}
 }
 

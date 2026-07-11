@@ -1,0 +1,22 @@
+# send_order.mxs
+#
+# Reusable helper: sends a single Market NewOrderSingle for VARS.Symbol /
+# VARS.Qty / VARS.Side, and waits for the New ack.
+#
+# Not meant to run standalone - pulled in via `include` after the caller
+# has an active session and has set VARS.Symbol, VARS.Qty, VARS.Side.
+# See multi_symbol_client.mxs for the calling pattern.
+
+# Fresh ClOrdID per call so the acceptor treats each include as a distinct order
+set VARS.ClOrdID $UNIQUE
+
+# Header tags (8, 9, 34, 49, 56, 10) assumed auto-filled by the engine;
+# only the body fields relevant to a market order are supplied here
+send "8=|9=|35=D|49=|56=|34=|52=|11=$VARS.ClOrdID|54=$VARS.Side|55=$VARS.Symbol|38=$VARS.Qty|60=$TIMESTAMP|40=1|10=|"
+
+# Market orders should be acked immediately (ExecutionReport, OrdStatus=New)
+if wait 35=8 & 39=0
+    print Filled $VARS.Symbol qty=$VARS.Qty -> OrderID=$BUF.37
+else
+    print No ack for $VARS.Symbol , ClOrdID=$VARS.ClOrdID
+endif

@@ -17,6 +17,7 @@ type Store struct {
 	cfg        *Config           // Strongly typed and persistent configuration
 	vars       map[string]string // Loosely typed and non-persistent runtime variables
 	buffer     message.Message   // Scratch pad to store utmost one message of interest
+	lastError  error             // Scratch pad to store one error of interest
 	configPath string            // Stored path of the config file for auto-saving changes
 	mu         sync.RWMutex      // Concurrent access across GUI
 }
@@ -57,6 +58,18 @@ func (s *Store) SetBuffer(msg message.Message) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.buffer = msg
+}
+
+func (s *Store) LastError() error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.lastError
+}
+
+func (s *Store) SetLastError(err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.lastError = err
 }
 
 func (s *Store) getTagFromBuffer(key string) (string, bool, error) {
