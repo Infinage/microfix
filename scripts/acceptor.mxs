@@ -57,7 +57,7 @@ while assert 1 1
                         # Not a NewOrderSingle at all - reject with a
                         # Business Message Reject naming the unsupported type
                         print Rejecting: Unsupported Message Type $BUF.35
-                        set VARS.msg "8=...|9=...|35=j|34=...|49=...|52=...|56=...|45=$BUF.34|372=$BUF.35|380=3|58=Unsupported application message|10=...|"
+                        set VARS.msg "8=|9=|35=j|34=|49=|52=|56=|45=$BUF.34|372=$BUF.35|380=3|58=Unsupported application message|10=|"
                     endif
 
                     # Dispatch whichever response was constructed above

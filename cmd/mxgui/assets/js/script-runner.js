@@ -8,7 +8,7 @@ const highlight = editor => {
     
     // Combine all patterns into a single Regex.
     // Group 1: Comments | Group 2: Variables | Group 3: Jumps | Group 4: Keywords
-    const lexer = /(#.*)|(\$[\w\.\[\]]+)|\b(if|elif|else|while|endwhile|break|continue|exit|endif)\b|\b(connect|listen|disconnect|reset|seq|send|wait|expect|loadmsg|set|unset|isset|incr|decr|print|sleep|assert|include|waitstatus)\b/g;
+    const lexer = /(#.*)|(\$[\w\.\[\]]+)|\b(if|elif|else|while|endwhile|break|continue|exit|endif)\b|\b(connect|listen|disconnect|reset|seq|send|wait|expect|loadmsg|set|unset|isset|incr|decr|print|sleep|assert|include|waitstatus|not)\b/g;
     
     // Process the matches in one clean pass
     code = code.replace(lexer, (match, pComment, pVar, pJump, pKeyword) => {

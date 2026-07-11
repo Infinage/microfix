@@ -1,0 +1,59 @@
+# session_recovery_check.mxs
+#
+# Showcase script: anything you can do by clicking around in MXGUI, you can
+# script and automate. Demonstrates looping/conditionals, alias
+# substitution, and manual sequence-number manipulation to force (and
+# watch recover from) a protocol desync.
+#
+# Usage: PORT=<port> mxshell -f run resilience_demo.mxs
+# Run against acceptor.mxs (or any MicroFIX acceptor) listening on the
+# same port.
+
+include scripts/setup.mxs
+reset
+waitstatus New
+
+# Let's start by connecting to a local counterparty
+connect :$VARS.PORT
+waitstatus Active
+print ✓ Connected to counterparty.
+
+# MicroFIX supports conditionals and even looping constructs!
+# For e.g, let's burst 10 Test Requests using a locally-defined alias.
+# NOTE: `set` takes a bare key (ALIAS.TR), never a $-prefixed one - $ is
+# only used when *reading* a value back (e.g. $ALIAS.TR in `send` below).
+set ALIAS.TR "8=|9=|35=1|49=|56=|34=|52=|112=MICROFIX|10=|"
+
+# We will assert the counterparty replies with a matching Heartbeat
+set VARS.loop 0
+while assert $VARS.loop < 10
+    send $ALIAS.TR
+    expect "35=0 & 112=MICROFIX"
+    incr loop
+    sleep 500
+endwhile
+print ✓ Sent $VARS.loop TestRequests to counterparty.
+
+# Let's now force a protocol failure.
+# We will manually drop our Inbound Sequence to simulate a desync.
+seq in 1
+print ✓ Sequence manually desynced to $SEQ_IN.
+
+# Send a TestRequest to receive a Heartbeat with a OutOfSync InSeq.
+send $ALIAS.TR
+
+# MicroFIX will automatically detect the gap and request a resend.
+wait 35=0
+waitstatus OutOfSync
+
+# We would have sent out a resend request by now.
+# Wait for the counterparty to send a Sequence Reset (35=4).
+expect 35=4
+waitstatus Active
+print ✓ Session recovered successfully!
+
+# Disconnect and reset for next test run.
+disconnect
+reset
+waitstatus New
+print ✓ Environment reset and ready.

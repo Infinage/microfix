@@ -209,15 +209,15 @@
   class="w-[480px] bg-gray-950 flex flex-col shrink-0 border-l border-gray-800 shadow-2xl z-20 absolute right-0 top-0 bottom-0"
 >
     <div class="p-4 border-b border-gray-800 bg-[#0a0d12]">
-        <div class="flex justify-between items-start mb-3">
-            <div>
-                <div class="text-lg font-bold text-white flex items-center space-x-2">
-                    <span>{{.Name}}</span>
+        <div class="flex justify-between items-start mb-3 gap-3">
+            <div class="min-w-0">
+                <div class="text-lg font-bold text-white flex items-center gap-2 min-w-0">
+                    <span class="truncate" title="{{.Name}}">{{.Name}}</span>
                     <span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded border border-gray-700 font-mono">35={{.MsgId}}</span>
                 </div>
                 <div class="text-xs text-gray-500 font-mono mt-1">{{.Timestamp.Format "2006-01-02 15:04:05.000"}} &bull; {{.LogType}}</div>
             </div>
-            <div class="flex space-x-3 items-center">
+            <div class="flex space-x-3 items-center shrink-0">
                 {{if .IsValid}}
                   <div 
                     class="text-green-400 flex items-center space-x-1 font-bold text-xs uppercase"
