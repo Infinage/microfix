@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/infinage/microfix/pkg/message"
 	"github.com/infinage/microfix/pkg/session"
 	"github.com/infinage/microfix/pkg/store"
 )
@@ -40,38 +41,52 @@ func extractSBrackets(raw string) (string, error) {
 	return raw[start+1 : end], nil
 }
 
-func substituteMessageTag(raw string, isIncoming bool, sess *session.Session) (string, error) {
+func substituteMessageTag(raw string, isIncoming bool, LastMsgFn func(string, bool) *message.Message) (string, error) {
 	contents, err := extractSBrackets(raw)
 	if err != nil {
 		return "", err
 	}
 
-	splits := strings.SplitN(contents, ",", 2)
-	if len(splits) != 2 {
-		return "", fmt.Errorf("Invalid syntax, must be of form: `$*[MsgType,Tag]`")
+	splits := strings.Split(contents, ",")
+	if len(splits) != 2 && len(splits) != 3 {
+		return "", fmt.Errorf("invalid syntax '%s': must be of form $[MsgType,Tag] or $[MsgType,Tag,Instance]", raw)
 	}
 
-	tag, err := strconv.ParseUint(strings.TrimSpace(splits[1]), 10, 16)
+	tagStr := strings.TrimSpace(splits[1])
+	tag, err := strconv.ParseUint(tagStr, 10, 16)
 	if err != nil {
-		return "", fmt.Errorf("Not a valid tag: %w", err)
+		return "", fmt.Errorf("invalid tag '%s' in '%s': must be a positive integer", tagStr, raw)
+	}
+
+	origCount, count := 1, 1
+	if len(splits) == 3 {
+		countStr := strings.TrimSpace(splits[2])
+		if count, err = strconv.Atoi(countStr); err != nil || count <= 0 {
+			return "", fmt.Errorf("invalid instance count '%s' in '%s': must be a positive integer > 0", countStr, raw)
+		}
+		origCount = count
+	}
+
+	dir := "incoming"
+	if !isIncoming {
+		dir = "outgoing"
 	}
 
 	msgType := strings.TrimSpace(splits[0])
-	msg := sess.LastMessage(msgType, isIncoming)
+	msg := LastMsgFn(msgType, isIncoming)
 	if msg == nil {
-		dir := "incoming"
-		if !isIncoming {
-			dir = "outgoing"
+		return "", fmt.Errorf("no %s message of type '%s' found in session history", dir, msgType)
+	}
+
+	// Iterate through until we reach the required instance no
+	for val := range msg.FindAll(uint16(tag)) {
+		count--
+		if count == 0 {
+			return val.Value, nil
 		}
-		return "", fmt.Errorf("No %s message of type [%v] found", dir, msgType)
 	}
 
-	val, ok := msg.Get(uint16(tag))
-	if !ok {
-		return "", fmt.Errorf("tag %d not found in last message type %s", tag, msgType)
-	}
-
-	return val, nil
+	return "", fmt.Errorf("tag %d (instance %d) not found in the last %s message of type '%s'", tag, origCount, dir, msgType)
 }
 
 func substituteDate(raw string) (string, error) {
@@ -144,7 +159,7 @@ func Substitute(input string, sess *session.Session, st *store.Store, quoteIfSpa
 			return res
 		}
 		if isIncoming := strings.HasPrefix(match, "$LASTIN"); isIncoming || strings.HasPrefix(match, "$LASTOUT") {
-			res, err := substituteMessageTag(match, isIncoming, sess)
+			res, err := substituteMessageTag(match, isIncoming, sess.LastMessage)
 			if err != nil {
 				expandErr = err
 				return match

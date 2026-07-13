@@ -93,9 +93,11 @@ GLOBAL VARIABLES
                             Message is loaded into buffer upon a successful 'wait',
                             'expect', or explicit 'loadmsg'. Will fail if buffer is empty.
                             (e.g., $BUF.35 or $BUF.11)
-  $LASTIN[T,t]              Extract tag 't' from last incoming message of MsgType 'T'
-  $LASTOUT[T,t]             Extract tag 't' from last outgoing message of MsgType 'T'
-                            (e.g., $LASTOUT[8,39] gets OrdStatus from ExecutionReport)
+  $LASTIN[T,t,n]            Extract instance 'n' of tag 't' from last incoming message of MsgType 'T'.
+  $LASTOUT[T,t,n]           Extract instance 'n' of tag 't' from last outgoing message of MsgType 'T'.
+                            Defaults to 1st instance if 'n' is omitted.
+                            (e.g., $LASTOUT[8,39] gets OrdStatus from ExecutionReport,
+                            $LASTOUT[8,448,2] gets the 2nd PartyID from the repeating group)
 `
 
 func NewScriptContext(

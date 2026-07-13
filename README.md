@@ -224,7 +224,7 @@ Inject dynamic values into scripts, CLI commands, or GUI inputs using the `$` pr
 | `$TIMESTAMP` (UTC YYYYMMDD-HH:MM:SS) | `$VARS.<key>` (Script-defined values) |
 | `$DATE[+N]` (Date offset by N days) | `$ALIAS.<name>` (Saved aliases) |
 | `$STATUS` (Session State) | `$ENV.<name>` (Environment variables) |
-| `$SEQ_IN` / `$SEQ_OUT` | `$LASTIN[T,t]` / `$LASTOUT[T,t]` (Tag `t` from last MsgType `T`) |
+| `$SEQ_IN` / `$SEQ_OUT` | `$LASTIN[T,t,n]` / `$LASTOUT[T,t,n]` (Instance `n` of Tag `t` from last MsgType `T`) |
 
 #### Aliases
 
