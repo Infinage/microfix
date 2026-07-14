@@ -10,7 +10,7 @@ A high-performance FIX (Financial Information eXchange) workstation suite for de
 
 <p align="center">
   <img src="https://img.shields.io/badge/Go-1.26+-00ADD8?style=flat-square&logo=go" alt="Go Version">
-  <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20-lightgrey?style=flat-square" alt="Platforms">
+  <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey?style=flat-square" alt="Platforms">
   <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License">
 </p>
 
@@ -320,7 +320,6 @@ pkg/pretty      Console formatting utilities
 
 ## Roadmap
 
-* [ ] macOS Support
 * [ ] Script debugger with LSP-like support
 * [ ] Replay recorded FIX sessions
 * [ ] Multiple simultaneous sessions

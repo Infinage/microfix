@@ -46,6 +46,9 @@ jobs:
           - goos: windows
             goarch: amd64
             runner: windows-latest
+          - goos: darwin
+            goarch: amd64
+            runner: macos-26-intel
 
     steps:
       - name: Checkout Code
@@ -117,6 +120,7 @@ jobs:
             -o "build_output/mxgui-${GOOS}-${GOARCH}${EXT}" ./cmd/mxgui
 
       - name: Compress Binaries with UPX
+        if: matrix.goos != 'darwin'
         shell: bash
         run: |
           set -euo pipefail
