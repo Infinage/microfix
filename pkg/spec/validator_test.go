@@ -325,6 +325,33 @@ func TestValidate_GroupOrdering(t *testing.T) {
 	})
 }
 
+func TestValidate_VariableLengthGroup(t *testing.T) {
+	ro, err := NewDefaultRouter("FIX44")
+	if err != nil {
+		t.Fatalf("Failed to init router: %v", err)
+	}
+
+	raw := "8=FIX.4.4|9=0|35=D|49=S|56=S|34=1|52=20260717-00:00:00|453=3|" +
+		"448=A|447=D|452=1|802=2|523=X|803=1|523=Y|803=2|" +
+		"448=B|447=D|452=1|" +
+		"448=C|447=D|452=1|" +
+		"10=000|"
+
+	t.Log(raw)
+	msg, err := message.MessageFromString(raw, "|")
+	if err != nil {
+		t.Fatalf("Failed to parse message string: %v", err)
+	}
+
+	msg.Finalize()
+	obs, _ := ro.Validate(&msg, ValidationStrict)
+	if ok := slices.ContainsFunc(obs, func(ob string) bool {
+		return strings.HasPrefix(ob, "Group [453] Entry #2 has 3 fields(s), expected 8")
+	}); !ok {
+		t.Errorf("Expected to find error 'Group [453] Entry...': %v", obs)
+	}
+}
+
 func TestValidate_FIXTMultiplexing(t *testing.T) {
 	ro, err := NewRouter("FIXT11.xml", []string{"FIX44.xml"})
 	if err != nil {

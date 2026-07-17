@@ -131,6 +131,7 @@ func walkSpec(ro *Router, msg *message.Message, vmode ValidationMode, context En
 			for gi := range repeat {
 				// Recurse for that repeating group.
 				// Groups always use strict boundaries (terminateOnlyOn = nil)
+				groupStart := idx
 				idx, err = walkSpec(ro, msg, vmode, entry, nil, idx, obs)
 				if err != nil {
 					return idx, err // Bubble up structural failures
@@ -159,13 +160,18 @@ func walkSpec(ro *Router, msg *message.Message, vmode ValidationMode, context En
 							" as first field, got [%v]", expectedAnchorTag, anchorTag))
 					}
 				} else if vmode == ValidationStrict {
-					// Validate the ordering for second repeating group onwards
-					groupStart := group1Start + (int(gi) * groupSize)
-					for i := range groupSize {
-						g0, g := (*msg)[group1Start+i], (*msg)[groupStart+i]
-						if g0.Tag != g.Tag {
-							*obs = append(*obs, fmt.Sprintf("Expected group #%v entry #%v to be "+
-								"tag [%v], had [%v]", gi+1, i+1, g0.Tag, g.Tag))
+					if cgroupSize := idx - groupStart; cgroupSize != groupSize {
+						// Ensure group sizes are identical
+						*obs = append(*obs, fmt.Sprintf("Group [%d] Entry #%d has %d fields(s), expected %d "+
+							"(based on Entry #1)", field.Tag, gi+1, cgroupSize, groupSize))
+					} else {
+						// Assert tag ordering of current group matches against first group
+						for i := range groupSize {
+							g0, g := (*msg)[group1Start+i], (*msg)[groupStart+i]
+							if g0.Tag != g.Tag {
+								*obs = append(*obs, fmt.Sprintf("Expected group #%v entry #%v to be "+
+									"tag [%v], had [%v]", gi+1, i+1, g0.Tag, g.Tag))
+							}
 						}
 					}
 				}
