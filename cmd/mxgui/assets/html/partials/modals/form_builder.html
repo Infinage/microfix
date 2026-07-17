@@ -78,12 +78,12 @@
     @mousedown.outside="modal = ''" 
     class="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-[600px] max-h-[80vh] flex flex-col z-50 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
 >
-    <div class="flex items-center justify-between p-4 border-b border-gray-800 shrink-0">
+    <div class="flex items-center justify-between p-4 border-b border-gray-800 shrink-0 select-none">
         <div>
             <h3 class="text-white font-bold text-lg">Form Builder</h3>
             <p class="text-xs text-gray-400 font-mono mt-1">Syncing with raw message</p>
         </div>
-        <button @click="modal = ''" class="text-gray-500 hover:text-white transition">
+        <button @click="modal = ''" class="text-gray-500 hover:text-white transition cursor-pointer">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
             </svg>
@@ -107,12 +107,15 @@
                 @dragover.prevent="$event.dataTransfer.dropEffect = 'move'"
                 @drop.prevent="drop(index)"
                 :class="{'opacity-40 border-dashed border-gray-600 bg-gray-900': draggedId === field.id, 'border-transparent': draggedId !== field.id}"
-                class="flex items-center space-x-3 hover:bg-gray-900 p-1.5 rounded transition group border cursor-move"
+                class="flex items-center space-x-3 hover:bg-gray-900 p-1.5 rounded transition group border"
               >
                 <div 
                     draggable="true"
+                    :class="draggedId === null? 'cursor-grab': 'cursor-move'"
                     @dragstart="draggedId = field.id; $event.dataTransfer.effectAllowed = 'move'; $event.dataTransfer.setData('text/plain', field.id)"
-                    @dragend="draggedId = null" class="text-gray-600 group-hover:text-gray-400 shrink-0 cursor-move" title="Drag to reorder"
+                    @dragend="draggedId = null" 
+                    class="text-gray-600 group-hover:text-gray-400 shrink-0"
+                    title="Drag to reorder"
                 >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9h8M8 15h8"></path>
@@ -125,7 +128,7 @@
                         focus:border-blue-500 focus:outline-none text-center placeholder-gray-700" 
                     >
                     <span 
-                      class="text-xs font-mono truncate max-w-[130px]" 
+                      class="text-xs font-mono truncate max-w-[130px] select-none" 
                       x-text="getTagName(field.tag)" 
                       :class="!tagMap[field.tag] && field.tag.trim() !== '' ? 'text-yellow-600 italic' : 'text-gray-500'"
                     ></span>
@@ -136,7 +139,7 @@
                   class="flex-1 bg-gray-950 border border-gray-700 rounded px-2 py-1.5 text-sm text-white font-mono focus:border-blue-500 focus:outline-none placeholder-gray-800" 
                 >
                 
-                <button @click="removeField(index)" class="opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-400 transition p-1" title="Remove Field" >
+                <button @click="removeField(index)" class="opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-400 transition p-1 cursor-pointer" title="Remove Field" >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                     </svg>

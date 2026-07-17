@@ -1,5 +1,5 @@
 {{define "partials/settings/about"}}
-    <div x-show="settingsTab === 'about'" style="display:none;" class="flex flex-col pb-6">
+    <div x-show="settingsTab === 'about'" style="display:none;" class="flex flex-col pb-6 select-none">
         <!-- Header & Logo -->
         <div class="flex items-center space-x-6 mb-8 shrink-0">
             <div class="relative w-24 h-24 flex items-center justify-center">
@@ -15,7 +15,7 @@
                 <div class="flex items-center space-x-2 mt-2">
                   <span 
                     title="{{.GitCommit}}"
-                    class="cursor-help text-sm font-mono text-gray-400 bg-gray-900 px-2.5 py-1 rounded-md border border-gray-800 shadow-sm"
+                    class="cursor-help text-sm font-mono text-gray-400 bg-gray-900 px-2.5 py-1 rounded-md border border-gray-800 shadow-sm select-text"
                   >{{.AppVersion}}</span>
                 </div>
             </div>
@@ -32,7 +32,7 @@
                 <div class="text-white font-bold text-xs uppercase tracking-widest mb-1">Developed By</div>
                 <a 
                     {{if .IsWailsApp}} hx-get="/wails/about/contact" hx-swap="none" {{else}} href="mailto:nj.deesa@gmail.com" {{end}}
-                    class="text-blue-400 hover:text-blue-300 font-mono text-sm transition cursor-pointer focus:outline-none"
+                    class="text-blue-400 hover:text-blue-300 font-mono text-sm transition cursor-pointer focus:outline-none select-text"
                 >
                   nj.deesa@gmail.com
                 </a>
@@ -123,11 +123,12 @@
             <div>
                 <h5 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Powered By</h5>
                 <div class="flex flex-wrap gap-2">
-                    <span class="px-2 py-1 bg-gray-900 border border-gray-800 rounded text-[11px] font-bold text-gray-400">Go 1.26</span>
-                    <span class="px-2 py-1 bg-gray-900 border border-gray-800 rounded text-[11px] font-bold text-gray-400">Wails v3</span>
-                    <span class="px-2 py-1 bg-gray-900 border border-gray-800 rounded text-[11px] font-bold text-gray-400">HTMX</span>
-                    <span class="px-2 py-1 bg-gray-900 border border-gray-800 rounded text-[11px] font-bold text-gray-400">Alpine.js</span>
-                    <span class="px-2 py-1 bg-gray-900 border border-gray-800 rounded text-[11px] font-bold text-gray-400">Tailwind CSS</span>
+                  <template x-data="{techstack: ['Go 1.26', 'Wails v3', 'HTMX', 'Alpine.js', 'Tailwind CSS']}" x-for="tech in techstack">
+                    <span 
+                      class="px-2 py-1 bg-gray-900 border border-gray-800 rounded text-[11px] font-bold text-gray-400" 
+                      x-text="tech"
+                    ></span>
+                  </template>
                 </div>
             </div>
         </div>

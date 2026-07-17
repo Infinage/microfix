@@ -166,7 +166,7 @@
                 title="Export all logs to file"
                 class="cursor-pointer flex items-center space-x-1.5 text-xs font-medium px-3 py-1.5 rounded text-gray-500 hover:text-green-400 hover:bg-green-500/10 transition"
             >
-                <span>Export</span>
+                <span class="select-none">Export</span>
             </a>
 
             <button
@@ -187,7 +187,7 @@
         hx-swap="beforeend" 
         class="flex-1 overflow-y-auto min-h-0 p-3 font-mono text-sm space-y-1 scroll-smooth"
     >
-        <div class="hidden only:block text-gray-600 text-center mt-10"> Waiting for messages... </div>
+        <div class="hidden only:block text-gray-600 text-center mt-10 select-none"> Waiting for messages... </div>
     </div>
 </div>
 {{end}}

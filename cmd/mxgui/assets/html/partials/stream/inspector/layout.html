@@ -1,0 +1,124 @@
+{{define "partials/stream/inspector/layout"}}
+{{/* Inspector width set at 'pages/stream.html' one level up */}}
+<div id="msg-inspector" x-data="{dragging: false}">
+    <div 
+      class="absolute left-0 top-0 bottom-0 w-1.5 -ml-[1px] cursor-col-resize hover:bg-blue-500 z-30 transition-colors"
+      @mousedown="dragging = true"
+      @mousemove.window="if(dragging) {
+        let calculatedWidth = window.innerWidth - $event.clientX;
+        inspectorWidth = Math.max(400, Math.min(calculatedWidth, window.innerWidth - 320));
+      }"
+      @mouseup.window="dragging = false"
+    ></div>
+
+    <div class="p-4 border-b border-gray-800 bg-[#0a0d12]">
+        <div class="flex justify-between items-start mb-3 gap-3 select-none">
+            <div class="min-w-0">
+                <div class="text-lg font-bold text-white flex items-center gap-2 min-w-0">
+                    <span class="truncate" title="{{.Name}}">{{.Name}}</span>
+                    <span class="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded border border-gray-700 font-mono">35={{.MsgId}}</span>
+                </div>
+                <div class="text-xs text-gray-500 font-mono mt-1">{{.Timestamp.Format "2006-01-02 15:04:05.000"}} &bull; {{.LogType}}</div>
+            </div>
+            <div class="flex space-x-3 items-center shrink-0">
+                {{if .IsValid}}
+                  <div 
+                    class="text-green-400 flex items-center space-x-1 font-bold text-xs uppercase"
+                  >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                      </svg>
+                      <span>Valid</span>
+                  </div>
+                {{else}}
+                  <div
+                      class="text-red-500 flex items-center space-x-1 cursor-pointer font-bold text-xs uppercase hover:text-red-400 transition"
+                      @click="inspectorTab = 'validation'"
+                  >
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                          d="M12 9v4m0 4h.01M10.29 3.86l-7.82 13.54A1 1 0 003.34 19h17.32a1 1 0 00.87-1.6L13.71 3.86a1 1 0 00-1.74 0z">
+                        </path>
+                    </svg>
+                    <span>Error</span>
+                  </div>
+                {{end}}
+                
+                <!-- Dispatch close-inspector so both the drawer and the active log cue reset -->
+                <button @click="$dispatch('close-inspector')" class="text-gray-500 hover:text-white transition cursor-pointer">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Clipboard Buttons -->
+        <div 
+          class="flex items-center space-x-2" 
+          data-raw="{{.RawFix}}" 
+          data-json="{{.JSON}}"
+          x-data="{
+            rawMsg: $el.dataset.raw,
+            jsonMsg: $el.dataset.json,
+            copied: '',
+          }"
+        >
+            <button 
+              @click="
+                navigator.clipboard.writeText(rawMsg);
+                copied = 'raw';
+                setTimeout(() => copied = '', 1500);
+              "
+              class="text-xs bg-gray-900 border border-gray-700 hover:bg-gray-800 text-gray-300 px-3 py-1.5 rounded transition cursor-pointer"
+            >Copy Raw</button>
+
+            <button 
+              @click="
+                navigator.clipboard.writeText(jsonMsg);
+                copied = 'json';
+                setTimeout(() => copied = '', 1500);
+              "
+              class="text-xs bg-gray-900 border border-gray-700 hover:bg-gray-800 text-gray-300 px-3 py-1.5 rounded transition cursor-pointer"
+            >Copy JSON</button>
+
+            <span
+              x-show="copied"
+              x-transition.opacity.duration.200ms
+              class="text-xs text-green-400 font-medium"
+              x-text="copied === 'raw' ? '✓ Raw copied' : '✓ JSON copied'"
+              style="display:none"
+            ></span>
+        </div>
+    </div>
+
+    <div class="flex border-b border-gray-800 bg-[#0a0d12] px-2 shrink-0">
+        <button 
+          @click="inspectorTab = 'decoded'" 
+          :class="inspectorTab === 'decoded' ? 'text-white border-b-2 border-blue-500' : 'text-gray-500 hover:text-gray-300'" 
+          class="px-4 py-3 text-xs uppercase font-bold tracking-wider transition cursor-pointer"
+        >Decoded</button>
+        <button 
+          @click="inspectorTab = 'validation'" 
+          :class="inspectorTab === 'validation' ? 'text-white border-b-2 border-blue-500' : 'text-gray-500 hover:text-gray-300'" 
+          class="px-4 py-3 text-xs uppercase font-bold tracking-wider transition flex items-center space-x-1 cursor-pointer"
+        >
+            <span>Validation</span>
+            {{if not .IsValid}}
+              <span class="bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px]">{{if .Observations}}{{len .Observations}}{{end}}</span>
+            {{end}}
+        </button>
+        <button 
+          @click="inspectorTab = 'diff'" 
+          :class="inspectorTab === 'diff' ? 'text-white border-b-2 border-blue-500' : 'text-gray-500 hover:text-gray-300'" 
+          class="px-4 py-3 text-xs uppercase font-bold tracking-wider transition cursor-pointer"
+        >Diff</button>
+    </div>
+
+    <div class="flex-1 overflow-y-auto p-4">
+      {{template "partials/stream/inspector/decode" .}}
+      {{template "partials/stream/inspector/validate" .}}
+      {{template "partials/stream/inspector/diff" .}}
+    </div>
+</div>
+{{end}}

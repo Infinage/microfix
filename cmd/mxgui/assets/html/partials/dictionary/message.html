@@ -7,16 +7,16 @@
   <div class="flex items-end justify-between border-b border-gray-800 pb-4 mb-6 space-x-4">
     <div class="min-w-0">
       <div class="flex items-center space-x-3 mb-2">
-        <span class="bg-blue-900/30 text-blue-400 font-bold font-mono px-3 py-1 rounded text-sm border border-blue-800 shrink-0">MsgType = {{.Id}}</span>
-        <span class="bg-gray-800 text-gray-400 px-3 py-1 rounded text-sm border border-gray-700 shrink-0">{{if .IsAdmin}}Admin{{else}}App{{end}}</span>
+        <span class="bg-blue-900/30 text-blue-400 font-bold font-mono px-3 py-1 rounded text-sm border border-blue-800 shrink-0 select-none">MsgType = {{.Id}}</span>
+        <span class="bg-gray-800 text-gray-400 px-3 py-1 rounded text-sm border border-gray-700 shrink-0 select-none">{{if .IsAdmin}}Admin{{else}}App{{end}}</span>
       </div>
-      <h2 class="text-3xl font-semibold text-white truncate" title="{{.Name}}">{{.Name}}</h2>
+      <h2 class="text-3xl font-semibold text-white truncate select-none" title="{{.Name}}">{{.Name}}</h2>
     </div>
     
     <button 
       @click="navigator.clipboard.writeText(sampleStr.replace(/\|/g, '\x01')); copied = true; setTimeout(() => copied = false, 2000)"
       class="hidden md:flex shrink-0 bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm transition items-center 
-        justify-center space-x-0 lg:space-x-2 border border-gray-700"
+        justify-center space-x-0 lg:space-x-2 border border-gray-700 cursor-pointer"
     >
       <svg x-show="!copied" class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 
@@ -32,15 +32,15 @@
   </div>
 
   <div class="mb-8">
-    <h3 class="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2">Sample Output</h3>
+    <h3 class="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2 select-none">Sample Output</h3>
     <div class="bg-gray-950 border border-gray-800 rounded p-4 font-mono text-sm text-blue-400 break-all shadow-inner" x-text="sampleStr"></div>
   </div>
 
   {{if .Entries}}
-    <h3 class="text-sm font-bold text-gray-500 uppercase tracking-widest mb-3">Field Specification</h3>
+    <h3 class="text-sm font-bold text-gray-500 uppercase tracking-widest mb-3 select-none">Field Specification</h3>
     <div class="border border-gray-800 rounded-lg overflow-hidden bg-gray-950 shadow-lg">
       <table class="w-full text-left text-sm font-mono">
-        <tr class="bg-gray-900 text-gray-400 border-b border-gray-800">
+        <tr class="bg-gray-900 text-gray-400 border-b border-gray-800 select-none">
           <th class="p-3 w-16">Tag</th>
           <th class="p-3 w-48">Name</th>
           <th class="p-3 w-24">Req</th>

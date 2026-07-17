@@ -13,7 +13,13 @@ import (
 
 func (app *Application) handleAPIInspect(w http.ResponseWriter, r *http.Request) {
 	raw := r.URL.Query().Get("message")
-	_, err := message.MessageFromString(raw, "|")
+	if len(raw) < 4 {
+		toast(w, app.templ, "error", "Input must be atleast 4 chars long")
+		return
+	}
+
+	delim := raw[len(raw)-1:]
+	_, err := message.MessageFromString(raw, delim)
 	if err != nil {
 		toast(w, app.templ, "error", fmt.Sprintf("Failed to parse message: %s", err.Error()))
 		return
@@ -27,7 +33,7 @@ func (app *Application) handleAPIInspect(w http.ResponseWriter, r *http.Request)
 	w.Header().Set("HX-Trigger", "open-inspector-tab")
 	logType := r.URL.Query().Get("LogType")
 	inspectViewData := inspector.NewInspectView(raw, logType, app.Session().Router(), vmode)
-	renderTemplate(app.templ, w, "partials/stream/inspector", inspectViewData)
+	renderTemplate(app.templ, w, "partials/stream/inspector/layout", inspectViewData)
 }
 
 func (app *Application) handleAPIMessageDiff(w http.ResponseWriter, r *http.Request) {

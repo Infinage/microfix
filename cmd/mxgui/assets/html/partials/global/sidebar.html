@@ -2,11 +2,11 @@
 <div class="px-5 mb-6 flex items-center" :class="sidebarOpen ? 'justify-between' : 'justify-center'">
     <span 
       x-show="sidebarOpen" 
-      class="text-xs font-bold text-gray-500 uppercase tracking-widest whitespace-nowrap"
+      class="text-xs font-bold text-gray-500 uppercase tracking-widest whitespace-nowrap select-none"
     >Menu</span>
     <button 
       @click="sidebarOpen = !sidebarOpen" 
-      class="text-gray-500 hover:text-white transition focus:outline-none shrink-0" 
+      class="text-gray-500 hover:text-white transition focus:outline-none shrink-0 cursor-pointer" 
       title="Toggle Sidebar"
     >
       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -21,7 +21,7 @@
 <button 
   @click="view = 'stream'" 
   :class="view === 'stream' ? 'bg-gray-900/80 border-r-2 border-blue-500 text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-900/50 border-r-2 border-transparent'" 
-  class="w-full flex items-center px-5 py-3 transition group" title="Live Stream"
+  class="w-full flex items-center px-5 py-3 transition group cursor-pointer" title="Live Stream"
 >
   <svg class="w-6 h-6 shrink-0 group-hover:text-blue-400 transition" :class="view === 'stream' ? 'text-blue-500' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z">
@@ -34,7 +34,7 @@
 {{define "partials/global/sidebar/dictionary_btn"}}
 <button @click="view = 'dictionary'" 
   :class="view === 'dictionary' ? 'bg-gray-900/80 border-r-2 border-blue-500 text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-900/50 border-r-2 border-transparent'" 
-  class="w-full flex items-center px-5 py-3 transition group" 
+  class="w-full flex items-center px-5 py-3 transition group cursor-pointer" 
   title="Dictionary & Specs"
 >
   <svg class="w-6 h-6 shrink-0 group-hover:text-blue-400 transition" :class="view === 'dictionary' ? 'text-blue-500' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -51,7 +51,7 @@
     <!-- Set expandedMenu to 'toolbox'. If it already is 'toolbox', collapse it ('') -->
     <button @click="sidebarOpen = true; expandedMenu = expandedMenu === 'toolbox' ? '' : 'toolbox'" 
       :class="view === 'toolbox' ? 'text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-900/50'" 
-      class="w-full flex items-center justify-between px-5 py-3 transition group border-r-2 border-transparent" 
+      class="w-full flex items-center justify-between px-5 py-3 transition group border-r-2 border-transparent cursor-pointer" 
       title="Automation Tools"
     >
       <div class="flex items-center">
@@ -81,17 +81,17 @@
         <button 
           @click="view = 'toolbox'; toolboxTab = 'scripts'" 
           :class="view === 'toolbox' && toolboxTab === 'scripts' ? 'text-blue-400 bg-blue-900/20' : 'text-gray-400 hover:text-white hover:bg-gray-800/50'" 
-          class="w-full text-left px-3 py-1.5 text-xs font-bold rounded transition whitespace-nowrap overflow-hidden text-ellipsis"
+          class="w-full text-left px-3 py-1.5 text-xs font-bold rounded transition whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer"
         >Script Runner</button>
         <button 
           @click="view = 'toolbox'; toolboxTab = 'finalize'" 
           :class="view === 'toolbox' && toolboxTab === 'finalize' ? 'text-blue-400 bg-blue-900/20' : 'text-gray-400 hover:text-white hover:bg-gray-800/50'" 
-          class="w-full text-left px-3 py-1.5 text-xs font-bold rounded transition whitespace-nowrap overflow-hidden text-ellipsis"
+          class="w-full text-left px-3 py-1.5 text-xs font-bold rounded transition whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer"
         >FIX Finalize</button>
         <button 
           @click="view = 'toolbox'; toolboxTab = 'validate'" 
           :class="view === 'toolbox' && toolboxTab === 'validate' ? 'text-blue-400 bg-blue-900/20' : 'text-gray-400 hover:text-white hover:bg-gray-800/50'" 
-          class="w-full text-left px-3 py-1.5 text-xs font-bold rounded transition whitespace-nowrap overflow-hidden text-ellipsis"
+          class="w-full text-left px-3 py-1.5 text-xs font-bold rounded transition whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer"
         >Validate Message</button>
     </div>
 </div>
@@ -102,7 +102,7 @@
 <button 
   @click="sidebarOpen = true; expandedMenu = expandedMenu === 'settings' ? '' : 'settings'" 
   :class="view === 'settings' ? 'text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-900/50'" 
-  class="w-full flex items-center justify-between px-5 py-3 transition group border-r-2 border-transparent" 
+  class="w-full flex items-center justify-between px-5 py-3 transition group border-r-2 border-transparent cursor-pointer" 
   title="Workspace Settings"
 >
   <div class="flex items-center">
@@ -126,9 +126,21 @@
 
 <!-- Settings Sub-items -->
 <div x-show="expandedMenu === 'settings' && sidebarOpen" x-collapse class="pl-14 pr-4 space-y-1 py-1 mb-2">
-    <button @click="view = 'settings'; settingsTab = 'about'" :class="view === 'settings' && settingsTab === 'about' ? 'text-blue-400 bg-blue-900/20' : 'text-gray-400 hover:text-white hover:bg-gray-800/50'" class="w-full text-left px-3 py-1.5 text-xs font-bold rounded transition whitespace-nowrap overflow-hidden text-ellipsis">About &amp; Help</button>
-    <button @click="view = 'settings'; settingsTab = 'config'" :class="view === 'settings' && settingsTab === 'config' ? 'text-blue-400 bg-blue-900/20' : 'text-gray-400 hover:text-white hover:bg-gray-800/50'" class="w-full text-left px-3 py-1.5 text-xs font-bold rounded transition whitespace-nowrap overflow-hidden text-ellipsis">Session Config</button>
-    <button @click="view = 'settings'; settingsTab = 'aliases'" :class="view === 'settings' && settingsTab === 'aliases' ? 'text-blue-400 bg-blue-900/20' : 'text-gray-400 hover:text-white hover:bg-gray-800/50'" class="w-full text-left px-3 py-1.5 text-xs font-bold rounded transition whitespace-nowrap overflow-hidden text-ellipsis">Aliases</button>
+    <button 
+      @click="view = 'settings'; settingsTab = 'about'" 
+      :class="view === 'settings' && settingsTab === 'about' ? 'text-blue-400 bg-blue-900/20' : 'text-gray-400 hover:text-white hover:bg-gray-800/50'" 
+      class="w-full text-left px-3 py-1.5 text-xs font-bold rounded transition whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer"
+    >About &amp; Help</button>
+    <button 
+      @click="view = 'settings'; settingsTab = 'config'" 
+      :class="view === 'settings' && settingsTab === 'config' ? 'text-blue-400 bg-blue-900/20' : 'text-gray-400 hover:text-white hover:bg-gray-800/50'" 
+      class="w-full text-left px-3 py-1.5 text-xs font-bold rounded transition whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer"
+    >Session Config</button>
+    <button 
+      @click="view = 'settings'; settingsTab = 'aliases'" 
+      :class="view === 'settings' && settingsTab === 'aliases' ? 'text-blue-400 bg-blue-900/20' : 'text-gray-400 hover:text-white hover:bg-gray-800/50'" 
+      class="w-full text-left px-3 py-1.5 text-xs font-bold rounded transition whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer"
+    >Aliases</button>
 </div>
 {{end}}
 

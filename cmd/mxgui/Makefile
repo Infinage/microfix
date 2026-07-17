@@ -8,7 +8,7 @@ dev:
 
 # Tailwind Watcher
 watch-css:
-	tailwindcss -i assets/css/input.css -o assets/css/index.css --watch
+	tailwindcss -i assets/css/input.css -o assets/css/index.css --minify --watch
 
 # Go Live Reload
 watch-go:

@@ -1,0 +1,100 @@
+{{define "partials/stream/inspector/validate"}}
+<div 
+  x-show="inspectorTab === 'validation'" 
+  style="display:none;" 
+  class="space-y-4"
+  x-data="{
+    search: '', showMuted: false,
+    muted: JSON.parse(localStorage.getItem('fixMutedErrors') || '[]'),
+    mute(err) {
+      if (!this.muted.includes(err)) this.muted.push(err);
+      localStorage.setItem('fixMutedErrors', JSON.stringify(this.muted));
+    },
+    unmute(err) {
+      this.muted = this.muted.filter(m => m !== err);
+      localStorage.setItem('fixMutedErrors', JSON.stringify(this.muted));
+    },
+    clearMuted() {
+      this.muted = [];
+      localStorage.removeItem('fixMutedErrors');
+    }
+  }"
+>
+  {{if .IsValid}}
+    <div class="text-green-400 text-sm font-mono bg-green-900/10 p-4 rounded border border-green-900/30">
+        No validation errors detected. Structure and sequence are correct.
+    </div>
+  {{else}}
+    <div class="flex items-center gap-2">
+      <input
+        type="text"
+        x-model="search"
+        placeholder="Filter errors..."
+        class="flex-1 bg-[#0a0d12] border border-gray-800 rounded px-3 py-1.5 text-xs font-mono text-gray-300 focus:border-blue-500 focus:outline-none transition-colors"
+      >
+      <button
+        @click="showMuted = !showMuted"
+        class="text-xs bg-gray-900 border border-gray-700 hover:bg-gray-800 text-gray-400 px-3 py-1.5 rounded transition whitespace-nowrap cursor-pointer"
+        x-text="`Muted (${muted.length})`"
+      ></button>
+    </div>
+
+    <div x-show="showMuted" x-transition class="border border-gray-800 rounded bg-[#0a0d12] p-3 space-y-1" style="display:none;">
+      <template x-if="muted.length === 0">
+        <div class="text-xs text-gray-600 italic select-none">No muted rules yet.</div>
+      </template>
+      <template x-for="err in muted" :key="err">
+        <div class="flex items-center justify-between gap-2 text-[11px] font-mono text-gray-500">
+          <span class="truncate" x-text="err"></span>
+          <button @click="unmute(err)" class="text-red-500/70 hover:text-red-400 shrink-0 cursor-pointer">unmute</button>
+        </div>
+      </template>
+      <button 
+        x-show="muted.length > 0"
+        @click="clearMuted()" 
+        class="text-[11px] text-red-500/70 hover:text-red-400 pt-1 cursor-pointer"
+      >Clear all muted</button>
+    </div>
+
+    <div class="border border-red-900/40 rounded overflow-hidden bg-[#0a0d12] shadow-sm">
+      <div class="bg-red-950/30 px-4 py-2 border-b border-red-900/40 flex items-center space-x-2">
+          <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            ></path>
+          </svg>
+          <span class="text-xs font-bold text-red-400 uppercase tracking-wider font-sans select-none">
+            Validation Errors ({{if .Observations}}{{len .Observations}}{{end}})
+          </span>
+      </div>
+      <ul class="divide-y divide-gray-800/60">
+          {{range .Observations}}
+          <li 
+            data-err="{{.}}"
+            x-data="{ err: $el.dataset.err }"
+            x-show="!muted.includes(err) && (search === '' || err.toLowerCase().includes(search.toLowerCase()))"
+            class="flex items-start justify-between gap-3 px-4 py-3 hover:bg-gray-800/30 transition"
+          >
+              <div class="flex items-start space-x-3 min-w-0">
+                <span class="text-red-500/50 mt-1 shrink-0 font-mono text-[10px] select-none">►</span>
+                <span class="text-sm font-mono text-gray-300 leading-relaxed" x-text="err"></span>
+              </div>
+              <button 
+                @click="mute(err)" 
+                title="Mute this error"
+                class="text-gray-600 hover:text-red-400 shrink-0 mt-0.5 transition cursor-pointer"
+              >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 
+                    10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 
+                    4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 
+                    9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>
+                </svg>
+              </button>
+          </li>
+          {{end}}
+      </ul>
+    </div>
+  {{end}}
+</div>
+{{end}}

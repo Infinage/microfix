@@ -1,5 +1,11 @@
 {{define "partials/settings/aliases"}}
-<div x-show="settingsTab === 'aliases'" hx-trigger="refresh-alias from:body" hx-get="/api/alias/list" hx-vals='{"from": "settings"}'>
+<div 
+  x-show="settingsTab === 'aliases'" 
+  hx-trigger="refresh-alias from:body" 
+  hx-get="/api/alias/list" 
+  hx-vals='{"from": "settings"}'
+  class="select-none"
+>
     <div class="flex justify-between items-center mb-6">
         <div>
             <h2 class="text-2xl font-bold text-white mb-2">Message Aliases</h2>
@@ -23,8 +29,8 @@
             </tr>
             {{range $aliasName, $aliasValue := .Aliases}}
               <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
-                  <td class="p-4 text-blue-400 font-bold">{{$aliasName}}</td>
-                  <td class="p-4 text-gray-300 truncate max-w-md">{{replaceSOH $aliasValue}}</td>
+                  <td class="p-4 text-blue-400 font-bold select-text">{{$aliasName}}</td>
+                  <td class="p-4 text-gray-300 truncate max-w-md select-text">{{replaceSOH $aliasValue}}</td>
                   <td 
                     class="p-4 text-right text-gray-500 hover:text-red-400 cursor-pointer transition"
                     hx-confirm="Are you sure you want to delete?" 

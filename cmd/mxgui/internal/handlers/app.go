@@ -67,7 +67,13 @@ func NewApplication(version, commit string, assets embed.FS) (*Application, erro
 	var err error
 	templ := template.New("").Funcs(templHelpers)
 
-	templ, err = templ.ParseFS(assets, "assets/html/pages/*html", "assets/html/partials/*/*html")
+	// Glob all html paths, sadly doesn't support '**'
+	templ, err = templ.ParseFS(assets, 
+		"assets/html/pages/*.html",
+		"assets/html/partials/*/*.html",
+		"assets/html/partials/*/*/*.html",
+	)
+
 	if err != nil {
 		return nil, err
 	}

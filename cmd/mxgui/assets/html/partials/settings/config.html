@@ -30,7 +30,7 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path>
       </svg>
       <div class="flex items-center space-x-2 truncate">
-        <span class="text-[10px] text-gray-600 font-semibold uppercase tracking-wider shrink-0">Loaded File:</span>
+        <span class="text-[10px] text-gray-600 font-semibold uppercase tracking-wider shrink-0 select-none">Loaded File:</span>
         <span class="text-sm font-mono text-gray-200 translate-y-[1.5px] truncate select-all">{{.ConfigPath}}</span>
       </div>
     </div>
@@ -59,7 +59,7 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1">
         </path>
       </svg>
-      <span>Connection</span>
+      <span class="select-none">Connection</span>
     </h3>
     <div class="bg-gray-900 border border-gray-800 rounded-lg shadow-sm">
       <table class="w-full text-left text-sm font-mono">
@@ -113,7 +113,7 @@
         </tr>
         <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
           <td class="p-4 text-gray-400 font-bold">
-            HeartbeatInt <span class="text-gray-600 text-[10px] font-sans font-normal ml-1">(Sec)</span>
+            HeartbeatInt <span class="text-gray-600 text-[10px] font-sans font-normal ml-1 select-none">(Sec)</span>
             {{template "partials/settings/config/tooltip" .ConfigHelp.HeartbeatInt}}
           </td>
           <td class="p-4">
@@ -145,13 +145,13 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4">
         </path>
       </svg>
-      <span>Dictionary Specifications</span>
+      <span class="select-none">Dictionary Specifications</span>
     </h3>
     <div class="bg-gray-900 border border-gray-800 rounded-lg shadow-sm">
       <table class="w-full text-left text-sm font-mono">
         <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition [&:first-child>td:first-child]:rounded-tl-lg [&:first-child>td:last-child]:rounded-tr-lg">
           <td class="p-4 text-gray-400 font-bold w-1/3">
-            SessionSpec <span class="text-gray-600 text-[10px] font-sans font-normal ml-1">(XML Path)</span>
+            SessionSpec <span class="text-gray-600 text-[10px] font-sans font-normal ml-1 select-none">(XML Path)</span>
             {{template "partials/settings/config/tooltip" .ConfigHelp.SessionSpec}}
           </td>
           <td class="p-4">
@@ -175,7 +175,7 @@
         </tr>
         <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
           <td class="p-4 text-gray-400 font-bold">
-            ApplicationSpec <span class="text-gray-600 text-[10px] font-sans font-normal ml-1">(XML Path)</span>
+            ApplicationSpec <span class="text-gray-600 text-[10px] font-sans font-normal ml-1 select-none">(XML Path)</span>
             {{template "partials/settings/config/tooltip" .ConfigHelp.ApplicationSpec}}
           </td>
           <td class="p-4">
@@ -219,7 +219,7 @@
   <section>
     <h3 class="text-white font-bold text-lg mb-3 flex items-center space-x-2">
       <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-      <span>Validation & Behavior</span>
+      <span class="select-none">Validation & Behavior</span>
     </h3>
     <div class="bg-gray-900 border border-gray-800 rounded-lg shadow-sm">
       <table class="w-full text-left text-sm font-mono">
@@ -284,7 +284,7 @@
 
 {{define "partials/settings/config"}}
 <div x-show="settingsTab === 'config'" style="display:none;" class="pb-10">
-    <div class="flex justify-between items-center mb-8">
+    <div class="flex justify-between items-center mb-8 select-none">
         <div>
             <h2 class="text-2xl font-bold text-white mb-1">Session Configuration</h2>
             <p class="text-gray-400 text-sm">Modify global connection parameters. These apply upon the next restart.</p>
