@@ -4,19 +4,82 @@
   style="display:none;" 
   class="space-y-4"
   x-data="{
-    search: '', showMuted: false,
+    search: '', showMuted: false, newRule: '', allErrors: [],
     muted: JSON.parse(localStorage.getItem('fixMutedErrors') || '[]'),
-    mute(err) {
-      if (!this.muted.includes(err)) this.muted.push(err);
-      localStorage.setItem('fixMutedErrors', JSON.stringify(this.muted));
+
+    // Extract all errors from DOM when loaded
+    init() {
+      this.$nextTick(() => {
+        this.allErrors = Array.from(this.$el.querySelectorAll('[data-err]')).map(el => el.dataset.err);
+      });
     },
-    unmute(err) {
-      this.muted = this.muted.filter(m => m !== err);
-      localStorage.setItem('fixMutedErrors', JSON.stringify(this.muted));
+
+    // Calculate how many total errors are currently hidden
+    get totalMutedCount() {
+      return this.allErrors.filter(err => this.isMuted(err)).length;
     },
+
+    // Calculate how many errors a SPECIFIC rule is hiding
+    getRuleHitCount(rulePattern) {
+      try {
+        let regex = new RegExp(rulePattern, 'i');
+        return this.allErrors.filter(err => regex.test(err)).length;
+      } catch(e) {
+        return 0;
+      }
+    },
+    
+    // Save to local storage
+    saveMuted() { localStorage.setItem('fixMutedErrors', JSON.stringify(this.muted)); },
+
+    // Escape special characters so default clicks do an exact string match
+    escapeRegex(str) { return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); },
+
+    // Check if an error matches ANY of the saved regex rules
+    isMuted(err) {
+      return this.muted.some(pattern => {
+        try {
+          return new RegExp(pattern, 'i').test(err);
+        } catch (e) {
+          return false; // Ignore invalid regexes
+        }
+      });
+    },
+
+    // Default mute button action (Exact match)
+    muteExact(err) {
+      let exactPattern = '^' + this.escapeRegex(err) + '$';
+      if (!this.muted.includes(exactPattern)) {
+        this.muted.push(exactPattern);
+        this.saveMuted();
+      }
+    },
+
+    // Add a custom regex rule from the input box
+    addCustomRule() {
+      let rule = this.newRule.trim();
+      if (!rule) return;
+      
+      try {
+        new RegExp(rule); // Test if it's a valid regex
+        if (!this.muted.includes(rule)) {
+          this.muted.push(rule);
+          this.saveMuted();
+        }
+        this.newRule = '';
+      } catch (e) {
+        alert('Invalid Regular Expression');
+      }
+    },
+
+    unmute(pattern) {
+      this.muted = this.muted.filter(m => m !== pattern);
+      this.saveMuted();
+    },
+
     clearMuted() {
       this.muted = [];
-      localStorage.removeItem('fixMutedErrors');
+      this.saveMuted();
     }
   }"
 >
@@ -35,25 +98,47 @@
       <button
         @click="showMuted = !showMuted"
         class="text-xs bg-gray-900 border border-gray-700 hover:bg-gray-800 text-gray-400 px-3 py-1.5 rounded transition whitespace-nowrap cursor-pointer"
-        x-text="`Muted (${muted.length})`"
+        x-text="`Rules (${muted.length})`"
       ></button>
     </div>
 
-    <div x-show="showMuted" x-transition class="border border-gray-800 rounded bg-[#0a0d12] p-3 space-y-1" style="display:none;">
-      <template x-if="muted.length === 0">
-        <div class="text-xs text-gray-600 italic select-none">No muted rules yet.</div>
-      </template>
-      <template x-for="err in muted" :key="err">
-        <div class="flex items-center justify-between gap-2 text-[11px] font-mono text-gray-500">
-          <span class="truncate" x-text="err"></span>
-          <button @click="unmute(err)" class="text-red-500/70 hover:text-red-400 shrink-0 cursor-pointer">unmute</button>
-        </div>
-      </template>
+    <div x-show="showMuted" x-transition class="border border-gray-800 rounded bg-[#0a0d12] p-3 space-y-3" style="display:none;">
+      
+      <div class="flex items-center gap-2">
+        <input
+          type="text"
+          x-model="newRule"
+          @keydown.enter.prevent="addCustomRule()"
+          placeholder="e.g., Unknown tag.*"
+          class="flex-1 bg-gray-950 border border-gray-800 rounded px-2 py-1 text-xs font-mono text-gray-300 focus:border-blue-500 focus:outline-none transition-colors"
+        >
+        <button 
+          @click="addCustomRule()"
+          class="text-[11px] bg-blue-600 hover:bg-blue-500 text-white px-2 py-1 rounded transition cursor-pointer"
+        >Add Regex</button>
+      </div>
+
+      <div class="space-y-1">
+        <template x-if="muted.length === 0">
+          <div class="text-xs text-gray-600 italic select-none">No active mute rules.</div>
+        </template>
+
+        <template x-for="rule in muted" :key="rule">
+          <div class="flex items-center justify-between gap-2 text-[11px] font-mono text-gray-500 group">
+            <div class="flex items-center gap-1.5 min-w-0">
+                <span class="truncate bg-gray-900 px-1.5 py-0.5 rounded border border-gray-800" x-text="rule"></span>
+                <span class="text-gray-600 shrink-0" x-text="`(${getRuleHitCount(rule)} hidden)`"></span>
+            </div>
+            <button @click="unmute(rule)" class="text-red-500/70 hover:text-red-400 shrink-0 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity">delete</button>
+          </div>
+        </template>
+      </div>
+
       <button 
         x-show="muted.length > 0"
         @click="clearMuted()" 
-        class="text-[11px] text-red-500/70 hover:text-red-400 pt-1 cursor-pointer"
-      >Clear all muted</button>
+        class="text-[11px] text-red-500/70 hover:text-red-400 pt-1 cursor-pointer w-full text-left"
+      >Clear all rules</button>
     </div>
 
     <div class="border border-red-900/40 rounded overflow-hidden bg-[#0a0d12] shadow-sm">
@@ -72,7 +157,7 @@
           <li 
             data-err="{{.}}"
             x-data="{ err: $el.dataset.err }"
-            x-show="!muted.includes(err) && (search === '' || err.toLowerCase().includes(search.toLowerCase()))"
+            x-show="!isMuted(err) && (search === '' || err.toLowerCase().includes(search.toLowerCase()))"
             class="flex items-start justify-between gap-3 px-4 py-3 hover:bg-gray-800/30 transition"
           >
               <div class="flex items-start space-x-3 min-w-0">
@@ -80,8 +165,8 @@
                 <span class="text-sm font-mono text-gray-300 leading-relaxed" x-text="err"></span>
               </div>
               <button 
-                @click="mute(err)" 
-                title="Mute this error"
+                @click="muteExact(err)" 
+                title="Mute this exact error"
                 class="text-gray-600 hover:text-red-400 shrink-0 mt-0.5 transition cursor-pointer"
               >
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
