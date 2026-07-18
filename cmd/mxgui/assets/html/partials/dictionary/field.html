@@ -5,7 +5,7 @@
     <div>
       <div class="flex items-center space-x-3 mb-2">
         <span class="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 font-bold font-mono px-3 py-1 rounded text-sm border border-purple-300 dark:border-purple-800 select-none">Tag {{.FieldDef.Number}}</span>
-        <span class="bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400 font-mono px-3 py-1 rounded text-sm border border-gray-300 dark:border-gray-700 select-none">Type: {{toTitle .FieldDef.Type}}</span>
+        <span class="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 font-mono font-medium px-3 py-1 rounded text-sm border border-gray-300 dark:border-gray-700 select-none">Type: {{toTitle .FieldDef.Type}}</span>
       </div>
       <h2 class="text-3xl font-bold text-gray-900 dark:text-white">{{.FieldDef.Name}}</h2>
     </div>
@@ -14,9 +14,9 @@
     <h3 class="text-sm font-bold text-gray-600 dark:text-gray-500 uppercase tracking-widest mb-3 select-none">Valid Values (Enums)</h3>
     
     {{if .FieldDef.Enums}}
-      <div class="border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden bg-white dark:bg-gray-950 shadow-lg">
+      <div class="border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-950 shadow-lg">
         <table class="w-full text-left text-sm font-mono table-fixed">
-          <tr class="bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-800 select-none">
+          <tr class="bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-800 select-none">
             <th class="p-3 w-24">Value</th>
             <th class="p-3">Description</th>
           </tr>
@@ -29,7 +29,7 @@
         </table>
       </div>
     {{else}}
-      <div class="border border-dashed border-gray-300 dark:border-gray-800/80 rounded-lg bg-gray-100 dark:bg-gray-900/30 p-5 flex items-start text-gray-600 dark:text-gray-500 shadow-sm">
+      <div class="border border-dashed border-gray-300 dark:border-gray-800/80 rounded-lg bg-white dark:bg-gray-900/30 p-5 flex items-start text-gray-600 dark:text-gray-500 shadow-sm">
         <svg class="w-6 h-6 mr-5 mt-0.5 opacity-60 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
         </svg>

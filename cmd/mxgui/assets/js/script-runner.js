@@ -13,7 +13,7 @@ const highlight = editor => {
     // Process the matches in one clean pass
     code = code.replace(lexer, (match, pComment, pVar, pJump, pKeyword) => {
         if (pComment) return `<span class="text-gray-500 font-semibold">${pComment}</span>`;
-        if (pVar)     return `<span class="text-amber-600 dark:text-yellow-400">${pVar}</span>`;
+        if (pVar)     return `<span class="text-amber-600 dark:text-yellow-400 font-semibold">${pVar}</span>`;
         if (pJump)    return `<span class="text-purple-600 dark:text-purple-400 font-bold">${pJump}</span>`;
         if (pKeyword) return `<span class="text-blue-600 dark:text-blue-400 font-bold">${pKeyword}</span>`;
         return match;

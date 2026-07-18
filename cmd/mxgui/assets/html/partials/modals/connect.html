@@ -10,7 +10,7 @@
 >
     <div class="flex justify-between items-center mb-4">
         <h3 class="text-gray-900 dark:text-white font-bold text-lg select-none">Connection Settings</h3>
-        <div class="flex items-center space-x-2 bg-gray-100 dark:bg-gray-950 p-1 rounded-lg border border-gray-200 dark:border-gray-800">
+        <div class="flex items-center space-x-2 bg-gray-50 dark:bg-gray-950 p-1 rounded-lg border border-gray-200 dark:border-gray-800">
             <button type="button" @click="mode = 'client'" :disabled="loading"
                 :class="mode === 'client' ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'"
                 class="px-3 py-1 text-xs font-bold rounded transition cursor-pointer"
@@ -28,7 +28,7 @@
             <div>
                 <label class="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider select-none">Host / Bind IP</label>
                 <input type="text" name="host" value="{{.Config.IpAddr}}"
-                    class="w-full bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded px-3 py-2 text-gray-900 dark:text-white font-mono mt-1 focus:border-blue-500 focus:outline-none"
+                    class="w-full bg-gray-50 dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded px-3 py-2 text-gray-900 dark:text-white font-mono mt-1 focus:border-blue-500 focus:outline-none"
                 >
             </div>
 
@@ -36,7 +36,7 @@
                 <label class="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider select-none">Port</label>
                 <input 
                   type="number" name="port" value="{{.Config.Port}}"
-                  class="w-full bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded px-3 py-2 text-gray-900 dark:text-white font-mono mt-1 focus:border-blue-500 focus:outline-none"
+                  class="w-full bg-gray-50 dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded px-3 py-2 text-gray-900 dark:text-white font-mono mt-1 focus:border-blue-500 focus:outline-none"
                 >
             </div>
         </fieldset>

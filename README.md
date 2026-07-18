@@ -29,14 +29,22 @@ A high-performance FIX (Financial Information eXchange) workstation suite for de
 
 ## Feature Gallery
 
-|                                                         |                                                            |
-|---------------------------------------------------------|------------------------------------------------------------|
-| **Live Session Monitor**                                | **Message Inspector**                                      |
-| ![Live stream](.github/assets/live-monitor.png)         | ![Message Inspector](.github/assets/message-inspector.png) |
-| **Dictionary Browser**                                  | **Script Runner**                                          |
-| ![Message browser](.github/assets/dictionary.png)       | ![Script runner output](.github/assets/script-runner.png)  |
-| **Message Diff**                                        | **Offline Toolbox**                                        |
-| ![Message diff viewer](.github/assets/message-diff.png) | ![Offline validator](.github/assets/toolbox.png)           |
+|                                                         |                                                             |
+|---------------------------------------------------------|-------------------------------------------------------------|
+| **Live Session Monitor**                                | **Message Inspector**                                       |
+| ![Live stream](.github/assets/live-monitor.png)         | ![Message Inspector](.github/assets/message-inspector.png)  |
+| **Dictionary Browser**                                  | **Script Runner**                                           |
+| ![Message browser](.github/assets/dictionary.png)       | ![Script runner output](.github/assets/script-console.png)  |
+| **Message Diff**                                        | **Offline Toolbox**                                         |
+| ![Message diff viewer](.github/assets/message-diff.png) | ![Offline validator](.github/assets/toolbox.png)            |
+
+## Themes
+
+MicroFIX includes first-class Light and Dark themes.
+
+| Dark                                                           | Light                                                            |
+|----------------------------------------------------------------|------------------------------------------------------------------|
+| ![Script editor (Dark)](.github/assets/dark-script-editor.png) | ![Script editor (Light)](.github/assets/light-script-editor.png) |
 
 ---
 
@@ -62,6 +70,7 @@ Developing FIX applications often means switching between packet captures, text 
 - Interactive FIX dictionary browser
 - Custom FIX XML support
 - Shared engine between GUI and CLI
+- First-class Light and Dark theme support
 
 ---
 
@@ -147,6 +156,7 @@ mxshell> logs
 
 ### Desktop GUI (`mxgui`)
 
+* **Manual Light & Dark Themes**: Choose the appearance that suits your preference.
 * **Live Session Monitor:** Zero-lag log streaming via Server-Sent Events capable of handling thousands of messages.
 * **Interactive Message Diff:** Compare FIX messages side-by-side to instantly spot protocol differences.
 

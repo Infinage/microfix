@@ -19,7 +19,7 @@
     <div class="flex justify-between items-center mb-4 shrink-0 bg-gray-100 dark:bg-gray-900/40 p-2 rounded-lg border border-gray-200 dark:border-gray-800">
         <div class="flex items-center space-x-4">
             
-            <div class="bg-white dark:bg-gray-950 p-1 rounded-md border border-gray-300 dark:border-gray-800 flex space-x-1">
+            <div class="bg-gray-50 dark:bg-gray-950 p-1 rounded-md border border-gray-300 dark:border-gray-800 flex space-x-1">
                 <button type="button" 
                         title="Toggle Editor (Ctrl+T)"
                         @click="scriptView = 'editor'"
@@ -49,7 +49,7 @@
 
         <div class="flex items-center space-x-3">
             <button @click="showHelp = true" type="button"
-                class="text-xs bg-transparent hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200 px-3 py-1.5 
+                class="text-xs bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200 px-3 py-1.5 
                   rounded border border-gray-300 dark:border-gray-700 transition font-medium cursor-pointer"
             >Syntax Reference</button>
             
@@ -68,7 +68,7 @@
     </div>
 
     <!-- Main Workspace Area -->
-    <div class="flex-1 min-h-0 relative rounded-lg border border-gray-300 dark:border-gray-800 overflow-hidden bg-white dark:bg-gray-950">
+    <div class="flex-1 min-h-0 relative rounded-lg border border-gray-300 dark:border-gray-800 overflow-hidden bg-gray-50 dark:bg-gray-950">
         
         <!-- Form Context Container -->
         <form id="script-form"
@@ -92,7 +92,7 @@
             <div x-ref="editor" spellcheck="false"
                  @keydown.ctrl.enter.prevent="$refs.scriptForm.requestSubmit()"
                  @keydown.meta.enter.prevent="$refs.scriptForm.requestSubmit()"
-                 class="w-full flex-1 bg-transparent text-green-700 dark:text-green-400 font-mono text-sm p-4 outline-none 
+                 class="w-full flex-1 bg-transparent text-black dark:text-green-400 font-mono text-sm p-4 outline-none 
                   overflow-y-auto whitespace-pre-wrap break-words shadow-inner" 
             ></div>
         </form>
@@ -125,7 +125,7 @@
                  class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl w-full max-w-4xl flex flex-col overflow-hidden max-h-full">
                 
                 <!-- Modal Header -->
-                <div class="flex justify-between items-center bg-gray-100 dark:bg-gray-950 px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+                <div class="flex justify-between items-center bg-gray-50 dark:bg-gray-950 px-4 py-3 border-b border-gray-200 dark:border-gray-800">
                     <h3 class="font-bold text-gray-900 dark:text-white text-sm tracking-wide select-none">Scripting Reference</h3>
                     <button @click="showHelp = false" class="text-gray-500 hover:text-gray-900 dark:text-gray-500 dark:hover:text-white text-lg leading-none cursor-pointer">&times;</button>
                 </div>

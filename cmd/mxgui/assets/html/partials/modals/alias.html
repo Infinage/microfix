@@ -17,7 +17,7 @@
               x-model="aliasName" name="aliasName" type="text" placeholder="e.g. CancelReq" 
               hx-trigger="input delay:300ms" autocomplete="off" hx-get="/api/alias/check/name" 
               hx-indicator="#spinner" hx-target="#alias-check" hx-swap="outerHTML" required
-              class="w-full bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded px-3 py-2 text-gray-900 dark:text-white font-mono mt-1 focus:border-blue-500 focus:outline-none"
+              class="w-full bg-gray-50 dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded px-3 py-2 text-gray-900 dark:text-white font-mono mt-1 focus:border-blue-500 focus:outline-none"
             >
             <div class="flex items-center gap-2 mt-1">
               <span id="alias-check" class="text-[10px] text-gray-600 dark:text-gray-500 mt-1">This name will appear in the Stream dropdown.</span>
@@ -30,7 +30,7 @@
             <label class="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider">FIX Payload Template</label>
             <textarea 
               name="aliasValue" required spellcheck="false" placeholder="35=F|41=ORD123|11=CXL123|..." x-model="aliasValue"
-              class="w-full bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded p-3 text-blue-700 dark:text-blue-300 font-mono mt-1 h-28 resize-none focus:border-blue-500 focus:outline-none shadow-inner"
+              class="w-full bg-gray-50 dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded p-3 text-blue-700 dark:text-blue-300 font-mono mt-1 h-28 resize-none focus:border-blue-500 focus:outline-none shadow-inner"
             ></textarea>
         </div>
     </div>

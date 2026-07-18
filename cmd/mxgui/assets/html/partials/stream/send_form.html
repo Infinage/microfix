@@ -8,7 +8,7 @@
     x-model="selectedAlias" 
     @change="selectedMsgType = ''" 
     :class="selectedAlias !== '' ? 'border-blue-500' : 'border-gray-300 dark:border-gray-700'" 
-    class="w-full truncate bg-white dark:bg-gray-950 border text-gray-900 dark:text-gray-300 text-sm rounded px-3 py-1.5 
+    class="w-full truncate bg-gray-50 dark:bg-gray-950 border text-gray-900 dark:text-gray-300 text-sm rounded px-3 py-1.5 
       outline-none focus:border-blue-500 font-mono transition cursor-pointer"
   >
       <option disabled value="">-- Select Alias --</option>
@@ -28,7 +28,7 @@
   x-model="selectedMsgType" 
   @change="selectedAlias = ''" 
   :class="selectedMsgType !== '' ? 'border-blue-500' : 'border-gray-300 dark:border-gray-700'" 
-  class="flex-1 min-w-[120px] max-w-[300px] truncate bg-white dark:bg-gray-950 border text-gray-900 dark:text-gray-300 
+  class="flex-1 min-w-[120px] max-w-[300px] truncate bg-gray-50 dark:bg-gray-950 border text-gray-900 dark:text-gray-300 
     text-sm rounded px-3 py-1.5 outline-none focus:border-blue-500 font-mono transition cursor-pointer"
 >
     <option disabled value="">-- Select MsgType --</option>
@@ -76,7 +76,7 @@
               hx-include="#message-input-raw"
               hx-target="#msg-inspector"
               hx-swap="outerHTML"
-              class="bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 px-2 lg:px-3 py-1.5 rounded text-sm 
+              class="bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 px-2 lg:px-3 py-1.5 rounded text-sm 
                 font-semibold transition flex items-center justify-center gap-2 shadow-sm cursor-pointer"
               title="Inspect current text editor contents"
             >
@@ -89,7 +89,7 @@
             <button 
               type="button"
               @click="modal = 'form'" 
-              class="bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 px-2 lg:px-3 py-1.5 rounded text-sm 
+              class="bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 px-2 lg:px-3 py-1.5 rounded text-sm 
                 font-semibold transition flex items-center justify-center gap-2 shadow-sm cursor-pointer"
               title="Open form editor"
             >
@@ -119,8 +119,11 @@
           x-model="displayFixData" id="message-input" minlength="4" 
           placeholder="35=D|55=AAPL|54=1|38=100|40=2|..."
           spellcheck="false" :style="`height: ${messageInputHeight}px`"
-          @htmx:after-swap="rawFixData = $event.detail.xhr.responseText"
-          class="w-full bg-white dark:bg-gray-950/50 border border-gray-300 dark:border-gray-800 rounded p-3 font-mono text-sm text-blue-700 dark:text-blue-300 focus:outline-none 
+          @htmx:after-swap="
+            if ($event.detail.xhr.getResponseHeader('HX-Reswap') === 'none') return;
+            rawFixData = $event.detail.xhr.responseText
+          "
+          class="w-full bg-gray-50 dark:bg-gray-950/50 border border-gray-300 dark:border-gray-800 rounded p-3 font-mono text-sm text-blue-700 dark:text-blue-300 focus:outline-none 
             focus:border-blue-500 placeholder-gray-400 dark:placeholder-gray-700 resize-none shadow-inner" 
         ></textarea>
 

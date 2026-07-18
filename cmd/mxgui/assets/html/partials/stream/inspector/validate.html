@@ -93,16 +93,16 @@
         type="text"
         x-model="search"
         placeholder="Filter errors..."
-        class="flex-1 bg-white dark:bg-[#0a0d12] border border-gray-300 dark:border-gray-800 rounded px-3 py-1.5 text-xs font-mono text-gray-800 dark:text-gray-300 focus:border-blue-500 focus:outline-none transition-colors"
+        class="flex-1 bg-gray-50 dark:bg-[#0a0d12] border border-gray-300 dark:border-gray-800 rounded px-3 py-1.5 text-xs font-mono text-gray-800 dark:text-gray-300 focus:border-blue-500 focus:outline-none transition-colors"
       >
       <button
         @click="showMuted = !showMuted"
-        class="text-xs bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-400 px-3 py-1.5 rounded transition whitespace-nowrap cursor-pointer"
+        class="text-xs bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-400 px-3 py-1.5 rounded transition whitespace-nowrap cursor-pointer"
         x-text="`Rules (${muted.length})`"
       ></button>
     </div>
 
-    <div x-show="showMuted" x-transition class="border border-gray-200 dark:border-gray-800 rounded bg-white dark:bg-[#0a0d12] p-3 space-y-3" style="display:none;">
+    <div x-show="showMuted" x-transition class="border border-gray-200 dark:border-gray-800 rounded bg-gray-50 dark:bg-[#0a0d12] p-3 space-y-3" style="display:none;">
       
       <div class="flex items-center gap-2">
         <input
@@ -126,7 +126,7 @@
         <template x-for="rule in muted" :key="rule">
           <div class="flex items-center justify-between gap-2 text-[11px] font-mono text-gray-600 dark:text-gray-500 group">
             <div class="flex items-center gap-1.5 min-w-0">
-                <span class="truncate bg-gray-100 dark:bg-gray-900 px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-800" x-text="rule"></span>
+                <span class="truncate bg-white dark:bg-gray-900 px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-800" x-text="rule"></span>
                 <span class="text-gray-500 dark:text-gray-600 shrink-0" x-text="`(${getRuleHitCount(rule)} hidden)`"></span>
             </div>
             <button @click="unmute(rule)" class="text-red-500/70 hover:text-red-600 dark:hover:text-red-400 shrink-0 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity">delete</button>
@@ -141,7 +141,7 @@
       >Clear all rules</button>
     </div>
 
-    <div class="border border-red-200 dark:border-red-900/40 rounded overflow-hidden bg-white dark:bg-[#0a0d12] shadow-sm">
+    <div class="border border-red-200 dark:border-red-900/40 rounded overflow-hidden bg-gray-50 dark:bg-[#0a0d12] shadow-sm">
       <div class="bg-red-50 dark:bg-red-950/30 px-4 py-2 border-b border-red-200 dark:border-red-900/40 flex items-center space-x-2">
           <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 

@@ -2,9 +2,9 @@
 <div class="group relative inline-block cursor-help text-gray-600 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 ml-2">
   <span class="flex h-4 w-4 items-center justify-center rounded-full border border-current text-[10px] font-bold select-none">?</span>
   
-  <div class="absolute left-full top-1/2 z-50 ml-2 w-56 -translate-y-1/2 scale-95 rounded bg-gray-200 dark:bg-gray-800 p-2 text-xs text-gray-900 dark:text-gray-200 opacity-0 transition-all pointer-events-none group-hover:scale-100 group-hover:opacity-100 shadow-xl border border-gray-300 dark:border-gray-700">
+  <div class="absolute left-full top-1/2 z-50 ml-2 w-56 -translate-y-1/2 scale-95 rounded bg-gray-100 dark:bg-gray-800 p-2 text-xs text-gray-900 dark:text-gray-200 opacity-0 transition-all pointer-events-none group-hover:scale-100 group-hover:opacity-100 shadow-xl border border-gray-300 dark:border-gray-700">
     {{.}} 
-    <div class="absolute top-1/2 -left-1 h-2 w-2 -translate-y-1/2 rotate-45 bg-gray-200 dark:bg-gray-800 border-b border-l border-gray-300 dark:border-gray-700"></div>
+    <div class="absolute top-1/2 -left-1 h-2 w-2 -translate-y-1/2 rotate-45 bg-gray-100 dark:bg-gray-800 border-b border-l border-gray-300 dark:border-gray-700"></div>
   </div>
 </div>
 {{end}}
@@ -14,9 +14,9 @@
   <svg class="w-5 h-5 text-{{.Color}}-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{.PathData}}"></path>
   </svg>
-  <div class="absolute bottom-full left-1/2 z-50 mb-2 w-max -translate-x-1/2 scale-95 rounded bg-gray-200 dark:bg-gray-800 p-2 text-xs text-{{.Color}}-600 dark:text-{{.Color}}-400 opacity-0 transition-all pointer-events-none group-hover:scale-100 group-hover:opacity-100 border border-gray-300 dark:border-gray-700 shadow-lg font-sans">
+  <div class="absolute bottom-full left-1/2 z-50 mb-2 w-max -translate-x-1/2 scale-95 rounded bg-gray-100 dark:bg-gray-800 p-2 text-xs text-{{.Color}}-600 dark:text-{{.Color}}-400 opacity-0 transition-all pointer-events-none group-hover:scale-100 group-hover:opacity-100 border border-gray-300 dark:border-gray-700 shadow-lg font-sans">
     {{.Text}}
-    <div class="absolute top-full left-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-gray-200 dark:bg-gray-800 border-b border-r border-gray-300 dark:border-gray-700"></div>
+    <div class="absolute top-full left-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-gray-100 dark:bg-gray-800 border-b border-r border-gray-300 dark:border-gray-700"></div>
   </div>
 </div>
 {{end}}
@@ -24,7 +24,7 @@
 {{define "partials/settings/config/form"}}
 <form id="config-form" hx-post="/api/config" hx-swap="none" class="space-y-8">
 
-  <div x-data="{ copied: false }" class="flex items-center justify-between bg-gray-100 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800 rounded-lg p-1.5 pl-4 mb-8 shadow-sm">
+  <div x-data="{ copied: false }" class="flex items-center justify-between bg-white dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800 rounded-lg p-1.5 pl-4 mb-8 shadow-sm">
     <div class="flex items-center space-x-3 overflow-hidden">
       <svg class="w-5 h-5 text-gray-600 dark:text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path>
@@ -41,7 +41,7 @@
         setTimeout(() => copied = false, 2000);
       "
       class="ml-3 shrink-0 px-3 py-2 rounded transition-colors flex items-center justify-center cursor-pointer min-w-[40px]"
-      :class="copied ? 'bg-green-100 dark:bg-green-500/10 text-green-700 dark:text-green-400' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200'"
+      :class="copied ? 'bg-green-100 dark:bg-green-500/10 text-green-700 dark:text-green-400' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200'"
       :title="copied ? 'Copied!' : 'Copy to clipboard'"
     >
       <svg x-show="!copied" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -70,7 +70,7 @@
           </td>
           <td class="p-4">
             <input type="text" name="IpAddr" value="{{.Config.IpAddr}}" 
-              class="bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded px-3 py-1.5 
+              class="bg-gray-50 dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded px-3 py-1.5 
                 text-gray-900 dark:text-white font-mono w-full max-w-md focus:border-blue-500 focus:outline-none"
             >
           </td>
@@ -82,7 +82,7 @@
           </td>
           <td class="p-4">
             <input type="number" name="Port" value="{{.Config.Port}}" 
-              class="bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded px-3 py-1.5 
+              class="bg-gray-50 dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded px-3 py-1.5 
                 text-gray-900 dark:text-white font-mono w-32 focus:border-blue-500 focus:outline-none"
             >
           </td>
@@ -94,7 +94,7 @@
           </td>
           <td class="p-4">
             <input type="text" name="SenderCompID" value="{{.Config.SenderCompID}}" 
-              class="bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded px-3 py-1.5 text-gray-900 dark:text-white 
+              class="bg-gray-50 dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded px-3 py-1.5 text-gray-900 dark:text-white 
                 font-mono w-full max-w-md focus:border-blue-500 focus:outline-none"
             >
           </td>
@@ -106,7 +106,7 @@
           </td>
           <td class="p-4">
             <input type="text" name="TargetCompID" value="{{.Config.TargetCompID}}" 
-              class="bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded px-3 py-1.5 text-gray-900 dark:text-white 
+              class="bg-gray-50 dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded px-3 py-1.5 text-gray-900 dark:text-white 
                 font-mono w-full max-w-md focus:border-blue-500 focus:outline-none"
             >
           </td>
@@ -118,7 +118,7 @@
           </td>
           <td class="p-4">
             <input type="number" name="HeartbeatInt" value="{{.Config.HeartbeatInt}}" 
-              class="bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded px-3 py-1.5 text-gray-900 dark:text-white 
+              class="bg-gray-50 dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded px-3 py-1.5 text-gray-900 dark:text-white 
                 font-mono w-24 focus:border-blue-500 focus:outline-none"
             >
           </td>
@@ -130,7 +130,7 @@
           </td>
           <td class="p-4">
             <input type="number" name="DefaultTimeoutSec" value="{{.Config.DefaultTimeoutSec}}" 
-              class="bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded px-3 py-1.5 text-gray-900 dark:text-white 
+              class="bg-gray-50 dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded px-3 py-1.5 text-gray-900 dark:text-white 
                 font-mono w-24 focus:border-blue-500 focus:outline-none"
             >
           </td>
@@ -159,7 +159,7 @@
               <input type="text" name="SessionSpec" value="{{.Config.SessionSpec}}" autocomplete="off"
                 hx-get="/api/config/check/specpath" hx-indicator="#session-spec-spinner" hx-swap="innerHTML"
                 hx-vals='{"from": "session-spec"}' hx-trigger="input delay:300ms" hx-target="#session-spec-status"
-                class="bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded px-3 py-1.5 text-gray-900 dark:text-white font-mono w-full max-w-md 
+                class="bg-gray-50 dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded px-3 py-1.5 text-gray-900 dark:text-white font-mono w-full max-w-md 
                   focus:border-blue-500 focus:outline-none placeholder-gray-400 dark:placeholder-gray-700" placeholder="FIX44.xml"
               >
 
@@ -183,7 +183,7 @@
               <input type="text" name="ApplicationSpec" value="{{.Config.ApplicationSpec}}" autocomplete="off"
                 hx-get="/api/config/check/specpath" hx-indicator="#application-spec-spinner" hx-swap="innerHTML"
                 hx-vals='{"from": "application-spec"}' hx-trigger="input delay:300ms" hx-target="#application-spec-status"
-                class="bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded px-3 py-1.5 text-gray-900 dark:text-white 
+                class="bg-gray-50 dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded px-3 py-1.5 text-gray-900 dark:text-white 
                   font-mono w-full max-w-md focus:border-blue-500 focus:outline-none placeholder-gray-400 dark:placeholder-gray-700" placeholder="Optional App Dict..."
               >
 
@@ -297,7 +297,7 @@
                   hx-post="/wails/config/import" 
                   hx-target="#config-form" 
                   hx-swap="outerHTML"
-                  class="bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 
+                  class="bg-gray-100 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 
                     rounded text-sm transition font-bold shadow-sm cursor-pointer flex items-center space-x-2"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -314,7 +314,7 @@
                 {{else}} 
                   href="/api/config/export" download="config.mxrc"
                 {{end}}
-                class="bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 
+                class="bg-gray-100 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 
                 rounded text-sm transition font-bold shadow-sm cursor-pointer flex items-center space-x-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                 <span>Export...</span>

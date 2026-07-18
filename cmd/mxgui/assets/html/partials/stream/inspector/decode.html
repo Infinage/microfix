@@ -2,7 +2,7 @@
   {{range .}}
     {{if .IsGroup}}
       <tbody x-data="{ expanded: true }" class="border-t border-gray-200 dark:border-gray-800">
-          <tr class="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition" @click="expanded = !expanded">
+          <tr class="hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition" @click="expanded = !expanded">
               <td class="px-2 py-1.5 text-gray-600 dark:text-gray-500">{{.Tag}}</td>
               <td class="px-2 py-1.5 text-gray-700 dark:text-gray-300 flex items-center space-x-1">
                   <span class="text-[8px] transition-transform" :class="expanded ? 'rotate-0' : '-rotate-90'">▼</span> 
@@ -26,7 +26,7 @@
           {{end}}
       </tbody>
     {{else}}
-      <tr class="border-b border-gray-100 dark:border-gray-800/30 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
+      <tr class="border-b border-gray-100 dark:border-gray-800/30 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
           <td class="px-2 py-1.5 text-gray-600 dark:text-gray-500 w-12">{{.Tag}}</td>
           <td class="px-2 py-1.5 text-gray-700 dark:text-gray-300 w-40 truncate">{{.Name}}</td>
           <td class="px-2 py-1.5 text-gray-900 dark:text-white">

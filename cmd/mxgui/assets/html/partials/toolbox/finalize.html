@@ -84,6 +84,7 @@
               class="flex-1 bg-gray-50 dark:bg-gray-950 border border-gray-300 dark:border-gray-800 rounded p-4 font-mono text-sm text-blue-700 dark:text-blue-300 resize-none focus:border-blue-500 focus:outline-none shadow-inner" 
               readonly placeholder="Output with calculated lengths and checksums will appear here..."
               @htmx:after-swap="
+                if ($event.detail.xhr.getResponseHeader('HX-Reswap') === 'none') return;
                 rawOutput = $event.detail.xhr.responseText;
                 $el.value = rawOutput.replace(/\x01/g, '|');
               "

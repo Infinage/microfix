@@ -2,7 +2,6 @@
 {{$LogType := .Type.String}}
 {{$theme := getThemeForLogType $LogType}}
 {{$clickable := or (eq $LogType "SEND") (eq $LogType "RECV")}}
-
 <div 
   data-log-type="{{$LogType}}" 
   x-data="{ isSelected: false }"
@@ -111,7 +110,7 @@
     @message-sent.window="forceScroll = true"
     class="flex-1 flex flex-col min-w-0 min-h-0"
 >
-    <div class="bg-white dark:bg-gray-950 px-4 py-2 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between gap-x-2 shrink-0">
+    <div class="bg-gray-50 dark:bg-gray-950 px-4 py-2 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between gap-x-2 shrink-0">
         <input 
             type="text" 
             x-model="regexStr" 
@@ -155,7 +154,7 @@
               :class="activeFilters.includes('Error') ? 'ring-2 ring-red-500' : ''" 
               class="cursor-pointer text-xs font-bold px-3 py-1.5 rounded border border-red-300 dark:border-red-900/50 bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/40 hover:text-red-800 dark:hover:text-red-300 transition"
             >Errors</button> 
-            <div class="w-px h-5 bg-gray-200 dark:bg-gray-800 mx-1"></div>
+            <div class="w-px h-5 bg-gray-100 dark:bg-gray-800 mx-1"></div>
             
             <a
                 {{if .IsWailsApp}}
