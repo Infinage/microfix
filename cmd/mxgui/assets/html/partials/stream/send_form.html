@@ -7,8 +7,8 @@
     hx-swap="innerHTML"
     x-model="selectedAlias" 
     @change="selectedMsgType = ''" 
-    :class="selectedAlias !== '' ? 'border-blue-500' : 'border-gray-700'" 
-    class="w-full truncate bg-gray-950 border text-gray-300 text-sm rounded px-3 py-1.5 
+    :class="selectedAlias !== '' ? 'border-blue-500' : 'border-gray-300 dark:border-gray-700'" 
+    class="w-full truncate bg-white dark:bg-gray-950 border text-gray-900 dark:text-gray-300 text-sm rounded px-3 py-1.5 
       outline-none focus:border-blue-500 font-mono transition cursor-pointer"
   >
       <option disabled value="">-- Select Alias --</option>
@@ -27,8 +27,8 @@
   hx-swap="innerHTML"
   x-model="selectedMsgType" 
   @change="selectedAlias = ''" 
-  :class="selectedMsgType !== '' ? 'border-blue-500' : 'border-gray-700'" 
-  class="flex-1 min-w-[120px] max-w-[300px] truncate bg-gray-950 border text-gray-300 
+  :class="selectedMsgType !== '' ? 'border-blue-500' : 'border-gray-300 dark:border-gray-700'" 
+  class="flex-1 min-w-[120px] max-w-[300px] truncate bg-white dark:bg-gray-950 border text-gray-900 dark:text-gray-300 
     text-sm rounded px-3 py-1.5 outline-none focus:border-blue-500 font-mono transition cursor-pointer"
 >
     <option disabled value="">-- Select MsgType --</option>
@@ -50,9 +50,9 @@
   hx-get="/api/logs/send_form/select" hx-swap="outerHTML" 
 >
     {{template "partials/stream/send_form/select/aliases" .}}
-    <span class="text-gray-600 font-bold text-xs shrink-0 select-none">OR</span>
+    <span class="text-gray-500 dark:text-gray-600 font-bold text-xs shrink-0 select-none">OR</span>
     {{template "partials/stream/send_form/select/fix_messages" .}}
-    <span class="text-xs text-gray-500 italic shrink-0 hidden 2xl:inline">&larr; Auto-populates raw payload</span>
+    <span class="text-xs text-gray-600 dark:text-gray-500 italic shrink-0 hidden 2xl:inline">&larr; Auto-populates raw payload</span>
 </div>
 {{end}}
 
@@ -62,7 +62,7 @@
   @config-reloaded.window="selectedAlias = ''; selectedMsgType = ''"
   @refresh-alias.window="selectedAlias = ''"
   @mousedown="inspectorOpen = false"
-  class="bg-gray-900/40 border-b border-gray-800 flex flex-col shrink-0 p-4"
+  class="bg-gray-100 dark:bg-gray-900/40 border-b border-gray-200 dark:border-gray-800 flex flex-col shrink-0 p-4"
 >
     <div class="flex flex-wrap lg:flex-nowrap justify-between items-center gap-3 mb-3">
         {{template "partials/stream/send_form/select" .}}
@@ -76,11 +76,11 @@
               hx-include="#message-input-raw"
               hx-target="#msg-inspector"
               hx-swap="outerHTML"
-              class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-2 lg:px-3 py-1.5 rounded text-sm 
+              class="bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 px-2 lg:px-3 py-1.5 rounded text-sm 
                 font-semibold transition flex items-center justify-center gap-2 shadow-sm cursor-pointer"
               title="Inspect current text editor contents"
             >
-                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                 </svg>
                 <span class="hidden lg:inline">Quick Inspect</span>
@@ -89,11 +89,11 @@
             <button 
               type="button"
               @click="modal = 'form'" 
-              class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-2 lg:px-3 py-1.5 rounded text-sm 
+              class="bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 px-2 lg:px-3 py-1.5 rounded text-sm 
                 font-semibold transition flex items-center justify-center gap-2 shadow-sm cursor-pointer"
               title="Open form editor"
             >
-                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 
                       012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                 </svg>
@@ -120,8 +120,8 @@
           placeholder="35=D|55=AAPL|54=1|38=100|40=2|..."
           spellcheck="false" :style="`height: ${messageInputHeight}px`"
           @htmx:after-swap="rawFixData = $event.detail.xhr.responseText"
-          class="w-full bg-gray-950/50 border border-gray-800 rounded p-3 font-mono text-sm text-blue-300 focus:outline-none 
-            focus:border-blue-500 placeholder-gray-700 resize-none shadow-inner" 
+          class="w-full bg-white dark:bg-gray-950/50 border border-gray-300 dark:border-gray-800 rounded p-3 font-mono text-sm text-blue-700 dark:text-blue-300 focus:outline-none 
+            focus:border-blue-500 placeholder-gray-400 dark:placeholder-gray-700 resize-none shadow-inner" 
         ></textarea>
 
         <input type="hidden" id="message-input-raw" name="message" :value="rawFixData"/>
@@ -138,8 +138,8 @@
       </div>
 
       <div class="mt-3 flex flex-wrap sm:flex-nowrap justify-between items-center gap-3">
-          <label class="flex items-center space-x-2 text-sm text-gray-400 cursor-pointer hover:text-white transition min-w-0">
-              <input name="raw" value="yes" type="checkbox" x-model="sendRaw" class="rounded bg-gray-900 border-gray-700 w-4 h-4 shrink-0">
+          <label class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer hover:text-gray-900 dark:hover:text-white transition min-w-0">
+              <input name="raw" value="yes" type="checkbox" x-model="sendRaw" class="rounded bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 w-4 h-4 shrink-0">
               <span class="truncate select-none">Send Raw (Skip Finalize checksum/length)</span>
           </label>
           <button type="submit" class="shrink-0 bg-blue-600 hover:bg-blue-500 cursor-pointer text-white px-6 sm:px-8 py-2 rounded text-sm font-bold transition shadow-lg flex items-center space-x-2">

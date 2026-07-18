@@ -13,9 +13,9 @@ const highlight = editor => {
     // Process the matches in one clean pass
     code = code.replace(lexer, (match, pComment, pVar, pJump, pKeyword) => {
         if (pComment) return `<span class="text-gray-500 font-semibold">${pComment}</span>`;
-        if (pVar)     return `<span class="text-yellow-400">${pVar}</span>`;
-        if (pJump)    return `<span class="text-purple-400 font-bold">${pJump}</span>`;
-        if (pKeyword) return `<span class="text-blue-400 font-bold">${pKeyword}</span>`;
+        if (pVar)     return `<span class="text-amber-600 dark:text-yellow-400">${pVar}</span>`;
+        if (pJump)    return `<span class="text-purple-600 dark:text-purple-400 font-bold">${pJump}</span>`;
+        if (pKeyword) return `<span class="text-blue-600 dark:text-blue-400 font-bold">${pKeyword}</span>`;
         return match;
     });
     
@@ -33,11 +33,11 @@ export async function initCodeJar(editorDiv, hiddenInput) {
     
     // Load initial state from storage or default
     let saved = localStorage.getItem("mxshell-script");
-    if (!saved.trim()) saved = hiddenInput.value;
+    if (!saved || !saved.trim()) saved = hiddenInput.value; 
     jar.updateCode(saved);
     
     } catch (error) {
         console.error("CodeJar Init Error:", error);
-        editorDiv.innerHTML = `<span class="text-red-500">Editor failed to load.</span>`;
+        editorDiv.innerHTML = `<span class="text-red-600 dark:text-red-500">Editor failed to load.</span>`;
     }
 }

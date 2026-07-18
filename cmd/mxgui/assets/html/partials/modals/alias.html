@@ -6,36 +6,36 @@
     resetForm() { this.aliasName = ''; this.aliasValue = ''; }
   }"
   @mousedown.outside="modal = ''" 
-  class="bg-gray-900 border border-gray-700 rounded-lg shadow-2xl w-[500px] p-5 select-none"
+  class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl w-[500px] p-5 select-none"
 >
   <form hx-post="/api/alias/add" @close-modal.window="resetForm(); modal = '';">
-    <h3 class="text-white font-bold text-lg mb-4">Add New Message Alias</h3>
+    <h3 class="text-gray-900 dark:text-white font-bold text-lg mb-4">Add New Message Alias</h3>
     <div class="space-y-4">
         <div>
-            <label class="text-xs text-gray-400 font-bold uppercase tracking-wider">Alias Name</label>
+            <label class="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider">Alias Name</label>
             <input 
               x-model="aliasName" name="aliasName" type="text" placeholder="e.g. CancelReq" 
               hx-trigger="input delay:300ms" autocomplete="off" hx-get="/api/alias/check/name" 
               hx-indicator="#spinner" hx-target="#alias-check" hx-swap="outerHTML" required
-              class="w-full bg-gray-950 border border-gray-700 rounded px-3 py-2 text-white font-mono mt-1 focus:border-blue-500 focus:outline-none"
+              class="w-full bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded px-3 py-2 text-gray-900 dark:text-white font-mono mt-1 focus:border-blue-500 focus:outline-none"
             >
             <div class="flex items-center gap-2 mt-1">
-              <span id="alias-check" class="text-[10px] text-gray-500 mt-1">This name will appear in the Stream dropdown.</span>
+              <span id="alias-check" class="text-[10px] text-gray-600 dark:text-gray-500 mt-1">This name will appear in the Stream dropdown.</span>
               <svg id="spinner" class="htmx-indicator animate-spin" width="24" height="24" viewBox="0 0 24 24" alt="checking..." xmlns="http://www.w3.org/2000/svg">
                 <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" stroke-dasharray="31.4 31.4"/>
               </svg>
             </div>
         </div>
         <div>
-            <label class="text-xs text-gray-400 font-bold uppercase tracking-wider">FIX Payload Template</label>
+            <label class="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider">FIX Payload Template</label>
             <textarea 
               name="aliasValue" required spellcheck="false" placeholder="35=F|41=ORD123|11=CXL123|..." x-model="aliasValue"
-              class="w-full bg-gray-950 border border-gray-700 rounded p-3 text-blue-300 font-mono mt-1 h-28 resize-none focus:border-blue-500 focus:outline-none shadow-inner"
+              class="w-full bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded p-3 text-blue-700 dark:text-blue-300 font-mono mt-1 h-28 resize-none focus:border-blue-500 focus:outline-none shadow-inner"
             ></textarea>
         </div>
     </div>
     <div class="mt-6 flex justify-end space-x-3">
-        <button @click="modal = ''" class="px-4 py-2 text-sm text-gray-400 hover:text-white transition cursor-pointer">Cancel</button>
+        <button @click="modal = ''" class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition cursor-pointer">Cancel</button>
         <button class="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded font-bold transition shadow-lg flex items-center space-x-2 cursor-pointer">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
             <span>Save Alias</span>

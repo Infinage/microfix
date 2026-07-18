@@ -1,10 +1,10 @@
 {{define "partials/settings/config/tooltip"}}
-<div class="group relative inline-block cursor-help text-gray-500 hover:text-gray-300 ml-2">
+<div class="group relative inline-block cursor-help text-gray-600 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 ml-2">
   <span class="flex h-4 w-4 items-center justify-center rounded-full border border-current text-[10px] font-bold select-none">?</span>
   
-  <div class="absolute left-full top-1/2 z-50 ml-2 w-56 -translate-y-1/2 scale-95 rounded bg-gray-800 p-2 text-xs text-gray-200 opacity-0 transition-all pointer-events-none group-hover:scale-100 group-hover:opacity-100 shadow-xl border border-gray-700">
+  <div class="absolute left-full top-1/2 z-50 ml-2 w-56 -translate-y-1/2 scale-95 rounded bg-gray-200 dark:bg-gray-800 p-2 text-xs text-gray-900 dark:text-gray-200 opacity-0 transition-all pointer-events-none group-hover:scale-100 group-hover:opacity-100 shadow-xl border border-gray-300 dark:border-gray-700">
     {{.}} 
-    <div class="absolute top-1/2 -left-1 h-2 w-2 -translate-y-1/2 rotate-45 bg-gray-800 border-b border-l border-gray-700"></div>
+    <div class="absolute top-1/2 -left-1 h-2 w-2 -translate-y-1/2 rotate-45 bg-gray-200 dark:bg-gray-800 border-b border-l border-gray-300 dark:border-gray-700"></div>
   </div>
 </div>
 {{end}}
@@ -14,9 +14,9 @@
   <svg class="w-5 h-5 text-{{.Color}}-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{.PathData}}"></path>
   </svg>
-  <div class="absolute bottom-full left-1/2 z-50 mb-2 w-max -translate-x-1/2 scale-95 rounded bg-gray-800 p-2 text-xs text-{{.Color}}-400 opacity-0 transition-all pointer-events-none group-hover:scale-100 group-hover:opacity-100 border border-gray-700 shadow-lg font-sans">
+  <div class="absolute bottom-full left-1/2 z-50 mb-2 w-max -translate-x-1/2 scale-95 rounded bg-gray-200 dark:bg-gray-800 p-2 text-xs text-{{.Color}}-600 dark:text-{{.Color}}-400 opacity-0 transition-all pointer-events-none group-hover:scale-100 group-hover:opacity-100 border border-gray-300 dark:border-gray-700 shadow-lg font-sans">
     {{.Text}}
-    <div class="absolute top-full left-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-gray-800 border-b border-r border-gray-700"></div>
+    <div class="absolute top-full left-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-gray-200 dark:bg-gray-800 border-b border-r border-gray-300 dark:border-gray-700"></div>
   </div>
 </div>
 {{end}}
@@ -24,14 +24,14 @@
 {{define "partials/settings/config/form"}}
 <form id="config-form" hx-post="/api/config" hx-swap="none" class="space-y-8">
 
-  <div x-data="{ copied: false }" class="flex items-center justify-between bg-gray-900/50 border border-gray-800 rounded-lg p-1.5 pl-4 mb-8 shadow-sm">
+  <div x-data="{ copied: false }" class="flex items-center justify-between bg-gray-100 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800 rounded-lg p-1.5 pl-4 mb-8 shadow-sm">
     <div class="flex items-center space-x-3 overflow-hidden">
-      <svg class="w-5 h-5 text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg class="w-5 h-5 text-gray-600 dark:text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path>
       </svg>
       <div class="flex items-center space-x-2 truncate">
-        <span class="text-[10px] text-gray-600 font-semibold uppercase tracking-wider shrink-0 select-none">Loaded File:</span>
-        <span class="text-sm font-mono text-gray-200 translate-y-[1.5px] truncate select-all">{{.ConfigPath}}</span>
+        <span class="text-[10px] text-gray-500 dark:text-gray-600 font-semibold uppercase tracking-wider shrink-0 select-none">Loaded File:</span>
+        <span class="text-sm font-mono text-gray-900 dark:text-gray-200 translate-y-[1.5px] truncate select-all">{{.ConfigPath}}</span>
       </div>
     </div>
 
@@ -41,7 +41,7 @@
         setTimeout(() => copied = false, 2000);
       "
       class="ml-3 shrink-0 px-3 py-2 rounded transition-colors flex items-center justify-center cursor-pointer min-w-[40px]"
-      :class="copied ? 'bg-green-500/10 text-green-400' : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'"
+      :class="copied ? 'bg-green-100 dark:bg-green-500/10 text-green-700 dark:text-green-400' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200'"
       :title="copied ? 'Copied!' : 'Copy to clipboard'"
     >
       <svg x-show="!copied" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -54,83 +54,83 @@
   </div>
 
   <section>
-    <h3 class="text-white font-bold text-lg mb-3 flex items-center space-x-2">
-      <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <h3 class="text-gray-900 dark:text-white font-bold text-lg mb-3 flex items-center space-x-2">
+      <svg class="w-5 h-5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1">
         </path>
       </svg>
       <span class="select-none">Connection</span>
     </h3>
-    <div class="bg-gray-900 border border-gray-800 rounded-lg shadow-sm">
+    <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg shadow-sm">
       <table class="w-full text-left text-sm font-mono">
-        <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition [&:first-child>td:first-child]:rounded-tl-lg [&:first-child>td:last-child]:rounded-tr-lg">
-          <td class="p-4 text-gray-400 font-bold w-1/3">
+        <tr class="border-b border-gray-200 dark:border-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800/30 transition [&:first-child>td:first-child]:rounded-tl-lg [&:first-child>td:last-child]:rounded-tr-lg">
+          <td class="p-4 text-gray-600 dark:text-gray-400 font-bold w-1/3">
             IpAddr 
             {{template "partials/settings/config/tooltip" .ConfigHelp.IpAddr}}
           </td>
           <td class="p-4">
             <input type="text" name="IpAddr" value="{{.Config.IpAddr}}" 
-              class="bg-gray-950 border border-gray-700 rounded px-3 py-1.5 
-                text-white font-mono w-full max-w-md focus:border-blue-500 focus:outline-none"
+              class="bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded px-3 py-1.5 
+                text-gray-900 dark:text-white font-mono w-full max-w-md focus:border-blue-500 focus:outline-none"
             >
           </td>
         </tr>
-        <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
-          <td class="p-4 text-gray-400 font-bold">
+        <tr class="border-b border-gray-200 dark:border-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800/30 transition">
+          <td class="p-4 text-gray-600 dark:text-gray-400 font-bold">
             Port
             {{template "partials/settings/config/tooltip" .ConfigHelp.Port}}
           </td>
           <td class="p-4">
             <input type="number" name="Port" value="{{.Config.Port}}" 
-              class="bg-gray-950 border border-gray-700 rounded px-3 py-1.5 
-                text-white font-mono w-32 focus:border-blue-500 focus:outline-none"
+              class="bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded px-3 py-1.5 
+                text-gray-900 dark:text-white font-mono w-32 focus:border-blue-500 focus:outline-none"
             >
           </td>
         </tr>
-        <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
-          <td class="p-4 text-gray-400 font-bold">
+        <tr class="border-b border-gray-200 dark:border-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800/30 transition">
+          <td class="p-4 text-gray-600 dark:text-gray-400 font-bold">
             SenderCompID
             {{template "partials/settings/config/tooltip" .ConfigHelp.SenderCompID}}
           </td>
           <td class="p-4">
             <input type="text" name="SenderCompID" value="{{.Config.SenderCompID}}" 
-              class="bg-gray-950 border border-gray-700 rounded px-3 py-1.5 text-white 
+              class="bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded px-3 py-1.5 text-gray-900 dark:text-white 
                 font-mono w-full max-w-md focus:border-blue-500 focus:outline-none"
             >
           </td>
         </tr>
-        <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
-          <td class="p-4 text-gray-400 font-bold">
+        <tr class="border-b border-gray-200 dark:border-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800/30 transition">
+          <td class="p-4 text-gray-600 dark:text-gray-400 font-bold">
             TargetCompID
             {{template "partials/settings/config/tooltip" .ConfigHelp.TargetCompID}}
           </td>
           <td class="p-4">
             <input type="text" name="TargetCompID" value="{{.Config.TargetCompID}}" 
-              class="bg-gray-950 border border-gray-700 rounded px-3 py-1.5 text-white 
+              class="bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded px-3 py-1.5 text-gray-900 dark:text-white 
                 font-mono w-full max-w-md focus:border-blue-500 focus:outline-none"
             >
           </td>
         </tr>
-        <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
-          <td class="p-4 text-gray-400 font-bold">
-            HeartbeatInt <span class="text-gray-600 text-[10px] font-sans font-normal ml-1 select-none">(Sec)</span>
+        <tr class="border-b border-gray-200 dark:border-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800/30 transition">
+          <td class="p-4 text-gray-600 dark:text-gray-400 font-bold">
+            HeartbeatInt <span class="text-gray-500 dark:text-gray-600 text-[10px] font-sans font-normal ml-1 select-none">(Sec)</span>
             {{template "partials/settings/config/tooltip" .ConfigHelp.HeartbeatInt}}
           </td>
           <td class="p-4">
             <input type="number" name="HeartbeatInt" value="{{.Config.HeartbeatInt}}" 
-              class="bg-gray-950 border border-gray-700 rounded px-3 py-1.5 text-white 
+              class="bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded px-3 py-1.5 text-gray-900 dark:text-white 
                 font-mono w-24 focus:border-blue-500 focus:outline-none"
             >
           </td>
         </tr>
-        <tr class="hover:bg-gray-800/30 transition [&:last-child>td:first-child]:rounded-bl-lg [&:last-child>td:last-child]:rounded-br-lg">
-          <td class="p-4 text-gray-400 font-bold">
+        <tr class="hover:bg-gray-100 dark:hover:bg-gray-800/30 transition [&:last-child>td:first-child]:rounded-bl-lg [&:last-child>td:last-child]:rounded-br-lg">
+          <td class="p-4 text-gray-600 dark:text-gray-400 font-bold">
             DefaultTimeoutSec
             {{template "partials/settings/config/tooltip" .ConfigHelp.DefaultTimeoutSec}}
           </td>
           <td class="p-4">
             <input type="number" name="DefaultTimeoutSec" value="{{.Config.DefaultTimeoutSec}}" 
-              class="bg-gray-950 border border-gray-700 rounded px-3 py-1.5 text-white 
+              class="bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded px-3 py-1.5 text-gray-900 dark:text-white 
                 font-mono w-24 focus:border-blue-500 focus:outline-none"
             >
           </td>
@@ -140,18 +140,18 @@
   </section>
 
   <section>
-    <h3 class="text-white font-bold text-lg mb-3 flex items-center space-x-2">
-      <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <h3 class="text-gray-900 dark:text-white font-bold text-lg mb-3 flex items-center space-x-2">
+      <svg class="w-5 h-5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4">
         </path>
       </svg>
       <span class="select-none">Dictionary Specifications</span>
     </h3>
-    <div class="bg-gray-900 border border-gray-800 rounded-lg shadow-sm">
+    <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg shadow-sm">
       <table class="w-full text-left text-sm font-mono">
-        <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition [&:first-child>td:first-child]:rounded-tl-lg [&:first-child>td:last-child]:rounded-tr-lg">
-          <td class="p-4 text-gray-400 font-bold w-1/3">
-            SessionSpec <span class="text-gray-600 text-[10px] font-sans font-normal ml-1 select-none">(XML Path)</span>
+        <tr class="border-b border-gray-200 dark:border-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800/30 transition [&:first-child>td:first-child]:rounded-tl-lg [&:first-child>td:last-child]:rounded-tr-lg">
+          <td class="p-4 text-gray-600 dark:text-gray-400 font-bold w-1/3">
+            SessionSpec <span class="text-gray-500 dark:text-gray-600 text-[10px] font-sans font-normal ml-1 select-none">(XML Path)</span>
             {{template "partials/settings/config/tooltip" .ConfigHelp.SessionSpec}}
           </td>
           <td class="p-4">
@@ -159,8 +159,8 @@
               <input type="text" name="SessionSpec" value="{{.Config.SessionSpec}}" autocomplete="off"
                 hx-get="/api/config/check/specpath" hx-indicator="#session-spec-spinner" hx-swap="innerHTML"
                 hx-vals='{"from": "session-spec"}' hx-trigger="input delay:300ms" hx-target="#session-spec-status"
-                class="bg-gray-950 border border-gray-700 rounded px-3 py-1.5 text-white font-mono w-full max-w-md 
-                  focus:border-blue-500 focus:outline-none placeholder-gray-700" placeholder="FIX44.xml"
+                class="bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded px-3 py-1.5 text-gray-900 dark:text-white font-mono w-full max-w-md 
+                  focus:border-blue-500 focus:outline-none placeholder-gray-400 dark:placeholder-gray-700" placeholder="FIX44.xml"
               >
 
               <div id="session-spec-status" class="w-5 h-5 flex items-center justify-center shrink-0"></div>
@@ -173,9 +173,9 @@
             </div>
           </td>
         </tr>
-        <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
-          <td class="p-4 text-gray-400 font-bold">
-            ApplicationSpec <span class="text-gray-600 text-[10px] font-sans font-normal ml-1 select-none">(XML Path)</span>
+        <tr class="border-b border-gray-200 dark:border-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800/30 transition">
+          <td class="p-4 text-gray-600 dark:text-gray-400 font-bold">
+            ApplicationSpec <span class="text-gray-500 dark:text-gray-600 text-[10px] font-sans font-normal ml-1 select-none">(XML Path)</span>
             {{template "partials/settings/config/tooltip" .ConfigHelp.ApplicationSpec}}
           </td>
           <td class="p-4">
@@ -183,8 +183,8 @@
               <input type="text" name="ApplicationSpec" value="{{.Config.ApplicationSpec}}" autocomplete="off"
                 hx-get="/api/config/check/specpath" hx-indicator="#application-spec-spinner" hx-swap="innerHTML"
                 hx-vals='{"from": "application-spec"}' hx-trigger="input delay:300ms" hx-target="#application-spec-status"
-                class="bg-gray-950 border border-gray-700 rounded px-3 py-1.5 text-white 
-                  font-mono w-full max-w-md focus:border-blue-500 focus:outline-none placeholder-gray-700" placeholder="Optional App Dict..."
+                class="bg-white dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded px-3 py-1.5 text-gray-900 dark:text-white 
+                  font-mono w-full max-w-md focus:border-blue-500 focus:outline-none placeholder-gray-400 dark:placeholder-gray-700" placeholder="Optional App Dict..."
               >
 
               <div id="application-spec-status" class="w-5 h-5 flex items-center justify-center shrink-0"></div>
@@ -197,15 +197,15 @@
             </div>
           </td>
         </tr>
-        <tr class="hover:bg-gray-800/30 transition [&:last-child>td:first-child]:rounded-bl-lg [&:last-child>td:last-child]:rounded-br-lg">
-          <td class="p-4 text-gray-400 font-bold">
+        <tr class="hover:bg-gray-100 dark:hover:bg-gray-800/30 transition [&:last-child>td:first-child]:rounded-bl-lg [&:last-child>td:last-child]:rounded-br-lg">
+          <td class="p-4 text-gray-600 dark:text-gray-400 font-bold">
             SpecDisplayOptFields
             {{template "partials/settings/config/tooltip" .ConfigHelp.SpecDisplayOptFields}}
           </td>
           <td class="p-4">
               <label class="relative inline-flex items-center cursor-pointer">
                   <input type="checkbox" name="SpecDisplayOptFields" value="true" class="sr-only peer" {{if .Config.SpecDisplayOptFields}}checked{{end}}>
-                  <div class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full 
+                  <div class="w-9 h-5 bg-gray-300 dark:bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full 
                     peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white 
                     after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"
                   ></div>
@@ -217,50 +217,50 @@
   </section>
 
   <section>
-    <h3 class="text-white font-bold text-lg mb-3 flex items-center space-x-2">
-      <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <h3 class="text-gray-900 dark:text-white font-bold text-lg mb-3 flex items-center space-x-2">
+      <svg class="w-5 h-5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
       <span class="select-none">Validation & Behavior</span>
     </h3>
-    <div class="bg-gray-900 border border-gray-800 rounded-lg shadow-sm">
+    <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg shadow-sm">
       <table class="w-full text-left text-sm font-mono">
-        <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition [&:first-child>td:first-child]:rounded-tl-lg [&:first-child>td:last-child]:rounded-tr-lg">
-          <td class="p-4 text-gray-400 font-bold w-1/3">
+        <tr class="border-b border-gray-200 dark:border-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800/30 transition [&:first-child>td:first-child]:rounded-tl-lg [&:first-child>td:last-child]:rounded-tr-lg">
+          <td class="p-4 text-gray-600 dark:text-gray-400 font-bold w-1/3">
             FixValidateStrict
             {{template "partials/settings/config/tooltip" .ConfigHelp.FixValidateStrict}}
           </td>
           <td class="p-4">
             <label class="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" name="FixValidateStrict" value="true" class="sr-only peer" {{if .Config.FixValidateStrict}}checked{{end}}>
-                <div class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full 
+                <div class="w-9 h-5 bg-gray-300 dark:bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full 
                   peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] 
                   after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all 
                   peer-checked:bg-blue-600"></div>
             </label>
           </td>
         </tr>
-        <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
-          <td class="p-4 text-gray-400 font-bold">
+        <tr class="border-b border-gray-200 dark:border-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800/30 transition">
+          <td class="p-4 text-gray-600 dark:text-gray-400 font-bold">
             FixSampleOptional
             {{template "partials/settings/config/tooltip" .ConfigHelp.FixSampleOptional}}
           </td>
           <td class="p-4">
             <label class="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" name="FixSampleOptional" value="true" class="sr-only peer" {{if .Config.FixSampleOptional}}checked{{end}}>
-                <div class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full 
+                <div class="w-9 h-5 bg-gray-300 dark:bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full 
                   peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] 
                   after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
             </label>
           </td>
         </tr>
-        <tr class="hover:bg-gray-800/30 transition [&:last-child>td:first-child]:rounded-bl-lg [&:last-child>td:last-child]:rounded-br-lg">
-          <td class="p-4 text-gray-400 font-bold">
+        <tr class="hover:bg-gray-100 dark:hover:bg-gray-800/30 transition [&:last-child>td:first-child]:rounded-bl-lg [&:last-child>td:last-child]:rounded-br-lg">
+          <td class="p-4 text-gray-600 dark:text-gray-400 font-bold">
             SkipLatencyCheck
             {{template "partials/settings/config/tooltip" .ConfigHelp.SkipLatencyCheckInValidate}}
           </td>
           <td class="p-4">
             <label class="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" name="SkipLatencyCheckInValidate" value="true" class="sr-only peer" {{if .Config.SkipLatencyCheckInValidate}}checked{{end}}>
-                <div class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full 
+                <div class="w-9 h-5 bg-gray-300 dark:bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full 
                   peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white 
                   after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"
                 ></div>
@@ -273,7 +273,7 @@
   
   <div class="pt-4 flex justify-end space-x-4 items-center">
       <button type="button" hx-post="/api/config/reset" hx-target="#config-form" hx-swap="outerHTML" 
-          class="text-gray-400 hover:text-white px-4 py-2 text-sm font-bold transition cursor-pointer"
+          class="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white px-4 py-2 text-sm font-bold transition cursor-pointer"
       >Discard Changes</button>
       <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded font-bold transition shadow-lg text-sm cursor-pointer">
           Apply &amp; Save Configuration
@@ -286,8 +286,8 @@
 <div x-show="settingsTab === 'config'" style="display:none;" class="pb-10">
     <div class="flex justify-between items-center mb-8 select-none">
         <div>
-            <h2 class="text-2xl font-bold text-white mb-1">Session Configuration</h2>
-            <p class="text-gray-400 text-sm">Modify global connection parameters. These apply upon the next restart.</p>
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-1">Session Configuration</h2>
+            <p class="text-gray-500 dark:text-gray-400 text-sm">Modify global connection parameters. These apply upon the next restart.</p>
         </div>
         
         <div class="flex space-x-3 items-center">
@@ -297,7 +297,7 @@
                   hx-post="/wails/config/import" 
                   hx-target="#config-form" 
                   hx-swap="outerHTML"
-                  class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-4 py-2 
+                  class="bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 
                     rounded text-sm transition font-bold shadow-sm cursor-pointer flex items-center space-x-2"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -314,7 +314,7 @@
                 {{else}} 
                   href="/api/config/export" download="config.mxrc"
                 {{end}}
-                class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-4 py-2 
+                class="bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 
                 rounded text-sm transition font-bold shadow-sm cursor-pointer flex items-center space-x-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                 <span>Export...</span>

@@ -4,15 +4,14 @@
   hx-trigger="config-reloaded from:body" 
   hx-get="/api/dictionary/definitions" hx-swap="outerHTML" 
 >
-  <div class="text-xs text-gray-500 font-bold mb-2 uppercase px-2 mt-2 tracking-wider select-none">Messages</div>
-  <ul class="text-sm space-y-1 text-gray-400 mb-6">
-
+  <div class="text-xs text-gray-600 dark:text-gray-500 font-bold mb-2 uppercase px-2 mt-2 tracking-wider select-none">Messages</div>
+  <ul class="text-sm space-y-1 text-gray-600 dark:text-gray-400 mb-6">
     {{range $msgId, $msgSpec := .Router.SessionSpec.Messages}}
         {{$displayText := print "[Sess] " $msgSpec.Name " (" $msgId ")"}}
         <li x-show="'{{$displayText}}'.toLowerCase().includes(search.toLowerCase())"
           hx-get="/api/dictionary/message/{{$msgId}}" 
           hx-target="#dict-details" hx-swap="innerHTML"
-          class="px-3 py-2 hover:bg-gray-900 hover:text-white rounded cursor-pointer transition select-none"
+          class="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-900 hover:text-gray-900 dark:hover:text-white rounded cursor-pointer transition select-none"
       >{{$displayText}}</li>
     {{end}}
     {{if not .Router.IsLegacyRouter}}
@@ -21,20 +20,19 @@
           <li x-show="'{{$displayText}}'.toLowerCase().includes(search.toLowerCase())"
               hx-get="/api/dictionary/message/{{$msgId}}" 
               hx-target="#dict-details" hx-swap="innerHTML"
-              class="px-3 py-2 hover:bg-gray-900 hover:text-white rounded cursor-pointer transition select-none"
+              class="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-900 hover:text-gray-900 dark:hover:text-white rounded cursor-pointer transition select-none"
           >{{$displayText}}</li>
         {{end}}
     {{end}}
   </ul>
-
-  <div class="text-xs text-gray-500 font-bold mb-2 uppercase px-2 tracking-wider border-t border-gray-800 pt-4">Fields</div>
-  <ul class="text-sm space-y-1 text-gray-400">
+  <div class="text-xs text-gray-600 dark:text-gray-500 font-bold mb-2 uppercase px-2 tracking-wider border-t border-gray-200 dark:border-gray-800 pt-4">Fields</div>
+  <ul class="text-sm space-y-1 text-gray-600 dark:text-gray-400">
     {{range .Router.SessionSpec.Fields}}
       {{$displayText := print "[App] " .Name " (" .Number ")"}}
       <li x-show="'{{$displayText}}'.toLowerCase().includes(search.toLowerCase())"
           hx-get="/api/dictionary/field/{{.Number}}" 
           hx-target="#dict-details" hx-swap="innerHTML"
-          class="px-3 py-2 hover:bg-gray-900 hover:text-white rounded cursor-pointer transition select-none"
+          class="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-900 hover:text-gray-900 dark:hover:text-white rounded cursor-pointer transition select-none"
       >{{$displayText}}</li>
     {{end}}
     {{if .Router.IsLegacyRouter}}
@@ -43,7 +41,7 @@
         <li x-show="'{{$displayText}}'.toLowerCase().includes(search.toLowerCase())"
             hx-get="/api/dictionary/field/{{.Number}}" 
             hx-target="#dict-details" hx-swap="innerHTML"
-            class="px-3 py-2 hover:bg-gray-900 hover:text-white rounded cursor-pointer transition"
+            class="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-900 hover:text-gray-900 dark:hover:text-white rounded cursor-pointer transition"
         >{{$displayText}}</li>
       {{end}}
     {{end}}

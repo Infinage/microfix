@@ -1,43 +1,42 @@
 {{define "partials/dictionary/field"}}
 <div class="w-full">
     
-  <div class="flex items-end justify-between border-b border-gray-800 pb-4 mb-6">
+  <div class="flex items-end justify-between border-b border-gray-200 dark:border-gray-800 pb-4 mb-6">
     <div>
       <div class="flex items-center space-x-3 mb-2">
-        <span class="bg-purple-900/30 text-purple-400 font-bold font-mono px-3 py-1 rounded text-sm border border-purple-800 select-none">Tag {{.FieldDef.Number}}</span>
-        <span class="bg-gray-800 text-gray-400 font-mono px-3 py-1 rounded text-sm border border-gray-700 select-none">Type: {{toTitle .FieldDef.Type}}</span>
+        <span class="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 font-bold font-mono px-3 py-1 rounded text-sm border border-purple-300 dark:border-purple-800 select-none">Tag {{.FieldDef.Number}}</span>
+        <span class="bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400 font-mono px-3 py-1 rounded text-sm border border-gray-300 dark:border-gray-700 select-none">Type: {{toTitle .FieldDef.Type}}</span>
       </div>
-      <h2 class="text-3xl font-bold text-white">{{.FieldDef.Name}}</h2>
+      <h2 class="text-3xl font-bold text-gray-900 dark:text-white">{{.FieldDef.Name}}</h2>
     </div>
   </div>
-
   <div class="mb-8">
-    <h3 class="text-sm font-bold text-gray-500 uppercase tracking-widest mb-3 select-none">Valid Values (Enums)</h3>
+    <h3 class="text-sm font-bold text-gray-600 dark:text-gray-500 uppercase tracking-widest mb-3 select-none">Valid Values (Enums)</h3>
     
     {{if .FieldDef.Enums}}
-      <div class="border border-gray-800 rounded-lg overflow-hidden bg-gray-950 shadow-lg">
+      <div class="border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden bg-white dark:bg-gray-950 shadow-lg">
         <table class="w-full text-left text-sm font-mono table-fixed">
-          <tr class="bg-gray-900 text-gray-400 border-b border-gray-800 select-none">
+          <tr class="bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-800 select-none">
             <th class="p-3 w-24">Value</th>
             <th class="p-3">Description</th>
           </tr>
           {{range .FieldDef.Enums}}
-            <tr class="border-b border-gray-800/50 hover:bg-gray-800/50 transition">
-              <td class="p-3 text-blue-400 font-bold">{{.Enum}}</td>
-              <td class="p-3 text-gray-300">{{.Description}}</td>
+            <tr class="border-b border-gray-200 dark:border-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800/50 transition">
+              <td class="p-3 text-blue-700 dark:text-blue-400 font-bold">{{.Enum}}</td>
+              <td class="p-3 text-gray-700 dark:text-gray-300">{{.Description}}</td>
             </tr>
           {{end}}
         </table>
       </div>
     {{else}}
-      <div class="border border-dashed border-gray-800/80 rounded-lg bg-gray-900/30 p-5 flex items-start text-gray-500 shadow-sm">
+      <div class="border border-dashed border-gray-300 dark:border-gray-800/80 rounded-lg bg-gray-100 dark:bg-gray-900/30 p-5 flex items-start text-gray-600 dark:text-gray-500 shadow-sm">
         <svg class="w-6 h-6 mr-5 mt-0.5 opacity-60 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
         </svg>
         <div>
-          <p class="text-sm font-medium text-gray-300 select-none">No predefined enums</p>
-          <p class="text-xs mt-1.5 text-gray-500 leading-relaxed select-none">
-            This is a free-form field. Any value matching the <span class="text-purple-400 font-mono select-text">{{toTitle .FieldDef.Type}}</span> data type is accepted.
+          <p class="text-sm font-medium text-gray-700 dark:text-gray-300 select-none">No predefined enums</p>
+          <p class="text-xs mt-1.5 text-gray-600 dark:text-gray-500 leading-relaxed select-none">
+            This is a free-form field. Any value matching the <span class="text-purple-700 dark:text-purple-400 font-mono select-text">{{toTitle .FieldDef.Type}}</span> data type is accepted.
           </p>
         </div>
       </div>
@@ -46,14 +45,14 @@
 
   {{if .UsedIn}}
     <div>
-      <h3 class="text-sm font-bold text-gray-500 uppercase tracking-widest mb-3 select-none">Used In Messages</h3>
-      <div class="flex flex-wrap gap-2 bg-gray-950/50 p-4 rounded-lg border border-gray-800/50">
+      <h3 class="text-sm font-bold text-gray-600 dark:text-gray-500 uppercase tracking-widest mb-3 select-none">Used In Messages</h3>
+      <div class="flex flex-wrap gap-2 bg-gray-100 dark:bg-gray-950/50 p-4 rounded-lg border border-gray-200 dark:border-gray-800/50">
         {{range $msgId, $msgName := .UsedIn}}
           <button 
             hx-get="/api/dictionary/message/{{$msgId}}" 
             hx-target="#dict-details" 
-            class="px-3 py-1.5 bg-gray-900 hover:bg-blue-900/30 hover:text-blue-400 hover:border-blue-800 
-              text-gray-400 text-xs font-mono rounded border border-gray-700 transition cursor-pointer shadow-sm"
+            class="px-3 py-1.5 bg-white dark:bg-gray-900 hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:text-blue-700 dark:hover:text-blue-400 hover:border-blue-300 dark:hover:border-blue-800 
+              text-gray-600 dark:text-gray-400 text-xs font-mono rounded border border-gray-300 dark:border-gray-700 transition cursor-pointer shadow-sm"
           >{{$msgName}} ({{$msgId}})</button>
         {{end}}
       </div>

@@ -48,22 +48,22 @@ func getThemeForEngineState(state string) Theme {
 	bgColor := ""
 	switch state {
 	case "New":
-		textColor = "text-blue-400"
+		textColor = "text-blue-600 dark:text-blue-400"
 		bgColor = "bg-blue-500"
 	case "Listening", "LoggingIn":
-		textColor = "text-emerald-400"
+		textColor = "text-emerald-600 dark:text-emerald-400"
 		bgColor = "bg-emerald-500"
 	case "Active":
-		textColor = "text-green-400"
+		textColor = "text-green-600 dark:text-green-400"
 		bgColor = "bg-green-500"
 	case "Stale":
-		textColor = "text-yellow-400"
+		textColor = "text-yellow-600 dark:text-yellow-400"
 		bgColor = "bg-yellow-500"
 	case "OutOfSync":
-		textColor = "text-orange-400"
+		textColor = "text-orange-600 dark:text-orange-400"
 		bgColor = "bg-orange-500"
 	case "Closed":
-		textColor = "text-gray-400"
+		textColor = "text-gray-600 dark:text-gray-400"
 		bgColor = "bg-gray-500"
 	}
 
@@ -71,31 +71,31 @@ func getThemeForEngineState(state string) Theme {
 }
 
 func getThemeForLogType(state string) Theme {
-	textColor := "text-gray-400"
-	borderColor := "border-l-gray-600"
-	bgColor := "bg-gray-800"
+	textColor := "text-gray-600 dark:text-gray-400"
+	borderColor := "border-l-gray-400 dark:border-l-gray-600"
+	bgColor := "bg-gray-200 dark:bg-gray-800"
 
 	switch state {
 	case "SEND":
-		textColor = "text-blue-500"
+		textColor = "text-blue-600 dark:text-blue-500"
 		borderColor = "border-l-blue-500"
-		bgColor = "bg-blue-950/40"
+		bgColor = "bg-blue-100 dark:bg-blue-950/40"
 	case "RECV":
-		textColor = "text-green-500"
+		textColor = "text-green-600 dark:text-green-500"
 		borderColor = "border-l-green-500"
-		bgColor = "bg-green-950/40"
+		bgColor = "bg-green-100 dark:bg-green-950/40"
 	case "ERR ":
-		textColor = "text-red-500"
+		textColor = "text-red-600 dark:text-red-500"
 		borderColor = "border-l-red-500"
-		bgColor = "bg-red-950/40"
+		bgColor = "bg-red-100 dark:bg-red-950/40"
 	case "INFO":
-		textColor = "text-yellow-500"
+		textColor = "text-yellow-600 dark:text-yellow-500"
 		borderColor = "border-l-yellow-500"
-		bgColor = "bg-yellow-950/40"
+		bgColor = "bg-yellow-100 dark:bg-yellow-950/40"
 	case "TRAN":
-		textColor = "text-orange-400"
+		textColor = "text-orange-600 dark:text-orange-400"
 		borderColor = "border-l-orange-400"
-		bgColor = "bg-orange-950/40"
+		bgColor = "bg-orange-100 dark:bg-orange-950/40"
 	}
 
 	return Theme{Text: textColor, Border: borderColor, Bg: bgColor}

@@ -1,21 +1,21 @@
 {{define "partials/stream/inspector/render_nodes"}}
   {{range .}}
     {{if .IsGroup}}
-      <tbody x-data="{ expanded: true }" class="border-t border-gray-800">
-          <tr class="hover:bg-gray-800 cursor-pointer transition" @click="expanded = !expanded">
-              <td class="px-2 py-1.5 text-gray-500">{{.Tag}}</td>
-              <td class="px-2 py-1.5 text-gray-300 flex items-center space-x-1">
+      <tbody x-data="{ expanded: true }" class="border-t border-gray-200 dark:border-gray-800">
+          <tr class="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition" @click="expanded = !expanded">
+              <td class="px-2 py-1.5 text-gray-600 dark:text-gray-500">{{.Tag}}</td>
+              <td class="px-2 py-1.5 text-gray-700 dark:text-gray-300 flex items-center space-x-1">
                   <span class="text-[8px] transition-transform" :class="expanded ? 'rotate-0' : '-rotate-90'">▼</span> 
                   <span>{{.Name}}</span>
               </td>
-              <td class="px-2 py-1.5 text-purple-400 font-bold">{{.Value}} <span class="text-gray-600 font-sans text-[9px]">entries</span></td>
+              <td class="px-2 py-1.5 text-purple-600 dark:text-purple-400 font-bold">{{.Value}} <span class="text-gray-400 dark:text-gray-600 font-sans text-[9px]">entries</span></td>
           </tr>
           
           {{range $index, $entryNodes := .Children}}
-              <tr x-show="expanded" class="bg-[#0a0d12]">
+              <tr x-show="expanded" class="bg-gray-50 dark:bg-[#0a0d12]">
                   <td class="px-2 py-1"></td>
-                  <td colspan="2" class="pl-4 py-1 border-l-2 border-gray-800">
-                      <div class="text-[10px] text-gray-600 mb-1 font-sans uppercase tracking-wider">
+                  <td colspan="2" class="pl-4 py-1 border-l-2 border-gray-200 dark:border-gray-800">
+                      <div class="text-[10px] text-gray-500 dark:text-gray-600 mb-1 font-sans uppercase tracking-wider">
                         Entry {{add $index 1}}
                       </div>
                       <table class="w-full">
@@ -26,12 +26,12 @@
           {{end}}
       </tbody>
     {{else}}
-      <tr class="border-b border-gray-800/30 hover:bg-gray-800 transition">
-          <td class="px-2 py-1.5 text-gray-500 w-12">{{.Tag}}</td>
-          <td class="px-2 py-1.5 text-gray-300 w-40 truncate">{{.Name}}</td>
-          <td class="px-2 py-1.5 text-white">
+      <tr class="border-b border-gray-100 dark:border-gray-800/30 hover:bg-gray-50 dark:hover:bg-gray-800 transition">
+          <td class="px-2 py-1.5 text-gray-600 dark:text-gray-500 w-12">{{.Tag}}</td>
+          <td class="px-2 py-1.5 text-gray-700 dark:text-gray-300 w-40 truncate">{{.Name}}</td>
+          <td class="px-2 py-1.5 text-gray-900 dark:text-white">
               {{.Value}} 
-              {{if .EnumDesc}}<span class="text-gray-600 font-sans text-[9px] font-normal ml-1">({{.EnumDesc}})</span>{{end}}
+              {{if .EnumDesc}}<span class="text-gray-500 dark:text-gray-600 font-sans text-[9px] font-normal ml-1">({{.EnumDesc}})</span>{{end}}
           </td>
       </tr>
     {{end}}
@@ -42,30 +42,30 @@
 <div x-show="inspectorTab === 'decoded'">
     <table class="w-full text-sm text-left border-collapse font-mono">
         <tbody>
-            <tr class="bg-gray-900/50 border-y border-gray-800">
-              <td colspan="3" class="px-3 py-2 text-xs text-gray-500 font-sans font-bold uppercase tracking-widest select-none">Header</td>
+            <tr class="bg-gray-100 dark:bg-gray-900/50 border-y border-gray-200 dark:border-gray-800">
+              <td colspan="3" class="px-3 py-2 text-xs text-gray-600 dark:text-gray-500 font-sans font-bold uppercase tracking-widest select-none">Header</td>
             </tr>
-            <tbody class="border-b border-gray-800">
+            <tbody class="border-b border-gray-200 dark:border-gray-800">
                 {{template "partials/stream/inspector/render_nodes" .Header}}
             </tbody>
             
-            <tr class="bg-gray-900/50 border-y border-gray-800">
-              <td colspan="3" class="px-3 py-2 text-xs text-gray-500 font-sans font-bold uppercase tracking-widest select-none">Body</td>
+            <tr class="bg-gray-100 dark:bg-gray-900/50 border-y border-gray-200 dark:border-gray-800">
+              <td colspan="3" class="px-3 py-2 text-xs text-gray-600 dark:text-gray-500 font-sans font-bold uppercase tracking-widest select-none">Body</td>
             </tr>
             <tbody>
                 {{template "partials/stream/inspector/render_nodes" .Body}}
             </tbody>
 
-            <tr class="bg-gray-900/50 border-y border-gray-800">
-              <td colspan="3" class="px-3 py-2 text-xs text-gray-500 font-sans font-bold uppercase tracking-widest select-none">Trailer</td>
+            <tr class="bg-gray-100 dark:bg-gray-900/50 border-y border-gray-200 dark:border-gray-800">
+              <td colspan="3" class="px-3 py-2 text-xs text-gray-600 dark:text-gray-500 font-sans font-bold uppercase tracking-widest select-none">Trailer</td>
             </tr>
             <tbody>
                 {{template "partials/stream/inspector/render_nodes" .Trailer}}
             </tbody>
 
             {{if .LeftOvers}}
-              <tr class="bg-gray-900/50 border-y border-gray-800">
-                <td colspan="3" class="px-3 py-2 text-xs text-gray-500 font-sans font-bold uppercase tracking-widest select-none">Leftovers</td>
+              <tr class="bg-gray-100 dark:bg-gray-900/50 border-y border-gray-200 dark:border-gray-800">
+                <td colspan="3" class="px-3 py-2 text-xs text-gray-600 dark:text-gray-500 font-sans font-bold uppercase tracking-widest select-none">Leftovers</td>
               </tr>
               <tbody>
                   {{template "partials/stream/inspector/render_nodes" .LeftOvers}}

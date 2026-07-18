@@ -8,8 +8,8 @@
 >
     <div class="flex justify-between items-center mb-6">
         <div>
-            <h2 class="text-2xl font-bold text-white mb-2">Message Aliases</h2>
-            <p class="text-gray-400 text-sm">Map custom names to raw FIX template strings for rapid testing in the Stream view.</p>
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Message Aliases</h2>
+            <p class="text-gray-500 dark:text-gray-400 text-sm">Map custom names to raw FIX template strings for rapid testing in the Stream view.</p>
         </div>
         <button @click="modal = 'alias'" class="cursor-pointer bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm transition 
             font-bold shadow-lg flex items-center space-x-2"
@@ -19,20 +19,20 @@
         </button>
     </div>
     
-    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+    <div class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden">
       {{if ne (len .Aliases) 0}}
         <table class="w-full text-left text-sm font-mono">
-            <tr class="text-gray-500 border-b border-gray-800 bg-gray-950 uppercase text-xs tracking-wider">
+            <tr class="text-gray-600 dark:text-gray-500 border-b border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-950 uppercase text-xs tracking-wider">
                 <th class="p-4">Alias Name</th>
                 <th class="p-4">Template String</th>
                 <th class="p-4 text-right">Actions</th>
             </tr>
             {{range $aliasName, $aliasValue := .Aliases}}
-              <tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
-                  <td class="p-4 text-blue-400 font-bold select-text">{{$aliasName}}</td>
-                  <td class="p-4 text-gray-300 truncate max-w-md select-text">{{replaceSOH $aliasValue}}</td>
+              <tr class="border-b border-gray-200 dark:border-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800/30 transition">
+                  <td class="p-4 text-blue-700 dark:text-blue-400 font-bold select-text">{{$aliasName}}</td>
+                  <td class="p-4 text-gray-700 dark:text-gray-300 truncate max-w-md select-text">{{replaceSOH $aliasValue}}</td>
                   <td 
-                    class="p-4 text-right text-gray-500 hover:text-red-400 cursor-pointer transition"
+                    class="p-4 text-right text-gray-600 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 cursor-pointer transition"
                     hx-confirm="Are you sure you want to delete?" 
                     hx-delete="/api/alias/delete/{{$aliasName}}"
                     hx-swap="none"
@@ -42,13 +42,13 @@
         </table>
       {{else}}
         <div class="flex flex-col items-center justify-center p-12 text-center">
-            <svg class="w-10 h-10 text-gray-700 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-10 h-10 text-gray-300 dark:text-gray-700 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" 
                   d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
                 </path>
             </svg>
-            <h3 class="text-gray-300 font-bold text-sm">No aliases found</h3>
-            <p class="text-gray-500 text-xs mt-1">Add your first template string to get started.</p>
+            <h3 class="text-gray-700 dark:text-gray-300 font-bold text-sm">No aliases found</h3>
+            <p class="text-gray-600 dark:text-gray-500 text-xs mt-1">Add your first template string to get started.</p>
         </div>
       {{end}}
     </div>

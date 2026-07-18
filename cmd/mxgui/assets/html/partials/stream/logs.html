@@ -8,7 +8,7 @@
   x-data="{ isSelected: false }"
   @log-selected.window="isSelected = ($event.detail === $el)"
   @close-inspector.window="isSelected = false"
-  :class="isSelected ? 'bg-gray-800/90 shadow-md ring-1 ring-blue-500/50 z-10' : 'hover:bg-gray-800/50'"
+  :class="isSelected ? 'bg-gray-200 dark:bg-gray-800/90 shadow-md ring-1 ring-blue-500/50 z-10' : 'hover:bg-gray-100 dark:hover:bg-gray-800/50'"
   class="log-entry group relative flex items-start space-x-4 p-2 rounded border-l-2 {{$theme.Border}} transition 
     {{if $clickable}}cursor-pointer{{end}}"
   {{if $clickable}}
@@ -21,16 +21,16 @@
   {{end}}
 >
   {{if $clickable}} <input type="hidden" name="message" value="{{.Content}}"> {{end}}
-  <span class="text-gray-500 shrink-0 whitespace-nowrap">
+  <span class="text-gray-600 dark:text-gray-500 shrink-0 whitespace-nowrap">
     <span class="hidden lg:inline">{{.Timestamp.Format "2006-01-02"}}</span>
     <span>{{.Timestamp.Format "15:04:05.000"}}</span>
   </span>
   <span class="{{$theme.Text}} font-bold shrink-0 w-12 text-sm">{{$LogType}}</span>
-  <span class="text-gray-300 break-all leading-relaxed font-mono text-sm pr-24">{{.Content}}</span>
+  <span class="text-gray-700 dark:text-gray-300 break-all leading-relaxed font-mono text-sm pr-24">{{.Content}}</span>
 
   {{if $clickable}}
     <div x-show="!isSelected" class="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition duration-200">
-        <span class="bg-gray-900 border border-blue-500/50 text-blue-400 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded shadow-lg flex items-center space-x-1">
+        <span class="bg-white dark:bg-gray-900 border border-blue-500/50 text-blue-600 dark:text-blue-400 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded shadow-lg flex items-center space-x-1">
           <span>Inspect</span>
           <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
@@ -111,51 +111,51 @@
     @message-sent.window="forceScroll = true"
     class="flex-1 flex flex-col min-w-0 min-h-0"
 >
-    <div class="bg-gray-950 px-4 py-2 border-b border-gray-800 flex items-center justify-between gap-x-2 shrink-0">
+    <div class="bg-white dark:bg-gray-950 px-4 py-2 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between gap-x-2 shrink-0">
         <input 
             type="text" 
             x-model="regexStr" 
             @input="applyFilters()"
             placeholder="Search regex..." 
-            class="bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-300 focus:outline-none focus:border-blue-500 w-64 font-mono"
+            class="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded px-3 py-1.5 text-sm text-gray-900 dark:text-gray-300 focus:outline-none focus:border-blue-500 w-64 font-mono"
         >
         <div class="flex space-x-2 items-center">
-            <span class="text-xs text-gray-500 italic shrink-0 hidden 2xl:inline">Filters are additive (OR) &rarr;</span>
+            <span class="text-xs text-gray-600 dark:text-gray-500 italic shrink-0 hidden 2xl:inline">Filters are additive (OR) &rarr;</span>
             <button 
                 title="Incoming FIX messages"
                 @click="toggleFilter('IN')" 
                 :class="activeFilters.includes('IN') ? 'ring-2 ring-green-500' : ''" 
-                class="cursor-pointer text-xs font-bold px-3 py-1.5 rounded border border-green-900/50 bg-green-900/20 text-green-400 hover:bg-green-900/40 hover:text-green-300 transition"
+                class="cursor-pointer text-xs font-bold px-3 py-1.5 rounded border border-green-300 dark:border-green-900/50 bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/40 hover:text-green-800 dark:hover:text-green-300 transition"
             >IN</button>
 
             <button 
                 title="Outgoing FIX messages"
                 @click="toggleFilter('OUT')" 
                 :class="activeFilters.includes('OUT') ? 'ring-2 ring-blue-500' : ''" 
-                class="cursor-pointer text-xs font-bold px-3 py-1.5 rounded border border-blue-900/50 bg-blue-900/20 text-blue-400 hover:bg-blue-900/40 hover:text-blue-300 transition"
+                class="cursor-pointer text-xs font-bold px-3 py-1.5 rounded border border-blue-300 dark:border-blue-900/50 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/40 hover:text-blue-800 dark:hover:text-blue-300 transition"
             >OUT</button>
             
              <button 
               title="All FIX messages (IN|OUT)"
               @click="toggleFilter('App')" 
               :class="activeFilters.includes('App') ? 'ring-2 ring-teal-500' : ''" 
-              class="cursor-pointer text-xs font-bold px-3 py-1.5 rounded border border-teal-900/50 bg-teal-900/20 text-teal-400 hover:bg-teal-900/40 hover:text-teal-300 transition hidden sm:inline"
+              class="cursor-pointer text-xs font-bold px-3 py-1.5 rounded border border-teal-300 dark:border-teal-900/50 bg-teal-100 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 hover:bg-teal-200 dark:hover:bg-teal-900/40 hover:text-teal-800 dark:hover:text-teal-300 transition hidden sm:inline"
             >App</button>
             
             <button 
               title="Session events and informational messages"
               @click="toggleFilter('Sys')" 
               :class="activeFilters.includes('Sys') ? 'ring-2 ring-yellow-500' : ''" 
-              class="cursor-pointer text-xs font-bold px-3 py-1.5 rounded border border-yellow-900/50 bg-yellow-900/20 text-yellow-400 hover:bg-yellow-900/40 hover:text-yellow-300 transition hidden sm:inline"
+              class="cursor-pointer text-xs font-bold px-3 py-1.5 rounded border border-yellow-300 dark:border-yellow-900/50 bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 hover:bg-yellow-200 dark:hover:bg-yellow-900/40 hover:text-yellow-800 dark:hover:text-yellow-300 transition hidden sm:inline"
             >Sys</button>
             
             <button 
               title="Errors and warnings"
               @click="toggleFilter('Error')" 
               :class="activeFilters.includes('Error') ? 'ring-2 ring-red-500' : ''" 
-              class="cursor-pointer text-xs font-bold px-3 py-1.5 rounded border border-red-900/50 bg-red-900/20 text-red-400 hover:bg-red-900/40 hover:text-red-300 transition"
+              class="cursor-pointer text-xs font-bold px-3 py-1.5 rounded border border-red-300 dark:border-red-900/50 bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/40 hover:text-red-800 dark:hover:text-red-300 transition"
             >Errors</button> 
-            <div class="w-px h-5 bg-gray-800 mx-1"></div>
+            <div class="w-px h-5 bg-gray-200 dark:bg-gray-800 mx-1"></div>
             
             <a
                 {{if .IsWailsApp}}
@@ -164,7 +164,7 @@
                     href="/api/logs/export" download="microfix_stream.log"
                 {{end}}
                 title="Export all logs to file"
-                class="cursor-pointer flex items-center space-x-1.5 text-xs font-medium px-3 py-1.5 rounded text-gray-500 hover:text-green-400 hover:bg-green-500/10 transition"
+                class="cursor-pointer flex items-center space-x-1.5 text-xs font-medium px-3 py-1.5 rounded text-gray-600 dark:text-gray-500 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-100 dark:hover:bg-green-500/10 transition"
             >
                 <span class="select-none">Export</span>
             </a>
@@ -172,7 +172,7 @@
             <button
                 @click="clearLogs()"
                 title="Clear all logs"
-                class="cursor-pointer text-xs font-medium px-3 py-1.5 rounded text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition"
+                class="cursor-pointer text-xs font-medium px-3 py-1.5 rounded text-gray-600 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/10 transition"
             >
                 <span>Clear</span>
             </button>
@@ -187,7 +187,7 @@
         hx-swap="beforeend" 
         class="flex-1 overflow-y-auto min-h-0 p-3 font-mono text-sm space-y-1 scroll-smooth"
     >
-        <div class="hidden only:block text-gray-600 text-center mt-10 select-none"> Waiting for messages... </div>
+        <div class="hidden only:block text-gray-500 dark:text-gray-600 text-center mt-10 select-none"> Waiting for messages... </div>
     </div>
 </div>
 {{end}}

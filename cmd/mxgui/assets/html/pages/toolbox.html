@@ -1,5 +1,5 @@
 {{define "pages/toolbox"}}
-<main x-show="view === 'toolbox'" style="display: none;" class="flex-1 flex bg-[#0a0d12] overflow-hidden">
+<main x-show="view === 'toolbox'" style="display: none;" class="flex-1 flex bg-gray-50 dark:bg-[#0a0d12] overflow-hidden">
     <div class="flex-1 p-6 flex flex-col overflow-hidden w-full">
       {{template "partials/toolbox/script_runner" .}}
       {{template "partials/toolbox/finalize" .}}
