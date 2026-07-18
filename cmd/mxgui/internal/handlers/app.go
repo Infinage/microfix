@@ -7,7 +7,6 @@ import (
 	"html/template"
 	"net"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 
@@ -68,7 +67,7 @@ func NewApplication(version, commit string, assets embed.FS) (*Application, erro
 	templ := template.New("").Funcs(templHelpers)
 
 	// Glob all html paths, sadly doesn't support '**'
-	templ, err = templ.ParseFS(assets, 
+	templ, err = templ.ParseFS(assets,
 		"assets/html/pages/*.html",
 		"assets/html/partials/*/*.html",
 		"assets/html/partials/*/*/*.html",
@@ -106,16 +105,11 @@ func NewApplication(version, commit string, assets embed.FS) (*Application, erro
 	}, nil
 }
 
-// Returns true if config exists and save successful
+// Returns true if config save successful
 func (app *Application) SaveConfig() bool {
 	st := app.Store
 	savePath := st.ConfigPath()
-	if _, err := os.Stat(savePath); err == nil {
-		if err = st.DumpConfig(savePath); err == nil {
-			return true
-		}
-	}
-	return false
+	return st.DumpConfig(savePath) == nil
 }
 
 func (app *Application) startSSEHandler() (net.Listener, error) {
