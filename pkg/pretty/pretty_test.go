@@ -260,3 +260,42 @@ func TestLog(t *testing.T) {
 		})
 	}
 }
+
+func TestPrettyMessage_OOCTag(t *testing.T) {
+	raw := "8=FIX.4.4|9=129|35=V|49=S|56=T|34=14|52=20260522-14:33:26.614|262=ABC|263=1|264=0|" +
+		"265=0|146=1|55=USD/INR|460=4|167=SPOT|15=INR|267=2|269=0|269=1|10=102|"
+
+	msg, err := message.MessageFromString(raw, "|")
+	if err != nil {
+		t.Fatalf("failed to parse message: %v", err)
+	}
+
+	ro, err := spec.NewDefaultRouter("FIX44.xml")
+	if err != nil {
+		t.Fatalf("failed to load router: %v", err)
+	}
+
+	var buf bytes.Buffer
+	err = Message(&buf, &msg, ro)
+	if err != nil {
+		t.Fatalf("pretty print failed: %v", err)
+	}
+
+	out := buf.String()
+
+	// Extract tag indices of interest
+	tag146Idx := strings.Index(out, "146  =")
+	tag167Idx := strings.Index(out, "167  =")
+	tag15Idx := strings.Index(out, "15   =")
+	tag267Idx := strings.Index(out, "267  =")
+	tag10Idx := strings.Index(out, "10   =")
+	trailerIdx := strings.Index(out, "[TRAILER]")
+
+	if tag146Idx == -1 || tag167Idx == -1 || tag15Idx == -1 || tag267Idx == -1 || tag10Idx == -1 {
+		t.Fatalf("Missing expected tags in output:\n%s", out)
+	} else if tag146Idx > tag167Idx || tag167Idx > tag15Idx || tag15Idx > tag267Idx || tag267Idx > tag10Idx {
+		t.Errorf("Expected tag index order: [146] < [167] < [15] < [267] < [10]")
+	} else if trailerIdx == -1 || trailerIdx > tag10Idx {
+		t.Errorf("Missing trailer entry, or it appears after tag 10. Expected OOC tag to be absorbed by Body.")
+	}
+}

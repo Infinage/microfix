@@ -32,6 +32,8 @@ func (app *Application) handleAPIFinalize(w http.ResponseWriter, r *http.Request
 	}
 
 	// critical tags: [8, 9, 35, 49, 56, 34, 52, 10]
+	// Inserted with defaults if missing
+	// Otherwise overwritten only for [8, 9, 52, 10]
 	ro := app.Session().Router()
 	beginStr := ro.SessionSpec().BeginString()
 	sendingTime := time.Now().UTC().Format("20060102-15:04:05.000")
@@ -44,12 +46,14 @@ func (app *Application) handleAPIFinalize(w http.ResponseWriter, r *http.Request
 		{tag: 34, value: "1", pos: 5},
 		{tag: 52, value: sendingTime, pos: 6},
 	} {
-		if _, ok := msg.Get(rf.tag); !ok {
+		if f, idx := msg.FindFrom(rf.tag, 0); idx == -1 {
 			msg.Insert(rf.pos, message.Field{Tag: rf.tag, Value: rf.value})
+		} else if rf.tag == 8 || rf.tag == 52 {
+			f.Value = rf.value
 		}
 	}
 
-	msg.Finalize() // Auto inserts tag 9 and 10 if missing
+	msg.Finalize() // Updates tag 9 and 10
 	w.Write([]byte(msg.String(delim)))
 }
 

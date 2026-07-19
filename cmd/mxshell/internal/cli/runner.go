@@ -13,10 +13,6 @@ import (
 
 // ReplLoop starts the interactive CLI mode
 func Repl(Version, GitCommit string) {
-	line := liner.NewLiner()
-	defer line.Close()
-	defer writeHistory(line)
-
 	fmt.Println(`
  __       __  __    __         ______   __                  __  __ 
 |  \     /  \|  \  |  \       /      \ |  \                |  \|  \
@@ -30,7 +26,14 @@ func Repl(Version, GitCommit string) {
 	`)
 
 	// Setup basic autocompletion
+	line := liner.NewLiner()
+	defer line.Close()
+	defer writeHistory(line)
+
+	// Configure autocompletion
+	line.SetMultiLineMode(true)
 	setupAutocomplete(line)
+	loadHistory(line)
 
 	// Create a new session from shell context
 	ctx, err := shell.NewShellContext(Version, GitCommit)
@@ -42,9 +45,7 @@ func Repl(Version, GitCommit string) {
 	// Close session and logs broker
 	defer ctx.Cleanup()
 
-	// Abort prompts on interupt
-	loadHistory(line)
-
+	// Run REPL loop
 	for {
 		input, err := line.Prompt("MFix> ")
 		if err != nil {

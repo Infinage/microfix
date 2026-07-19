@@ -79,7 +79,7 @@ func Message(w io.Writer, msg *message.Message, ro *spec.Router) error {
 
 	// HEADER
 	fmt.Fprintln(w, "[HEADER]")
-	trees, pos := buildTrees(ro, msg, ssp, &ssp.Header, 0)
+	trees, pos := buildTrees(ro, msg, ssp, &ssp.Header, nil, 0)
 	if len(trees) == 0 {
 		fmt.Fprintln(w, "  (empty)")
 	} else {
@@ -89,7 +89,7 @@ func Message(w io.Writer, msg *message.Message, ro *spec.Router) error {
 	// BODY
 	fmt.Fprintln(w, "\n[BODY]")
 
-	trees, pos = buildTrees(ro, msg, bsp, &context, pos)
+	trees, pos = buildTrees(ro, msg, bsp, &context, ssp.Trailer.Lookup, pos)
 	if len(trees) == 0 {
 		fmt.Fprintln(w, "  (empty)")
 	} else {
@@ -98,7 +98,7 @@ func Message(w io.Writer, msg *message.Message, ro *spec.Router) error {
 
 	// TRAILER
 	fmt.Fprintln(w, "\n[TRAILER]")
-	trees, pos = buildTrees(ro, msg, ssp, &ssp.Trailer, pos)
+	trees, pos = buildTrees(ro, msg, ssp, &ssp.Trailer, nil, pos)
 	if len(trees) == 0 {
 		fmt.Fprintln(w, "  (empty)")
 	} else {
@@ -189,7 +189,8 @@ type treeNode struct {
 }
 
 // Build structured tree from FIX message
-func buildTrees(ro *spec.Router, msg *message.Message, sp *spec.Spec, ctx *spec.Entry, pos int) ([]treeNode, int) {
+func buildTrees(ro *spec.Router, msg *message.Message, sp *spec.Spec, ctx *spec.Entry,
+	terminateOnlyOn map[uint16]int, pos int) ([]treeNode, int) {
 	// We have to clean up after we have processed one entry from group
 	// to ensure we dont inadvertently consume entries belonging to another group
 	localLookup := maps.Clone(ctx.Lookup)
@@ -202,7 +203,8 @@ func buildTrees(ro *spec.Router, msg *message.Message, sp *spec.Spec, ctx *spec.
 		// Unknown to context
 		if !inCtx {
 			// Completely unknown field → print anyway
-			if _, ok := ro.Field(field.Tag); !ok {
+			fDef, knownGlobally := ro.Field(field.Tag)
+			if !knownGlobally {
 				result = append(result, treeNode{
 					tag:     field.Tag,
 					value:   field.Value,
@@ -213,9 +215,22 @@ func buildTrees(ro *spec.Router, msg *message.Message, sp *spec.Spec, ctx *spec.
 				continue
 			}
 
-			// Known globally but not in this context → break (belongs to parent)
-			// Ensure we break without updating position
-			break
+			// Tag is KNOWN globally, but out of context.
+			// Check if it is a hard terminator for this block.
+			_, isTerminal := terminateOnlyOn[field.Tag]
+			if terminateOnlyOn == nil || isTerminal {
+				break
+			}
+
+			// Out of context tag is not part of non nil terminateOnlyOn map
+			result = append(result, treeNode{
+				tag:     field.Tag,
+				value:   field.Value,
+				tagName: fDef.Name,
+				dtype:   fDef.Type,
+			})
+			pos++
+			continue
 		}
 
 		pos++ // Update only if we are in the right context
@@ -249,7 +264,7 @@ func buildTrees(ro *spec.Router, msg *message.Message, sp *spec.Spec, ctx *spec.
 			}
 
 			for i := 0; i < repeat; i++ {
-				children, newPos := buildTrees(ro, msg, sp, &nCtx, pos)
+				children, newPos := buildTrees(ro, msg, sp, &nCtx, nil, pos)
 				pos = newPos
 
 				node.children = append(node.children, children)
