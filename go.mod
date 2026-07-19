@@ -4,7 +4,7 @@ go 1.26.2
 
 require (
 	github.com/peterh/liner v1.2.2
-	github.com/wailsapp/wails/v3 v3.0.0-alpha2.103
+	github.com/wailsapp/wails/v3 v3.0.0-alpha2.117
 )
 
 require (
