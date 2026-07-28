@@ -3,85 +3,6 @@
   x-show="inspectorTab === 'validation'" 
   style="display:none;" 
   class="space-y-4"
-  x-data="{
-    search: '', showMuted: false, newRule: '', allErrors: [],
-    muted: JSON.parse(localStorage.getItem('fixMutedErrors') || '[]'),
-
-    // Extract all errors from DOM when loaded
-    init() {
-      this.$nextTick(() => {
-        this.allErrors = Array.from(this.$el.querySelectorAll('[data-err]')).map(el => el.dataset.err);
-      });
-    },
-
-    // Calculate how many total errors are currently hidden
-    get totalMutedCount() {
-      return this.allErrors.filter(err => this.isMuted(err)).length;
-    },
-
-    // Calculate how many errors a SPECIFIC rule is hiding
-    getRuleHitCount(rulePattern) {
-      try {
-        let regex = new RegExp(rulePattern, 'i');
-        return this.allErrors.filter(err => regex.test(err)).length;
-      } catch(e) {
-        return 0;
-      }
-    },
-    
-    // Save to local storage
-    saveMuted() { localStorage.setItem('fixMutedErrors', JSON.stringify(this.muted)); },
-
-    // Escape special characters so default clicks do an exact string match
-    escapeRegex(str) { return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); },
-
-    // Check if an error matches ANY of the saved regex rules
-    isMuted(err) {
-      return this.muted.some(pattern => {
-        try {
-          return new RegExp(pattern, 'i').test(err);
-        } catch (e) {
-          return false; // Ignore invalid regexes
-        }
-      });
-    },
-
-    // Default mute button action (Exact match)
-    muteExact(err) {
-      let exactPattern = '^' + this.escapeRegex(err) + '$';
-      if (!this.muted.includes(exactPattern)) {
-        this.muted.push(exactPattern);
-        this.saveMuted();
-      }
-    },
-
-    // Add a custom regex rule from the input box
-    addCustomRule() {
-      let rule = this.newRule.trim();
-      if (!rule) return;
-      
-      try {
-        new RegExp(rule); // Test if it's a valid regex
-        if (!this.muted.includes(rule)) {
-          this.muted.push(rule);
-          this.saveMuted();
-        }
-        this.newRule = '';
-      } catch (e) {
-        alert('Invalid Regular Expression');
-      }
-    },
-
-    unmute(pattern) {
-      this.muted = this.muted.filter(m => m !== pattern);
-      this.saveMuted();
-    },
-
-    clearMuted() {
-      this.muted = [];
-      this.saveMuted();
-    }
-  }"
 >
   {{if .IsValid}}
     <div class="text-green-700 dark:text-green-400 text-sm font-mono bg-green-50 dark:bg-green-900/10 p-4 rounded border border-green-200 dark:border-green-900/30">
@@ -148,11 +69,20 @@
               d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
             ></path>
           </svg>
+
+          <!-- Uses dynamic post-mute count -->
           <span class="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wider font-sans select-none">
-            Validation Errors ({{if .Observations}}{{len .Observations}}{{end}})
+            Validation Errors (<span x-text="activeErrorCount"></span>)
           </span>
       </div>
       <ul class="divide-y divide-gray-100 dark:divide-gray-800/60">
+          <!-- Fallback when rules hide every single backend error -->
+          <template x-if="activeErrorCount === 0">
+              <li class="px-4 py-6 text-center">
+                  <p class="text-sm text-gray-500 dark:text-gray-400 italic">All active errors are currently muted by your rules.</p>
+              </li>
+          </template>
+
           {{range .Observations}}
           <li 
             data-err="{{.}}"

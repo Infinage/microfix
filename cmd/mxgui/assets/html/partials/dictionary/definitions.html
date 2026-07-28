@@ -28,14 +28,14 @@
   <div class="text-xs text-gray-600 dark:text-gray-500 font-bold mb-2 uppercase px-2 tracking-wider border-t border-gray-200 dark:border-gray-800 pt-4">Fields</div>
   <ul class="text-sm space-y-1 text-gray-600 dark:text-gray-400">
     {{range .Router.SessionSpec.Fields}}
-      {{$displayText := print "[App] " .Name " (" .Number ")"}}
+      {{$displayText := print "[Sess] " .Name " (" .Number ")"}}
       <li x-show="'{{$displayText}}'.toLowerCase().includes(search.toLowerCase())"
           hx-get="/api/dictionary/field/{{.Number}}" 
           hx-target="#dict-details" hx-swap="innerHTML"
           class="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-900 hover:text-gray-900 dark:hover:text-white rounded cursor-pointer transition select-none"
       >{{$displayText}}</li>
     {{end}}
-    {{if .Router.IsLegacyRouter}}
+    {{if not .Router.IsLegacyRouter}}
       {{range .Router.ApplSpec.Fields}}
         {{$displayText := print "[App] " .Name " (" .Number ")"}}
         <li x-show="'{{$displayText}}'.toLowerCase().includes(search.toLowerCase())"

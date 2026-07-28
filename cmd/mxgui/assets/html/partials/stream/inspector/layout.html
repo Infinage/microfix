@@ -1,6 +1,86 @@
 {{define "partials/stream/inspector/layout"}}
 {{/* Inspector width set at 'pages/stream.html' one level up */}}
-<div id="msg-inspector" x-data="{dragging: false}" class="h-full flex flex-col relative">
+<div id="msg-inspector" 
+     class="h-full flex flex-col relative"
+     x-data="{
+        dragging: false,
+        search: '', 
+        showMuted: false, 
+        newRule: '', 
+        allErrors: [],
+        muted: JSON.parse(localStorage.getItem('fixMutedErrors') || '[]'),
+        
+        // Extract all errors synchronously on load to prevent UI flicker
+        init() {
+            this.allErrors = Array.from(this.$el.querySelectorAll('[data-err]')).map(el => el.dataset.err);
+        },
+        
+        get activeErrorCount() {
+            if (!this.allErrors) return 0;
+            return this.allErrors.filter(err => !this.isMuted(err)).length;
+        },
+        
+        get totalMutedCount() {
+            if (!this.allErrors) return 0;
+            return this.allErrors.filter(err => this.isMuted(err)).length;
+        },
+        
+        getRuleHitCount(rulePattern) {
+            try {
+                let regex = new RegExp(rulePattern, 'i');
+                return this.allErrors.filter(err => regex.test(err)).length;
+            } catch(e) {
+                return 0;
+            }
+        },
+        
+        saveMuted() { localStorage.setItem('fixMutedErrors', JSON.stringify(this.muted)); },
+        
+        escapeRegex(str) { return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); },
+        
+        isMuted(err) {
+            return this.muted.some(pattern => {
+                try {
+                    return new RegExp(pattern, 'i').test(err);
+                } catch (e) {
+                    return false;
+                }
+            });
+        },
+        
+        muteExact(err) {
+            let exactPattern = '^' + this.escapeRegex(err) + '$';
+            if (!this.muted.includes(exactPattern)) {
+                this.muted.push(exactPattern);
+                this.saveMuted();
+            }
+        },
+        
+        addCustomRule() {
+            let rule = this.newRule.trim();
+            if (!rule) return;
+            try {
+                new RegExp(rule);
+                if (!this.muted.includes(rule)) {
+                    this.muted.push(rule);
+                    this.saveMuted();
+                }
+                this.newRule = '';
+            } catch (e) {
+                alert('Invalid Regular Expression');
+            }
+        },
+        
+        unmute(pattern) {
+            this.muted = this.muted.filter(m => m !== pattern);
+            this.saveMuted();
+        },
+        
+        clearMuted() {
+            this.muted = [];
+            this.saveMuted();
+        }
+     }">
     <div 
       class="absolute left-0 top-0 bottom-0 w-1.5 -ml-[1px] cursor-col-resize hover:bg-blue-500 z-30 transition-colors"
       @mousedown="dragging = true"
@@ -21,16 +101,19 @@
                 <div class="text-xs text-gray-600 dark:text-gray-500 font-mono mt-1">{{.Timestamp.Format "2006-01-02 15:04:05.000"}} &bull; {{.LogType}}</div>
             </div>
             <div class="flex space-x-3 items-center shrink-0">
-                {{if .IsValid}}
-                  <div 
-                    class="text-green-600 dark:text-green-400 flex items-center space-x-1 font-bold text-xs uppercase"
-                  >
+                
+                <!-- Show Valid if no backend errors OR if all errors are muted -->
+                <template x-if="{{.IsValid}} || activeErrorCount === 0">
+                  <div class="text-green-600 dark:text-green-400 flex items-center space-x-1 font-bold text-xs uppercase">
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                       </svg>
                       <span>Valid</span>
                   </div>
-                {{else}}
+                </template>
+
+                <!-- Show Error only if there are backend errors AND they are not all muted -->
+                <template x-if="!{{.IsValid}} && activeErrorCount > 0">
                   <div
                       class="text-red-500 flex items-center space-x-1 cursor-pointer font-bold text-xs uppercase hover:text-red-600 dark:hover:text-red-400 transition"
                       @click="inspectorTab = 'validation'"
@@ -42,7 +125,7 @@
                     </svg>
                     <span>Error</span>
                   </div>
-                {{end}}
+                </template>
                 
                 <!-- Dispatch close-inspector so both the drawer and the active log cue reset -->
                 <button @click="$dispatch('close-inspector')" class="text-gray-400 hover:text-gray-900 dark:text-gray-500 dark:hover:text-white transition cursor-pointer">
@@ -103,10 +186,11 @@
           :class="inspectorTab === 'validation' ? 'text-gray-900 dark:text-white border-b-2 border-blue-500' : 'text-gray-500 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300'" 
           class="px-4 py-3 text-xs uppercase font-bold tracking-wider transition flex items-center space-x-1 cursor-pointer"
         >
+            <!-- Dynamically show bubble count ONLY if active errors exist -->
             <span>Validation</span>
-            {{if not .IsValid}}
-              <span class="bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px]">{{if .Observations}}{{len .Observations}}{{end}}</span>
-            {{end}}
+            <template x-if="!{{.IsValid}} && activeErrorCount > 0">
+              <span class="bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px]" x-text="activeErrorCount"></span>
+            </template>
         </button>
         <button 
           @click="inspectorTab = 'diff'" 

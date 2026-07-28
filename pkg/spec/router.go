@@ -62,11 +62,11 @@ func NewRouter(sessionSpecPath string, applSpecPaths []string) (*Router, error) 
 	return router, nil
 }
 
-// Convenience function that auto loads all XMLs if FIXT.xml is set
+// Convenience function that auto loads all XMLs if FIXT* is set
 // Otherwise loads just the specified spec XML.
 func NewDefaultRouter(sessSpecPath string) (*Router, error) {
 	// FIXT - Load all appl specs
-	if strings.HasPrefix(sessSpecPath, "FIXT") {
+	if strings.HasPrefix(path.Base(sessSpecPath), "FIXT") {
 		applSpecPaths := []string{"FIX40.xml", "FIX41.xml", "FIX42.xml", "FIX43.xml",
 			"FIX44.xml", "FIX50.xml", "FIX50SP1.xml", "FIX50SP2.xml"}
 		router, err := NewRouter(sessSpecPath, applSpecPaths)

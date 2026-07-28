@@ -130,9 +130,18 @@ func walkSpec(ro *Router, msg *message.Message, vmode ValidationMode, context En
 
 			for gi := range repeat {
 				// Recurse for that repeating group.
-				// Groups always use strict boundaries (terminateOnlyOn = nil)
 				groupStart := idx
-				idx, err = walkSpec(ro, msg, vmode, entry, nil, idx, obs)
+
+				// If ValidationStrict -> use strict boundaries (terminateOnlyOn = nil).
+				// Otherwise soft boundaries -> terminate on seeing anchor tag
+				var termOnlyOnForGroup map[uint16]int
+				if vmode != ValidationStrict {
+					termOnlyOnForGroup = make(map[uint16]int)
+					termOnlyOnForGroup[(*msg)[group1Start].Tag] = -1 // value doesn't matter
+					maps.Copy(termOnlyOnForGroup, terminateOnlyOn)
+				}
+
+				idx, err = walkSpec(ro, msg, vmode, entry, termOnlyOnForGroup, idx, obs)
 				if err != nil {
 					return idx, err // Bubble up structural failures
 				}

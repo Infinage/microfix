@@ -3,6 +3,7 @@ package gui
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/infinage/microfix/pkg/message"
@@ -10,7 +11,7 @@ import (
 )
 
 func (app *Application) handleAPIFinalize(w http.ResponseWriter, r *http.Request) {
-	msgRaw := r.URL.Query().Get("finalize-input")
+	msgRaw := strings.TrimSpace(r.URL.Query().Get("finalize-input"))
 	if len(msgRaw) < 4 {
 		toast(w, app.templ, "error", "Input must be atleast 4 chars long")
 		return
@@ -58,7 +59,7 @@ func (app *Application) handleAPIFinalize(w http.ResponseWriter, r *http.Request
 }
 
 func (app *Application) handleAPIValidate(w http.ResponseWriter, r *http.Request) {
-	msgRaw := r.URL.Query().Get("validate-input")
+	msgRaw := strings.TrimSpace(r.URL.Query().Get("validate-input"))
 	if len(msgRaw) < 4 {
 		renderTemplate(app.templ, w, "partials/toolbox/validate/report", []string{"Structural Error: Input must be at least 4 chars long"})
 		return

@@ -157,12 +157,13 @@ func TestWalkSpec_RepeatingGroup(t *testing.T) {
 		{Tag: 270, Value: "150.50"},
 		{Tag: 269, Value: "1"},
 		{Tag: 270, Value: "151.20"},
+		{Tag: 9999, Value: "Unknown"},
 		{Tag: 10, Value: "092"},
 	}
 
-	pos, nodes := walkSpec(&msg, 0, mainContext, nil, fieldFn(fields))
-	if pos != 5 {
-		t.Fatalf("Expected to stop at index 5, but stopped at %d", pos)
+	pos, nodes := walkSpec(&msg, 0, mainContext, map[uint16]int{10: -1}, fieldFn(fields))
+	if pos != 6 {
+		t.Fatalf("Expected to stop at index 6, but stopped at %d", pos)
 	} else if len(nodes) != 1 {
 		t.Fatalf("Expected 1 top-level node (NoMDEntries), got %d", len(nodes))
 	} else if !nodes[0].IsGroup {
@@ -171,10 +172,13 @@ func TestWalkSpec_RepeatingGroup(t *testing.T) {
 		t.Fatalf("Expected 2 repeating entries, got %d", size)
 	}
 
-	groupNode := nodes[0]
-	if groupNode.Children[1][0].Tag != 269 || groupNode.Children[1][0].EnumDesc != "Ask" {
-		t.Errorf("Expected second entry's first tag to be 269 Ask, got Tag %d %s",
-			groupNode.Children[1][0].Tag, groupNode.Children[1][0].EnumDesc)
+	g1, g2 := nodes[0].Children[0], nodes[0].Children[1]
+	if sz1, sz2 := len(g1), len(g2); sz1 != 2 || sz2 != 3 {
+		t.Fatalf("Expected G1, G2 to have (2, 3) entries but got: (%d, %d)", sz1, sz2)
+	} else if g2[0].Tag != 269 || g2[0].EnumDesc != "Ask" {
+		t.Errorf("Expected second entry's first tag to be 269 Ask, got Tag %d %s", g2[0].Tag, g2[0].EnumDesc)
+	} else if g2[1].Value != "151.20" || g2[2].Value != "Unknown" {
+		t.Errorf("G2 did not contain '151.20' or 'Unknown': %v", g2)
 	}
 }
 
@@ -392,5 +396,35 @@ func TestInspectView_Integration_OOCAndGroups(t *testing.T) {
 	// Verify LeftOvers is empty (everything fell into the correct buckets)
 	if len(view.LeftOvers) > 0 {
 		t.Errorf("Expected 0 leftovers, got %d (First leftover tag: %d)", len(view.LeftOvers), view.LeftOvers[0].Tag)
+	}
+}
+
+func TestInspectView_MessageWithSpaces(t *testing.T) {
+	router := getTestRouter(t, "FIX44")
+	testCases := []struct {
+		msg  string
+		pass bool
+	}{
+		{
+			msg:  "\n\n\r    \t8=FIX.4.4|9=57|35=0|49=STRING|56=STRING|34=704|52=20260728-14:29:13.421|10=246| \t\n\f",
+			pass: true,
+		},
+		{
+			msg:  "\t 8=FIX.4.4|9=57|35=0|49=STRING|56=STRING|34=704|52=20260728-14:29:13.421|10=246 | \n\f",
+			pass: false,
+		},
+	}
+
+	for i, tt := range testCases {
+		iview := NewInspectView(tt.msg, "", router, spec.ValidationStrict)
+		if !iview.IsValid {
+			t.Logf("Case %d observations: %v", i, iview.Observations)
+		}
+
+		if tt.pass && iview.JSON == "" {
+			t.Errorf("Test case %d failed to output JSON representation.", i)
+		} else if tt.pass != iview.IsValid {
+			t.Errorf("Expected Inspector validation to be %t, but got %t", tt.pass, iview.IsValid)
+		}
 	}
 }

@@ -52,6 +52,19 @@ type EngineOptions struct {
 
 	// Skip latency check - by default messages with time delta exceeding 2 min are rejected
 	SkipLatencyCheck bool
+
+	// Applies strict validation to outbound / inbound messages
+	FixValidateStrict bool
+}
+
+// vmode is a helper to return validation mode from `FixValidateStrict`.
+// Validation is always done at a basic level, caller can control the strictness.
+func (opts *EngineOptions) vmode() spec.ValidationMode {
+	vmode := spec.ValidationBasic
+	if opts.FixValidateStrict {
+		vmode = spec.ValidationStrict
+	}
+	return vmode
 }
 
 type Engine struct {
@@ -184,7 +197,7 @@ func (engine *Engine) finalizeMessage(msg *message.Message, now time.Time) error
 	msg.Finalize()
 
 	// Perform basic validate before sending
-	if obs, ok := engine.validateAgainstSpec(msg, spec.ValidationBasic); !ok {
+	if obs, ok := engine.validateAgainstSpec(msg, engine.extraOpts.vmode()); !ok {
 		return fmt.Errorf("OUTBOUND validation failed: %v | Message: %s", obs, msg.String("|"))
 	}
 
@@ -272,7 +285,7 @@ func (engine *Engine) validate(msg *message.Message, now time.Time) error {
 	}
 
 	// Validate for FIX Spec correctness
-	if obs, ok := engine.validateAgainstSpec(msg, spec.ValidationBasic); !ok {
+	if obs, ok := engine.validateAgainstSpec(msg, engine.extraOpts.vmode()); !ok {
 		return &RejectError{
 			RefSeqNum: engine.inSeqNum,
 			Text:      fmt.Sprintf("Message validation failed: %v", obs),

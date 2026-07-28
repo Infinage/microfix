@@ -22,8 +22,9 @@ func NewSession(store *store.Store) (*session.Session, error) {
 		cfg.TargetCompID,
 		cfg.HeartbeatInt,
 		session.EngineOptions{
-			DefaultApplVer:   cfg.ApplicationSpec,
-			SkipLatencyCheck: cfg.SkipLatencyCheckInValidate,
+			DefaultApplVer:    cfg.ApplicationSpec,
+			SkipLatencyCheck:  cfg.SkipLatencyCheckInValidate,
+			FixValidateStrict: cfg.FixValidateStrict,
 		},
 	)
 }

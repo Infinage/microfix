@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"path"
 	"strings"
 	"time"
 
@@ -21,6 +22,10 @@ type Theme struct {
 // Return appl spec if available else session spec
 func getSpecName(config store.Config) string {
 	sessSpec, appSpec := config.SessionSpec, config.ApplicationSpec
+	sessSpec = path.Base(sessSpec)
+	if appSpec != "" {
+		appSpec = path.Base(appSpec)
+	}
 
 	sessSpec = strings.TrimSuffix(sessSpec, ".xml")
 	appSpec = strings.TrimSuffix(appSpec, ".xml")

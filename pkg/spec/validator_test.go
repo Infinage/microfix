@@ -423,3 +423,79 @@ func TestValidate_SampleAllMessages(t *testing.T) {
 		})
 	}
 }
+
+func TestValidate_GroupBasicLeniency(t *testing.T) {
+	ro, err := NewDefaultRouter("FIX44.xml")
+	if err != nil {
+		t.Fatalf("Failed to init router: %v", err)
+	}
+
+	// tag 9999 (completely unknown) and tag 15 (Currency - known but out of context for MD entry)
+	raw := "8=FIX.4.4|9=0|35=W|49=S|56=T|34=1|52=20260717-00:00:00|55=AAPL|" +
+		"268=2|" +
+		"269=0|270=150.5|" +
+		"269=1|278=ABC|9999=FOO|270=151.0|" +
+		"10=000|"
+
+	msg, err := message.MessageFromString(raw, "|")
+	if err != nil {
+		t.Fatalf("Failed to parse message string: %v", err)
+	}
+	msg.Finalize()
+
+	t.Run("ValidationBasic_AcceptsLeniency", func(t *testing.T) {
+		obs, ok := ro.Validate(&msg, ValidationBasic)
+		if !ok {
+			t.Errorf("Expected ValidationBasic to pass with leniency, but failed with: %v", obs)
+		} else if size := len(obs); size != 0 {
+			t.Errorf("Did not expect to see any observations logged, found: %v", obs)
+		}
+	})
+
+	t.Run("ValidationStrict_FailsLeniency", func(t *testing.T) {
+		obs, ok := ro.Validate(&msg, ValidationStrict)
+		if ok {
+			t.Error("Expected ValidationStrict to fail due to OOC tags, but it passed.")
+		}
+
+		foundOOCTag := slices.ContainsFunc(obs, func(ob string) bool {
+			return strings.Contains(ob, "Unexpected out-of-context tag [278]")
+		})
+		foundUnknownTag := slices.ContainsFunc(obs, func(ob string) bool {
+			return strings.Contains(ob, "Unknown tag [9999]")
+		})
+
+		if !foundOOCTag || !foundUnknownTag {
+			t.Log("Observations:", strings.Join(obs, "; "))
+			t.Errorf("Expected OOC (found = %t) and Unknown tag (found = %t) errors", foundOOCTag, foundUnknownTag)
+		}
+	})
+}
+
+func TestValidate_GroupDoesNotSwallowTrailer(t *testing.T) {
+	ro, err := NewDefaultRouter("FIX44.xml")
+	if err != nil {
+		t.Fatalf("Failed to init router: %v", err)
+	}
+
+	raw := "8=FIX.4.4|9=0|35=W|49=S|56=T|34=1|52=20260717-00:00:00|55=AAPL|" +
+		"268=1|269=0|270=150.5|" +
+		"10=000|"
+
+	msg, err := message.MessageFromString(raw, "|")
+	if err != nil {
+		t.Fatalf("Failed to parse message: %v", err)
+	}
+	msg.Finalize()
+
+	obs, ok := ro.Validate(&msg, ValidationBasic)
+	if !ok {
+		t.Fatalf("ValidationBasic failed, likely swallowed the trailer. Observations: %v", obs)
+	}
+
+	for _, ob := range obs {
+		if strings.Contains(ob, "Missing required field tag [10]") {
+			t.Errorf("Trailer tag 10 was erroneously swallowed by the group parser!")
+		}
+	}
+}

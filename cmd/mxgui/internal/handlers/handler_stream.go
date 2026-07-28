@@ -88,7 +88,7 @@ func (app *Application) handleAPISend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msgRaw := r.FormValue("message")
+	msgRaw := strings.TrimSpace(r.FormValue("message"))
 	raw := r.FormValue("raw") == "yes"
 
 	var err error

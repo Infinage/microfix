@@ -12,7 +12,7 @@ import (
 )
 
 func (app *Application) handleAPIInspect(w http.ResponseWriter, r *http.Request) {
-	raw := r.URL.Query().Get("message")
+	raw := strings.TrimSpace(r.URL.Query().Get("message"))
 	if len(raw) < 4 {
 		toast(w, app.templ, "error", "Input must be atleast 4 chars long")
 		return

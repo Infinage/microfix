@@ -3,6 +3,7 @@ package inspector
 import (
 	"encoding/json"
 	"maps"
+	"strings"
 	"time"
 
 	"github.com/infinage/microfix/pkg/message"
@@ -75,6 +76,9 @@ func (view *InspectView) json() map[uint16]any {
 }
 
 func NewInspectView(raw, logType string, router *spec.Router, vmode spec.ValidationMode) InspectView {
+	// Cleanup spaces before passing forward
+	raw = strings.TrimSpace(raw)
+
 	var result = InspectView{RawFix: raw, LogType: logType}
 	if len(raw) < 4 {
 		result.Observations = append(result.Observations, "Input must be atleast 4 chars long")
@@ -203,7 +207,14 @@ func walkSpec(msg *message.Message, pos int, context spec.Entry, terminateOnlyOn
 			if repeat, err := field.AsUint(); err == nil {
 				// We ignore errors, handled by 'router.Validate'
 				for range repeat {
-					nextPos, children := walkSpec(msg, pos+1, nextContext, nil, fieldFn)
+					// Absorb unknown / OOC tags, terminate on anchor / trailer tags
+					var termOnlyOnForGroup map[uint16]int
+					if pos+1 < len(*msg) {
+						termOnlyOnForGroup = make(map[uint16]int)
+						termOnlyOnForGroup[(*msg)[pos+1].Tag] = -1
+						maps.Copy(termOnlyOnForGroup, terminateOnlyOn)
+					}
+					nextPos, children := walkSpec(msg, pos+1, nextContext, termOnlyOnForGroup, fieldFn)
 					node.Children = append(node.Children, children)
 					pos = nextPos - 1 // Adjust to fit in with group repeat and incr below
 				}

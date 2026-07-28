@@ -71,12 +71,23 @@
 <div x-show="inspectorTab === 'diff'" style="display:none;" class="flex flex-col h-full overflow-hidden">
     <p class="text-[12px] text-gray-600 dark:text-gray-400 mb-2 select-none">Paste another raw message below to diff against the selected stream message.</p>
     
-    <form hx-post="/api/diff" hx-trigger="input from:textarea delay:400ms" hx-target="#diff-output" class="shrink-0">
+    <form 
+      hx-post="/api/diff" hx-trigger="input from:textarea delay:400ms" 
+      hx-target="#diff-output" class="shrink-0"
+      x-data="{
+          rawUserInput: '',
+          set displayFixData(val) { this.rawUserInput = val.replace(/\|/g, '\x01'); },
+          get displayFixData() { return this.rawUserInput.replace(/\x01/g, '|'); },
+      }"
+    >
         <input type="hidden" name="source" value="{{.RawFix}}">
+        <input type="hidden" name="target" :value="rawUserInput">
         <textarea 
-          name="target"
-          spellcheck="false" 
-          class="w-full bg-gray-50 dark:bg-[#0a0d12] border border-gray-300 dark:border-gray-800 rounded p-3 font-mono text-sm text-gray-900 dark:text-gray-300 resize-none h-24 focus:border-blue-500 focus:outline-none transition-colors" 
+          spellcheck="false"
+          x-model="displayFixData"
+          class="w-full bg-gray-50 dark:bg-[#0a0d12] border border-gray-300 dark:border-gray-800 rounded p-3 
+            font-mono text-sm text-gray-900 dark:text-gray-300 resize-none h-24 focus:border-blue-500 
+            focus:outline-none transition-colors" 
           placeholder="Paste target FIX string to diff..."
         ></textarea>
     </form>
