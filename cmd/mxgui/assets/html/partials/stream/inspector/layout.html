@@ -2,6 +2,7 @@
 {{/* Inspector width set at 'pages/stream.html' one level up */}}
 <div id="msg-inspector" 
      class="h-full flex flex-col relative"
+     :class="{'select-none': dragging}"
      x-data="{
         dragging: false,
         search: '', 
@@ -83,7 +84,7 @@
      }">
     <div 
       class="absolute left-0 top-0 bottom-0 w-1.5 -ml-[1px] cursor-col-resize hover:bg-blue-500 z-30 transition-colors"
-      @mousedown="dragging = true"
+      @mousedown.prevent="dragging = true"
       @mousemove.window="if(dragging) {
         let calculatedWidth = window.innerWidth - $event.clientX;
         inspectorWidth = Math.max(400, Math.min(calculatedWidth, window.innerWidth - 320));
@@ -96,14 +97,22 @@
             <div class="min-w-0">
                 <div class="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2 min-w-0">
                     <span class="truncate" title="{{.Name}}">{{.Name}}</span>
-                    <span class="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs px-2 py-0.5 rounded border border-gray-300 dark:border-gray-700 font-mono">35={{.MsgId}}</span>
+                    <button type="button" hx-target="#dict-details"
+                      hx-get="/api/dictionary/message/{{.MsgId}}"
+                      @click="$dispatch('view-dictionary')"
+                      title="View in Dictionary"
+                      class="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs px-2 py-0.5 
+                        rounded border border-gray-300 dark:border-gray-700 font-mono cursor-pointer transition
+                        hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:text-blue-700 dark:hover:text-blue-400 
+                        hover:border-blue-300 dark:hover:border-blue-800"
+                    >35={{.MsgId}}</button>
                 </div>
                 <div class="text-xs text-gray-600 dark:text-gray-500 font-mono mt-1">{{.Timestamp.Format "2006-01-02 15:04:05.000"}} &bull; {{.LogType}}</div>
             </div>
             <div class="flex space-x-3 items-center shrink-0">
                 
                 <!-- Show Valid if no backend errors OR if all errors are muted -->
-                <template x-if="{{.IsValid}} || activeErrorCount === 0">
+                <template x-if="{{if .IsValid}}true{{else}}false{{end}} || activeErrorCount === 0">
                   <div class="text-green-600 dark:text-green-400 flex items-center space-x-1 font-bold text-xs uppercase">
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
@@ -113,7 +122,7 @@
                 </template>
 
                 <!-- Show Error only if there are backend errors AND they are not all muted -->
-                <template x-if="!{{.IsValid}} && activeErrorCount > 0">
+                <template x-if="!{{if .IsValid}}true{{else}}false{{end}} && activeErrorCount > 0">
                   <div
                       class="text-red-500 flex items-center space-x-1 cursor-pointer font-bold text-xs uppercase hover:text-red-600 dark:hover:text-red-400 transition"
                       @click="inspectorTab = 'validation'"
@@ -188,7 +197,7 @@
         >
             <!-- Dynamically show bubble count ONLY if active errors exist -->
             <span>Validation</span>
-            <template x-if="!{{.IsValid}} && activeErrorCount > 0">
+            <template x-if="!{{if .IsValid}}true{{else}}false{{end}} && activeErrorCount > 0">
               <span class="bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px]" x-text="activeErrorCount"></span>
             </template>
         </button>

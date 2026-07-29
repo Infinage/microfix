@@ -1,3 +1,22 @@
+{{define "partials/toolbox/validate/dict_btn"}}
+{{ $msgBadge := "" }}
+{{ if .MsgType }}
+  {{ $msgBadge = printf "35=%s" .MsgType }}
+  {{ if .MsgName }}
+    {{ $msgBadge = printf "%s (%s)" $msgBadge .MsgName }}
+  {{ end }}
+{{ end }}
+<button type="button" hx-target="#dict-details"
+  hx-get="/api/dictionary/message/{{.MsgType}}"
+  @click="$dispatch('view-dictionary')"
+  title="View in Dictionary"
+  class="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs px-2 py-0.5 
+    rounded border border-gray-300 dark:border-gray-700 font-mono cursor-pointer transition
+    hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:text-blue-700 dark:hover:text-blue-400 
+    hover:border-blue-300 dark:hover:border-blue-800"
+>{{$msgBadge}}</button>
+{{end}}
+
 {{define "partials/toolbox/validate"}}
 <div x-show="toolboxTab === 'validate'" style="display: none;" class="flex-1 flex flex-col overflow-hidden">
     <div class="flex justify-between items-center mb-6 shrink-0 select-none">
@@ -19,6 +38,7 @@
           get displayFixData() { return this.rawFixData.replace(/\x01/g, '|'); },
         }"
         :style="`height: ${validateInputHeight}px`"
+        :class="{'select-none': dragging}"
       >
             <label class="text-sm text-gray-600 dark:text-gray-500 font-bold uppercase tracking-widest mb-2 select-none">Target Message</label>
             <div class="relative mb-3 flex-1 flex flex-col min-h-0">
@@ -68,15 +88,22 @@
 {{end}}
 
 {{define "partials/toolbox/validate/report"}}
-  {{ if . }}
+  {{ if .Observations }}
       <div class="bg-red-50 dark:bg-gray-950 border border-red-200 dark:border-red-900/30 rounded-lg p-4 flex-1 overflow-y-auto shadow-inner">
-          <div class="flex items-center space-x-2 text-red-600 dark:text-red-500 mb-4 border-b border-gray-200 dark:border-gray-800 pb-3">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-              <span class="font-bold text-lg select-none">Status: FAILED ({{len .}} Issues Found)</span>
+          <div class="flex items-center justify-between mb-4 border-b border-gray-200 dark:border-gray-800 pb-3">
+              <div class="flex items-center space-x-2 text-red-600 dark:text-red-500">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 
+                      2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                  <span class="font-bold text-lg select-none">Status: FAILED ({{len .Observations}} Issues Found)</span>
+              </div>
+              {{ if .MsgType }}
+                  {{ template "partials/toolbox/validate/dict_btn" . }}
+              {{ end }}
           </div>
           
           <ul class="font-mono text-sm space-y-3">
-              {{ range . }}
+              {{ range .Observations }}
               <li class="flex items-start space-x-3 bg-red-100/50 dark:bg-red-950/20 p-2 rounded">
                   <span class="text-red-600 dark:text-red-400 font-bold mt-0.5 select-none">•</span>
                   <span class="text-gray-800 dark:text-gray-300 leading-relaxed">{{.}}</span>
@@ -86,9 +113,15 @@
       </div>
   {{ else }}
       <div class="bg-green-50 dark:bg-gray-950 border border-green-200 dark:border-green-900/30 rounded-lg p-4 flex-1 overflow-y-auto shadow-inner">
-          <div class="flex items-center space-x-2 text-green-600 dark:text-green-500 mb-4 border-b border-gray-200 dark:border-gray-800 pb-3">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-              <span class="font-bold text-lg select-none">Status: PASSED</span>
+          <div class="flex items-center justify-between mb-4 border-b border-gray-200 dark:border-gray-800 pb-3">
+              <div class="flex items-center space-x-2 text-green-600 dark:text-green-500">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                  <span class="font-bold text-lg select-none">Status: PASSED</span>
+              </div>
+              {{ if .MsgType }}
+                  {{ template "partials/toolbox/validate/dict_btn" . }}
+              {{ end }}
           </div>
           <div class="bg-green-100/50 dark:bg-green-950/20 p-4 rounded text-green-700 dark:text-green-400/80 font-mono text-sm border border-green-200 dark:border-green-900/20">
               <p>✓ Strict validation completed successfully.</p>

@@ -1,22 +1,32 @@
 {{define "partials/dictionary/message"}}
-<div class="w-full" x-data="{ 
-    copied: false, 
-    sampleStr: '{{.SampleStr}}' 
+<div id="msg-controls" class="w-full" x-data="{ 
+    copied: false, sampleStr: '{{.SampleStr}}',
+    dictionaryPageOpts: {
+      search: '',
+      displayOptFields: {{.DisplayOptFields}},
+      sampleOptFields: {{.SampleOptFields}},
+    },
 }">
+
+  <!-- Signal to dictionary API handler to look for DisplayOptFields, SampleOptFields -->
+  <input name="toggled" value="1" type="hidden" />
     
   <div class="flex items-end justify-between border-b border-gray-200 dark:border-gray-800 pb-4 mb-6 space-x-4">
     <div class="min-w-0">
       <div class="flex items-center space-x-3 mb-2">
-        <span class="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-bold font-mono px-3 py-1 rounded text-sm border border-blue-300 dark:border-blue-800 shrink-0 select-none">MsgType = {{.Id}}</span>
-        <span class="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-3 py-1 rounded text-sm border border-gray-300 dark:border-gray-700 shrink-0 select-none">{{if .IsAdmin}}Admin{{else}}App{{end}}</span>
+        <span class="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-bold font-mono px-3 py-1 
+          rounded text-sm border border-blue-300 dark:border-blue-800 shrink-0 select-none">MsgType = {{.Id}}</span>
+        <span class="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-3 py-1 rounded text-sm border 
+          border-gray-300 dark:border-gray-700 shrink-0 select-none">{{if .IsAdmin}}Admin{{else}}App{{end}}</span>
       </div>
       <h2 class="text-3xl font-semibold text-gray-900 dark:text-white truncate select-none" title="{{.Name}}">{{.Name}}</h2>
     </div>
     
     <button 
       @click="navigator.clipboard.writeText(sampleStr.replace(/\|/g, '\x01')); copied = true; setTimeout(() => copied = false, 2000)"
-      class="hidden md:flex shrink-0 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white px-4 py-2 rounded-lg text-sm transition items-center 
-        justify-center space-x-0 lg:space-x-2 border border-gray-300 dark:border-gray-700 cursor-pointer"
+      class="hidden md:flex shrink-0 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 
+        dark:text-white px-4 py-2 rounded-lg text-sm transition items-center justify-center space-x-0 lg:space-x-2 border 
+        border-gray-300 dark:border-gray-700 cursor-pointer"
     >
       <svg x-show="!copied" class="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 
@@ -30,39 +40,82 @@
       <span class="hidden lg:inline" x-text="copied ? 'Copied to Clipboard!' : 'Copy Sample'"></span>
     </button>
   </div>
+
   <div class="mb-8">
-    <h3 class="text-sm font-bold text-gray-600 dark:text-gray-500 uppercase tracking-widest mb-2 select-none">Sample Output</h3>
-    <div class="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded p-4 font-mono text-sm text-blue-700 dark:text-blue-400 break-all shadow-inner" x-text="sampleStr"></div>
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
+        <h3 class="text-sm font-bold text-gray-600 dark:text-gray-500 uppercase tracking-widest select-none">Sample Output</h3>
+        <label class="hidden relative md:inline-flex items-center cursor-pointer self-start sm:self-auto">
+            <input type="checkbox" name="SampleOptFields" x-model="dictionaryPageOpts.sampleOptFields" value="true" 
+              class="sr-only peer" hx-get="/api/dictionary/message/{{.Id}}" hx-target="#dict-details" hx-include="#msg-controls">
+            <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-800 peer-checked:after:translate-x-full 
+              peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 
+              after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+            <span class="ml-2 text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-500 select-none">Optional Fields</span>
+        </label>
+      </div>
+      <div class="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded p-4 font-mono text-sm text-blue-700 
+        dark:text-blue-400 break-all shadow-inner" x-text="sampleStr"></div>
+  </div>
+
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+    <h3 class="text-sm font-bold text-gray-600 dark:text-gray-500 uppercase tracking-widest select-none">Field Specification</h3>
+    <label class="hidden relative md:inline-flex items-center cursor-pointer self-start sm:self-auto">
+        <input type="checkbox" name="DisplayOptFields" x-model="dictionaryPageOpts.displayOptFields" value="true" 
+          class="sr-only peer" hx-get="/api/dictionary/message/{{.Id}}" hx-target="#dict-details" hx-include="#msg-controls">
+        <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-800 peer-checked:after:translate-x-full 
+          peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 
+          after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+        <span class="ml-2 text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-500 select-none">Optional Fields</span>
+    </label>
   </div>
 
   {{if .Entries}}
-    <h3 class="text-sm font-bold text-gray-600 dark:text-gray-500 uppercase tracking-widest mb-3 select-none">Field Specification</h3>
+    <!-- Search Bar only shows when there are actually fields to search -->
+    <div class="relative w-full mb-3">
+        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <svg class="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z">
+              </path>
+            </svg>
+        </div>
+        <input type="text" x-model="dictionaryPageOpts.search" placeholder="Filter Tag/Name..." 
+            class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-md 
+              pl-9 pr-3 py-1.5 text-xs text-gray-900 dark:text-gray-300 focus:border-blue-500 focus:outline-none transition-colors"
+        >
+    </div>
+
     <div class="border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-950 shadow-lg">
       <table class="w-full text-left text-sm font-mono">
         <tr class="bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-800 select-none">
           <th class="p-3 w-16">Tag</th>
           <th class="p-3 w-48">Name</th>
-          <th class="p-3 w-24">Req</th>
-          <th class="p-3">Type / Valid Values</th>
+          <th class="p-3 w-24">Required</th>
+          <th class="p-3 hidden lg:table-cell">Type / Valid Values</th>
         </tr>
         {{range .Entries}}
-        <tr class="border-b border-gray-200 dark:border-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800/50">
+        <tr class="border-b border-gray-200 dark:border-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors"
+            x-show="
+              dictionaryPageOpts.search === '' || '{{.Tag}}'.includes(dictionaryPageOpts.search) || 
+              '{{.Name}}'.toLowerCase().includes(dictionaryPageOpts.search.toLowerCase())
+            ">
           <td class="p-3 text-gray-600 dark:text-gray-500">{{.Tag}}</td>
           <td 
-            class="p-3 text-blue-700 dark:text-blue-400 cursor-pointer" 
+            class="p-3 text-blue-700 dark:text-blue-400 cursor-pointer hover:underline" 
             hx-get="/api/dictionary/field/{{.Tag}}" 
             hx-target="#dict-details"
           >{{.Name}}</td>
           <td class="p-3 text-green-600 dark:text-green-400">{{.Required}}</td>
-          <td class="p-3 text-gray-600 dark:text-gray-400 truncate max-w-sm">{{.SampleValues}}</td>
+          <td class="p-3 text-gray-600 dark:text-gray-400 truncate max-w-sm hidden lg:table-cell">{{.SampleValues}}</td>
         </tr>
         {{end}}
       </table>
     </div>
   {{else}}
-    <div class="border border-dashed border-gray-300 dark:border-gray-800 rounded-lg bg-gray-50 dark:bg-gray-950 p-8 flex flex-col items-center justify-center text-gray-400 dark:text-gray-600">
+    <div class="border border-dashed border-gray-300 dark:border-gray-800 rounded-lg bg-gray-50 dark:bg-gray-950 p-8 
+        flex flex-col items-center justify-center text-gray-400 dark:text-gray-600">
       <svg class="w-8 h-8 mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 
+          1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
       </svg>
       <p class="text-xs">Message uses only Standard Header and Trailer fields.</p>
     </div>

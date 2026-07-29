@@ -61,7 +61,9 @@ func (app *Application) handleAPIFinalize(w http.ResponseWriter, r *http.Request
 func (app *Application) handleAPIValidate(w http.ResponseWriter, r *http.Request) {
 	msgRaw := strings.TrimSpace(r.URL.Query().Get("validate-input"))
 	if len(msgRaw) < 4 {
-		renderTemplate(app.templ, w, "partials/toolbox/validate/report", []string{"Structural Error: Input must be at least 4 chars long"})
+		renderTemplate(app.templ, w, "partials/toolbox/validate/report", map[string]any{
+			"Observations": []string{"Structural Error: Input must be at least 4 chars long"},
+		})
 		return
 	}
 
@@ -69,12 +71,23 @@ func (app *Application) handleAPIValidate(w http.ResponseWriter, r *http.Request
 	delim := msgRaw[len(msgRaw)-1:]
 	msg, err := message.MessageFromString(msgRaw, delim)
 	if err != nil {
-		errMsg := fmt.Sprintf("Structural Error: Invalid fix string input - %s", err.Error())
-		renderTemplate(app.templ, w, "partials/toolbox/validate/report", []string{errMsg})
+		obs := []string{fmt.Sprintf("Structural Error: Invalid fix string input - %s", err.Error())}
+		renderTemplate(app.templ, w, "partials/toolbox/validate/report", map[string]any{"Observations": obs})
 		return
+	}
+
+	// Collect MsgId, MsgName from input
+	var msgType, msgName string
+	if f, pos := msg.FindFrom(35, 0); pos != -1 {
+		msgType = f.Value
+		ro := app.Session().Router()
+		sp := ro.SpecForMsgType(msgType)
+		msgName = sp.Messages[msgType].Name
 	}
 
 	// Spec Dictionary Validation
 	result, _ := app.Session().Router().Validate(&msg, spec.ValidationStrict)
-	renderTemplate(app.templ, w, "partials/toolbox/validate/report", result)
+	renderTemplate(app.templ, w, "partials/toolbox/validate/report", map[string]any{
+		"Observations": result, "MsgType": msgType, "MsgName": msgName,
+	})
 }

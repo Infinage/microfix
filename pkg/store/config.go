@@ -137,7 +137,7 @@ func initConfig() (Config, string) {
 		TargetCompID:         "TARGET",
 		HeartbeatInt:         30,
 		SessionSpec:          "FIX44",
-		SpecDisplayOptFields: false,
+		SpecDisplayOptFields: true,
 		FixValidateStrict:    true,
 		FixSampleOptional:    false,
 		IpAddr:               "0.0.0.0",

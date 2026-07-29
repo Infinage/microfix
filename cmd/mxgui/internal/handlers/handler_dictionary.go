@@ -14,7 +14,6 @@ func (app *Application) handleAPIDictionaryDefinitions(w http.ResponseWriter, r 
 
 func (app *Application) handleAPIDictionaryMessage(w http.ResponseWriter, r *http.Request) {
 	msgId := r.PathValue("id")
-
 	router := app.Session().Router()
 
 	sp := router.SpecForMsgType(msgId)
@@ -24,26 +23,36 @@ func (app *Application) handleAPIDictionaryMessage(w http.ResponseWriter, r *htt
 		return
 	}
 
+	// Establish defaults from config
 	cfg := app.Store.Config()
-	sampleMsg, err := router.Sample(msgId, spec.SampleOptions{IncludeOptional: cfg.FixSampleOptional})
+	sampleOptFields, displayOptFields := cfg.FixSampleOptional, cfg.SpecDisplayOptFields
+	if r.URL.Query().Has("toggled") {
+		sampleOptFields = r.URL.Query().Get("SampleOptFields") == "true"
+		displayOptFields = r.URL.Query().Get("DisplayOptFields") == "true"
+	}
 
+	// Sample message
+	sampleMsg, err := router.Sample(msgId, spec.SampleOptions{IncludeOptional: sampleOptFields})
 	if err != nil {
 		toast(w, app.templ, "error", fmt.Sprintf("MsgId [%v] not found", msgId))
 		return
 	}
 
+	// Get the fields for input msgtype
 	var flattenedMsgSpec []FieldInfo
-	if err = flattenMessageSpec(&flattenedMsgSpec, msgEntry, sp, cfg.SpecDisplayOptFields); err != nil {
+	if err = flattenMessageSpec(&flattenedMsgSpec, msgEntry, sp, displayOptFields); err != nil {
 		toast(w, app.templ, "error", fmt.Sprintf("Unexpected error, please try again: %s", err.Error()))
 		return
 	}
 
 	msgDetail := map[string]any{
-		"Id":        msgId,
-		"Name":      msgEntry.Name,
-		"IsAdmin":   router.IsAdmin(msgId),
-		"SampleStr": sampleMsg.String("|"),
-		"Entries":   flattenedMsgSpec,
+		"Id":               msgId,
+		"Name":             msgEntry.Name,
+		"IsAdmin":          router.IsAdmin(msgId),
+		"SampleStr":        sampleMsg.String("|"),
+		"Entries":          flattenedMsgSpec,
+		"SampleOptFields":  sampleOptFields,
+		"DisplayOptFields": displayOptFields,
 	}
 
 	renderTemplate(app.templ, w, "partials/dictionary/message", msgDetail)
