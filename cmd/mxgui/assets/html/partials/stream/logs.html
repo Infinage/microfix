@@ -4,20 +4,9 @@
 {{$clickable := or (eq $LogType "SEND") (eq $LogType "RECV")}}
 <div 
   data-log-type="{{$LogType}}" 
-  x-data="{ isSelected: false }"
-  @log-selected.window="isSelected = ($event.detail === $el)"
-  @close-inspector.window="isSelected = false"
-  :class="isSelected ? 'bg-gray-200 dark:bg-gray-800/90 shadow-md ring-1 ring-blue-500/50 z-10' : 'hover:bg-gray-100 dark:hover:bg-gray-800/50'"
   class="log-entry group relative flex items-start space-x-4 p-2 rounded border-l-2 {{$theme.Border}} transition 
+    hover:bg-gray-100 dark:hover:bg-gray-800/50
     {{if $clickable}}cursor-pointer{{end}}"
-  {{if $clickable}}
-    @click="$dispatch('log-selected', $el); inspectorOpen = true; inspectorTab = 'decoded'"
-    hx-get="/api/inspect"
-    hx-vals='{"LogType": "{{$LogType}}"}'
-    hx-include="find input[name='message']"
-    hx-target="#msg-inspector"
-    hx-swap="outerHTML"
-  {{end}}
 >
   {{if $clickable}} <input type="hidden" name="message" value="{{.Content}}"> {{end}}
   <span class="text-gray-600 dark:text-gray-500 shrink-0 whitespace-nowrap">
@@ -28,8 +17,9 @@
   <span class="text-gray-700 dark:text-gray-300 break-all leading-relaxed font-mono text-sm pr-24">{{.Content}}</span>
 
   {{if $clickable}}
-    <div x-show="!isSelected" class="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition duration-200">
-        <span class="bg-white dark:bg-gray-900 border border-blue-500/50 text-blue-600 dark:text-blue-400 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded shadow-lg flex items-center space-x-1">
+    <div class="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 group-[.selected]:hidden transition duration-200">
+        <span class="bg-white dark:bg-gray-900 border border-blue-500/50 text-blue-600 dark:text-blue-400 text-[10px] font-bold uppercase 
+            tracking-wider px-2 py-1 rounded shadow-lg flex items-center space-x-1">
           <span>Inspect</span>
           <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
@@ -42,25 +32,44 @@
 
 {{define "partials/stream/logs"}}
 <div 
-  x-init="
-    let c = document.getElementById('log-stream-container');
-    new MutationObserver(() => {
-        if (isAtBottom || forceScroll) {
-            c.scrollTop = c.scrollHeight;
-            forceScroll = false;
-        }
-        applyFilters();
-    }).observe(c, { childList: true });
-    c.addEventListener('scroll', () => {
-        isAtBottom = Math.abs(c.scrollHeight - c.clientHeight - c.scrollTop) <= 50;
-    });
-  "
   x-data="{
         regexStr: '',
         activeFilters: [],
         isAtBottom: true,
         forceScroll: false,
-        
+        selectedEl: null,
+        pendingNodes: [],
+        rafScheduled: false,
+        maxEntries: 1000,
+
+        // Toggle the visual 'selected' state directly via classList — no per-row Alpine component needed
+        setSelected(el) {
+            if (this.selectedEl) {
+                this.selectedEl.classList.remove('bg-gray-200', 'dark:bg-gray-800/90', 'shadow-md', 'ring-1', 'ring-blue-500/50', 'z-10', 'selected');
+            }
+            this.selectedEl = el;
+            if (el) {
+                el.classList.add('bg-gray-200', 'dark:bg-gray-800/90', 'shadow-md', 'ring-1', 'ring-blue-500/50', 'z-10', 'selected');
+            }
+        },
+
+        // Single delegated click handler replaces thousands of per-entry listeners
+        handleLogClick(e) {
+            const entry = e.target.closest('.log-entry');
+            if (!entry || !entry.classList.contains('cursor-pointer')) return;
+
+            this.setSelected(entry);
+            this.inspectorOpen = true;
+            this.inspectorTab = 'decoded';
+
+            const msgInput = entry.querySelector(`input[name='message']`);
+            htmx.ajax('GET', '/api/inspect', {
+                target: '#msg-inspector',
+                swap: 'outerHTML',
+                values: { LogType: (entry.dataset.logType || '').trim(), message: msgInput ? msgInput.value : '' }
+            });
+        },
+
         toggleFilter(f) {
             if (this.activeFilters.includes(f)) {
                 this.activeFilters = this.activeFilters.filter(x => x !== f);
@@ -69,45 +78,115 @@
             }
             this.applyFilters();
         },
-        
+
         clearLogs() {
             document.querySelectorAll('.log-entry').forEach(el => el.remove());
+            this.setSelected(null);
         },
-        
+
+        matchesFilters(el, re) {
+            const text = el.textContent;
+            const type = (el.dataset.logType || '').trim();
+
+            let matchRegex = true;
+            if (re) matchRegex = re.test(text);
+
+            let matchFilter = true;
+            if (this.activeFilters.length > 0) {
+                let tags = [];
+                if (type === 'RECV') tags.push('IN');
+                if (type === 'SEND') tags.push('OUT');
+                if (type === 'ERR') tags.push('Error');
+                if (type === 'INFO' || type === 'TRAN') tags.push('Sys');
+                if (type === 'RECV' || type === 'SEND') tags.push('App');
+                matchFilter = this.activeFilters.some(f => tags.includes(f));
+            }
+
+            return matchRegex && matchFilter;
+        },
+
+        // Full re-scan — only needed when filter criteria itself changes (typing, toggling a tag)
         applyFilters() {
             let re = null;
             if (this.regexStr) {
                 try { re = new RegExp(this.regexStr, 'i'); } catch(e) { /* Ignore invalid regex */ }
             }
-            
             document.querySelectorAll('.log-entry').forEach(el => {
-                const text = el.textContent;
-                const type = (el.dataset.logType || '').trim(); 
-                
-                let matchRegex = true;
-                if (re) {
-                    matchRegex = re.test(text);
-                }
-                
-                let matchFilter = true;
-                if (this.activeFilters.length > 0) {
-                    let tags = [];
-                    if (type === 'RECV') tags.push('IN');
-                    if (type === 'SEND') tags.push('OUT');
-                    if (type === 'ERR') tags.push('Error');
-                    if (type === 'INFO' || type === 'TRAN') 
-                      tags.push('Sys');
-                    if (type === 'RECV' || type === 'SEND') 
-                      tags.push('App');
-
-                    matchFilter = this.activeFilters.some(f => tags.includes(f));
-                }
-                
-                el.style.display = (matchRegex && matchFilter) ? '' : 'none';
+                el.style.display = this.matchesFilters(el, re) ? '' : 'none';
             });
+        },
+
+        // Incremental pass — only touches newly appended nodes, not the whole history
+        applyFiltersToNodes(nodes) {
+            let re = null;
+            if (this.regexStr) {
+                try { re = new RegExp(this.regexStr, 'i'); } catch(e) { /* Ignore invalid regex */ }
+            }
+            nodes.forEach(el => {
+                if (!el.classList || !el.classList.contains('log-entry')) return;
+                el.style.display = this.matchesFilters(el, re) ? '' : 'none';
+            });
+        },
+
+        // Cap total DOM entries so long sessions don't grow the tree unbounded (full history stays in backend export)
+        trimOldEntries(container) {
+            const entries = container.querySelectorAll('.log-entry');
+            const excess = entries.length - this.maxEntries;
+            if (excess <= 0) return;
+
+            let removedHeight = 0;
+            for (let i = 0; i < excess; i++) {
+                if (entries[i] === this.selectedEl) this.selectedEl = null;
+                removedHeight += entries[i].offsetHeight;
+                entries[i].remove();
+            }
+
+            if (!this.isAtBottom && removedHeight >= 0) {
+              container.scrollTop -= removedHeight;
+            }
+        },
+
+        // Coalesce bursts of SSE mutations into a single filter/scroll/cap pass per animation frame
+        scheduleFlush(container) {
+            if (this.rafScheduled) return;
+            this.rafScheduled = true;
+            requestAnimationFrame(() => {
+                this.rafScheduled = false;
+                this.applyFiltersToNodes(this.pendingNodes);
+                this.pendingNodes = [];
+                this.trimOldEntries(container);
+                if (this.isAtBottom || this.forceScroll) {
+                    container.scrollTop = container.scrollHeight;
+                    this.forceScroll = false;
+                }
+            });
+        },
+
+        init() {
+          this.$nextTick(() => {
+              let c = document.getElementById('log-stream-container');
+              if (!c) return;
+
+              new MutationObserver((mutations) => {
+                  if (this.isAtBottom) { this.forceScroll = true; }
+
+                  for (const m of mutations) {
+                      for (const node of m.addedNodes) {
+                          if (node.nodeType === 1) this.pendingNodes.push(node);
+                      }
+                  }
+                  this.scheduleFlush(c);
+              }).observe(c, { childList: true });
+              
+              c.addEventListener('scroll', () => {
+                  this.isAtBottom = Math.abs(c.scrollHeight - c.clientHeight - c.scrollTop) <= 50;
+              });
+          });
         },
     }" 
     @message-sent.window="forceScroll = true"
+    @close-inspector.window="setSelected(null)"
+    @log-selected.window="setSelected($event.detail)"
     class="flex-1 flex flex-col min-w-0 min-h-0"
 >
     <div class="bg-gray-50 dark:bg-gray-950 px-4 py-2 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between gap-x-2 shrink-0">
@@ -184,6 +263,8 @@
         sse-connect="{{if .IsWailsApp}}http://localhost:{{.SSEPort}}{{end}}/api/logs/stream" 
         sse-swap="message"
         hx-swap="beforeend" 
+        @click="handleLogClick($event)"
+        style="overflow-anchor: none;" 
         class="flex-1 overflow-y-auto min-h-0 p-3 font-mono text-sm space-y-1 scroll-smooth"
     >
         <div class="hidden only:block text-gray-500 dark:text-gray-600 text-center mt-10 select-none"> Waiting for messages... </div>

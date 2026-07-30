@@ -83,13 +83,17 @@ func (app *Application) handleAPIExportLogs(w http.ResponseWriter, _ *http.Reque
 }
 
 func (app *Application) handleAPISend(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil || len(r.FormValue("message")) < 4 {
+	if err := r.ParseForm(); err != nil {
 		toast(w, app.templ, "error", "Failed to parse form")
 		return
 	}
 
 	msgRaw := strings.TrimSpace(r.FormValue("message"))
 	raw := r.FormValue("raw") == "yes"
+	if len(msgRaw) < 4 {
+		toast(w, app.templ, "error", "Invalid input message: must be atleast 4 chars long")
+		return
+	}
 
 	var err error
 	sess := app.Session()

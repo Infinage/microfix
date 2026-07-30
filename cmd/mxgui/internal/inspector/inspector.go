@@ -104,14 +104,23 @@ func NewInspectView(raw, logType string, router *spec.Router, vmode spec.Validat
 		}
 	}
 
-	// Create the grouping for header (strict boundary)
+	// Pos marks the index upto which we have parsed so far, we will proceed in phases
 	var pos int
 	header, trailer := router.SessionSpec().Header, router.SessionSpec().Trailer
-	pos, result.Header = walkSpec(&msg, pos, header, nil, router.Field)
+
+	// Header terminates on body / trailer start
+	headerTerminators := make(map[uint16]int)
+	maps.Copy(headerTerminators, trailer.Lookup)
+	msgEntry, msgEntryOk := router.SpecForMsgType(msgType).Messages[msgType]
+	if msgEntryOk {
+		maps.Copy(headerTerminators, msgEntry.Lookup)
+	}
+
+	// Create grouping for header (soft boundary - break on body / trailer tags)
+	pos, result.Header = walkSpec(&msg, pos, header, headerTerminators, router.Field)
 
 	// Create grouping for body (Soft boundary - break on trailer tags)
-	msgSpec := router.SpecForMsgType(msgType)
-	if msgEntry, ok := msgSpec.Messages[msgType]; ok {
+	if msgEntryOk {
 		result.Name = msgEntry.Name
 		pos, result.Body = walkSpec(&msg, pos, msgEntry, trailer.Lookup, router.Field)
 	} else {
@@ -213,6 +222,7 @@ func walkSpec(msg *message.Message, pos int, context spec.Entry, terminateOnlyOn
 						termOnlyOnForGroup = make(map[uint16]int)
 						termOnlyOnForGroup[(*msg)[pos+1].Tag] = -1
 						maps.Copy(termOnlyOnForGroup, terminateOnlyOn)
+						maps.Copy(termOnlyOnForGroup, localLookup)
 					}
 					nextPos, children := walkSpec(msg, pos+1, nextContext, termOnlyOnForGroup, fieldFn)
 					node.Children = append(node.Children, children)

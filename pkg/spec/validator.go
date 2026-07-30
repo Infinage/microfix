@@ -57,17 +57,14 @@ const (
 	ValidationStrict                       // type check, unknown fields check
 )
 
-// walkSpec validates a FIX message against its specification at a specific hierarchical level (context).
-// It returns the index of the next unprocessed field, or an error ONLY if structural parsing fails.
+// walkSpec recursively validates a FIX message context (Header, Body, Trailer, or Group).
+// Returns the index of the next unprocessed field or a structural parsing error.
 func walkSpec(ro *Router, msg *message.Message, vmode ValidationMode, context Entry,
-	terminateOnlyOn map[uint16]int, idx int, obs *[]string) (int, error) {
+	terminators map[uint16]int, idx int, obs *[]string) (int, error) {
 
-	// localLookup tracks expected tags in the current context.
-	// As we process tags, we remove them from this map to track missing required tags.
+	// Track expected tags to identify missing required fields later
 	localLookup := maps.Clone(context.Lookup)
-
-	// Tracks if a group or context was prematurely terminated by an unexpected tag
-	oocTagIdx := -1
+	oocTagIdx := -1 // Tracks premature termination by unexpected tags
 
 	for idx < len(*msg) {
 		field := (*msg)[idx]
@@ -75,8 +72,9 @@ func walkSpec(ro *Router, msg *message.Message, vmode ValidationMode, context En
 
 		// --- Context Boundary & Unknown Tag Handling ---
 		if !exists {
-			if _, knownField := ro.Field(field.Tag); !knownField {
-				// Tag is UNKNOWN to the global dictionary.
+			// Tag is UNKNOWN to the global dictionary.
+			_, knownField := ro.Field(field.Tag)
+			if !knownField {
 				if vmode == ValidationStrict {
 					*obs = append(*obs, fmt.Sprintf("Unknown tag [%v]", field.Tag))
 				}
@@ -84,17 +82,14 @@ func walkSpec(ro *Router, msg *message.Message, vmode ValidationMode, context En
 				continue
 			}
 
-			// Tag is KNOWN to the global dictionary, but doesn't belong in this context.
-			// If terminateOnlyOn is nil, we are in "strict boundary" mode: ANY unknown tag breaks the context.
-			// If terminateOnlyOn is provided, we only break if the tag is explicitly in that map.
-			_, isTerminal := terminateOnlyOn[field.Tag]
-			if terminateOnlyOn == nil || isTerminal {
+			// Hard Boundary: Terminate on outer terminators, or OOC tags inside Strict Groups
+			_, isTerminal := terminators[field.Tag]
+			if (context.IsGroup && vmode == ValidationStrict) || isTerminal {
 				oocTagIdx = idx
-				break // Context cleanly ended
+				break
 			}
 
-			// Soft Boundary: The tag is out-of-context, but it's not a terminator.
-			// Log it as an observation and continue validating the rest of the block.
+			// Soft Boundary: OOC tag in a normal message block (Header/Body/Trailer)
 			if vmode == ValidationStrict {
 				*obs = append(*obs, fmt.Sprintf("Unexpected out-of-context tag [%v]", field.Tag))
 			}
@@ -106,7 +101,6 @@ func walkSpec(ro *Router, msg *message.Message, vmode ValidationMode, context En
 		entry := context.Entries[pos]
 		delete(localLookup, field.Tag) // Marking as visited
 
-		// Validate data type
 		if vmode == ValidationStrict {
 			fDef, _ := ro.Field(field.Tag)
 			if err := validateDtype(field, fDef.Type); err != nil {
@@ -118,30 +112,30 @@ func walkSpec(ro *Router, msg *message.Message, vmode ValidationMode, context En
 		if entry.IsGroup {
 			repeat, err := field.AsUint()
 			if err != nil {
-				// STRUCTURAL error: we cannot parse a group if the count isn't an integer
 				err = fmt.Errorf("Expected group tag [%v] to have integer value, got '%v'", field.Tag, field.Value)
 				*obs = append(*obs, err.Error())
 				return idx, err
 			}
 
-			// Preserve the group order across repeating groups
-			idx++ // We have 'processed' the group tag now
-			var group1Start, groupSize = idx, -1
+			idx++ // Advance past the group count tag
+			if idx >= len(*msg) {
+				*obs = append(*obs, fmt.Sprintf("Message truncated immediately after group count tag [%v]", field.Tag))
+				return idx, nil
+			}
+
+			group1Start, groupSize := idx, -1
+
+			// Group terminators include the anchor tag and outer context terminators
+			anchorTag := (*msg)[group1Start].Tag
+			terminatorsForGroup := map[uint16]int{anchorTag: -1}
+			maps.Copy(terminatorsForGroup, terminators)
+			maps.Copy(terminatorsForGroup, localLookup)
 
 			for gi := range repeat {
 				// Recurse for that repeating group.
 				groupStart := idx
 
-				// If ValidationStrict -> use strict boundaries (terminateOnlyOn = nil).
-				// Otherwise soft boundaries -> terminate on seeing anchor tag
-				var termOnlyOnForGroup map[uint16]int
-				if vmode != ValidationStrict {
-					termOnlyOnForGroup = make(map[uint16]int)
-					termOnlyOnForGroup[(*msg)[group1Start].Tag] = -1 // value doesn't matter
-					maps.Copy(termOnlyOnForGroup, terminateOnlyOn)
-				}
-
-				idx, err = walkSpec(ro, msg, vmode, entry, termOnlyOnForGroup, idx, obs)
+				idx, err = walkSpec(ro, msg, vmode, entry, terminatorsForGroup, idx, obs)
 				if err != nil {
 					return idx, err // Bubble up structural failures
 				}
@@ -156,13 +150,13 @@ func walkSpec(ro *Router, msg *message.Message, vmode ValidationMode, context En
 						break
 					}
 
-					// Ensure first tag in group is our anchor tag from spec
-					anchorTag := (*msg)[group1Start].Tag
+					// Ensure first tag in group is our anchor tag
 					if anchorPos, found := entry.Lookup[anchorTag]; !found || anchorPos != 0 {
 						var expectedAnchorTag uint16
 						for k, v := range entry.Lookup {
 							if v == 0 {
 								expectedAnchorTag = k
+								break
 							}
 						}
 						*obs = append(*obs, fmt.Sprintf("Repeating group delimiter mismatch: expected tag [%v]"+
@@ -174,7 +168,7 @@ func walkSpec(ro *Router, msg *message.Message, vmode ValidationMode, context En
 						*obs = append(*obs, fmt.Sprintf("Group [%d] Entry #%d has %d fields(s), expected %d "+
 							"(based on Entry #1)", field.Tag, gi+1, cgroupSize, groupSize))
 					} else {
-						// Assert tag ordering of current group matches against first group
+						// Validate group tag ordering matches the blueprint
 						for i := range groupSize {
 							g0, g := (*msg)[group1Start+i], (*msg)[groupStart+i]
 							if g0.Tag != g.Tag {
@@ -192,7 +186,7 @@ func walkSpec(ro *Router, msg *message.Message, vmode ValidationMode, context En
 		idx++
 	}
 
-	// --- Post-Processing Checks (Missing Required Tags) ---
+	// --- Missing Required Tags Check ---
 	for tag, pos := range localLookup {
 		if context.Entries[pos].Required {
 			// If a required tag is missing, AND we broke out early due to an out-of-context tag,
@@ -275,20 +269,28 @@ func (router *Router) Validate(msg *message.Message, mode ValidationMode) ([]str
 		return observations, false
 	}
 
-	// Validate the header (Strict Boundary)
-	pos, err := walkSpec(router, msg, mode, router.SessionSpec().Header, nil, 0, &observations)
+	header := router.SessionSpec().Header
+	trailer := router.SessionSpec().Trailer
+
+	// Header ends when Body / Trailer starts (msg could end up having 0 body tags)
+	headerTerminators := make(map[uint16]int)
+	maps.Copy(headerTerminators, msgEntry.Lookup)
+	maps.Copy(headerTerminators, trailer.Lookup)
+
+	// Validate the header
+	pos, err := walkSpec(router, msg, mode, header, headerTerminators, 0, &observations)
 	if err != nil {
 		return observations, false
 	}
 
-	// Validate message body (Soft Boundary - only break on trailer tags)
-	trailer := router.SessionSpec().Trailer
+	// Validate message body
 	pos, err = walkSpec(router, msg, mode, msgEntry, trailer.Lookup, pos, &observations)
 	if err != nil {
 		return observations, false
 	}
 
-	// Validate the trailer (Strict Boundary)
+	// Validate the trailer (there is a potential issue where we could fit in
+	// arbitrary tags between trailer start and checksum in basic validation mode)
 	pos, err = walkSpec(router, msg, mode, trailer, nil, pos, &observations)
 	if err != nil {
 		return observations, false

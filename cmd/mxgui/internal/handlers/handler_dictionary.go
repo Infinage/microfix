@@ -2,6 +2,7 @@ package gui
 
 import (
 	"fmt"
+	"math"
 	"net/http"
 	"strconv"
 
@@ -62,7 +63,7 @@ func (app *Application) handleAPIDictionaryField(w http.ResponseWriter, r *http.
 	var tag uint16
 
 	tagStr := r.PathValue("tag")
-	if tagInt, err := strconv.Atoi(tagStr); err != nil {
+	if tagInt, err := strconv.Atoi(tagStr); err != nil || tagInt < 0 || tagInt > math.MaxUint16 {
 		toast(w, app.templ, "error", "Tag is not a valid integer")
 		return
 	} else {

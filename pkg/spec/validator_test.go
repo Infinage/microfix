@@ -319,6 +319,7 @@ func TestValidate_GroupOrdering(t *testing.T) {
 				return strings.Contains(ob, "Expected group #2 entry #1 to be tag [628]")
 			})
 			if !found {
+				t.Log(strings.Join(obs, "; "))
 				t.Errorf("Expected error not found in observations, got: %v", strings.Join(obs, "; "))
 			}
 		}
@@ -390,47 +391,13 @@ func TestValidate_FIXTMultiplexing(t *testing.T) {
 	})
 }
 
-func TestValidate_SampleAllMessages(t *testing.T) {
-	ro, err := NewDefaultRouter("FIXT11.xml")
-	if err != nil {
-		t.Fatalf("Failed to init router: %s", err.Error())
-	}
-
-	for applVerID := 2; applVerID <= 9; applVerID++ {
-		applVerIDStr := fmt.Sprint(applVerID)
-		if !ro.SetDefaultApplVerID(applVerIDStr) {
-			t.Fatalf("Failed to set defaultApplVerID: %d", applVerID)
-		}
-
-		// Synchronous outer subtest: ensure all subtests finish before switching applVerID
-		t.Run(fmt.Sprintf("AppVer-%s", ro.defaultApplVer), func(t *testing.T) {
-			for msgId := range ro.ApplSpec().Messages {
-				t.Run(fmt.Sprintf("MsgID-%s", msgId), func(t *testing.T) {
-					t.Parallel() // Run for each message parallely
-
-					msg, err := ro.Sample(msgId, SampleOptions{})
-					t.Log(msg)
-					if err != nil {
-						t.Fatalf("Failed to sample message Id: %s: %s", msgId, err.Error())
-					}
-
-					obs, ok := ro.Validate(&msg, ValidationStrict)
-					if !ok {
-						t.Errorf("MsgID [35=%s] validation failed with observations: %s", msgId, obs)
-					}
-				})
-			}
-		})
-	}
-}
-
 func TestValidate_GroupBasicLeniency(t *testing.T) {
 	ro, err := NewDefaultRouter("FIX44.xml")
 	if err != nil {
 		t.Fatalf("Failed to init router: %v", err)
 	}
 
-	// tag 9999 (completely unknown) and tag 15 (Currency - known but out of context for MD entry)
+	// tag 9999 (completely unknown) and tag 278 (MDEntryID - known but out of context for MD entry)
 	raw := "8=FIX.4.4|9=0|35=W|49=S|56=T|34=1|52=20260717-00:00:00|55=AAPL|" +
 		"268=2|" +
 		"269=0|270=150.5|" +
@@ -498,4 +465,94 @@ func TestValidate_GroupDoesNotSwallowTrailer(t *testing.T) {
 			t.Errorf("Trailer tag 10 was erroneously swallowed by the group parser!")
 		}
 	}
+}
+
+func TestValidate_GroupDoesNotSwallowSiblingFields(t *testing.T) {
+	ro, err := NewDefaultRouter("FIX44.xml")
+	if err != nil {
+		t.Fatalf("Failed to init router: %v", err)
+	}
+
+	raw := "8=FIX.4.4|9=0|35=E|49=S|56=T|34=1|52=20260717-00:00:00|" +
+		"66=LIST1|394=1|68=1|" +
+		"73=1|" + // NoOrders group, 1 entry
+		"11=CLORD1|67=1|" + // ClOrdID, ListSeqNo (noOrders entry fields)
+		"78=1|79=ACC1|" + // Nested NoAllocs group, 1 entry (AllocAccount)
+		"54=1|" + // Side (required) and belongs to outer context (NoOrders entry)
+		"10=000|"
+
+	msg, err := message.MessageFromString(raw, "|")
+	if err != nil {
+		t.Fatalf("Failed to parse message: %v", err)
+	}
+	msg.Finalize()
+
+	obs, ok := ro.Validate(&msg, ValidationBasic)
+	if !ok {
+		t.Errorf("Expected ValidationBasic to pass for nested group, failed with: %v", err)
+	}
+
+	for _, ob := range obs {
+		if strings.Contains(ob, "Missing required field") || strings.Contains(ob, "prematurely terminated") {
+			t.Errorf("Required sibling field (Side/54) of the enclosing NoOrders entry was swallowed by nested group parser: %v", obs)
+		}
+	}
+}
+
+func TestValidate_SampleAllMessages(t *testing.T) {
+	sampleAndValidate := func(t *testing.T, msgId string, ro *Router) {
+		t.Helper()
+
+		msg, err := ro.Sample(msgId, SampleOptions{IncludeOptional: true})
+		t.Log(msg.String("|"))
+		if err != nil {
+			t.Fatalf("Failed to sample message Id: %s: %s", msgId, err.Error())
+		}
+
+		if obs, ok := ro.Validate(&msg, ValidationStrict); !ok {
+			t.Errorf("MsgID [35=%s] validation (STRICT) failed with observations: %s", msgId, obs)
+		}
+
+		if obs, ok := ro.Validate(&msg, ValidationBasic); !ok {
+			t.Errorf("MsgID [35=%s] validation (BASIC) failed with observations: %s", msgId, obs)
+		}
+	}
+
+	t.Run("FIX44", func(t *testing.T) {
+		ro, err := NewDefaultRouter("FIX44")
+		if err != nil {
+			t.Fatalf("Failed to init router: %s", err.Error())
+		}
+
+		for msgId := range ro.ApplSpec().Messages {
+			t.Run(fmt.Sprintf("MsgID-%s", msgId), func(t *testing.T) {
+				t.Parallel() // Run for each message parallely
+				sampleAndValidate(t, msgId, ro)
+			})
+		}
+	})
+
+	t.Run("FIXT_Multiplexing", func(t *testing.T) {
+		ro, err := NewDefaultRouter("FIXT11.xml")
+		if err != nil {
+			t.Fatalf("Failed to init router: %s", err.Error())
+		}
+
+		for applVerID := 2; applVerID <= 9; applVerID++ {
+			applVerIDStr := fmt.Sprint(applVerID)
+			if !ro.SetDefaultApplVerID(applVerIDStr) {
+				t.Fatalf("Failed to set defaultApplVerID: %d", applVerID)
+			}
+
+			// Synchronous outer subtest: ensure all subtests finish before switching applVerID
+			t.Run(fmt.Sprintf("AppVer-%s", ro.defaultApplVer), func(t *testing.T) {
+				for msgId := range ro.ApplSpec().Messages {
+					t.Run(fmt.Sprintf("MsgID-%s", msgId), func(t *testing.T) {
+						t.Parallel() // Run for each message parallely
+						sampleAndValidate(t, msgId, ro)
+					})
+				}
+			})
+		}
+	})
 }

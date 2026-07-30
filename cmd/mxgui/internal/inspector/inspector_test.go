@@ -2,6 +2,7 @@ package inspector
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -349,6 +350,28 @@ func TestWalkSpec_SoftBoundary_OOCBodyTags(t *testing.T) {
 	}
 }
 
+func TestInspectView_Counts(t *testing.T) {
+	ro := getTestRouter(t, "FIXT11")
+	raw := "8=FIXT.1.1|9=116|35=0|49=STRING|56=STRING|34=0|52=20260730-17:54:59.627|" +
+		"627=1|628=HOPCOMP|629=20260730-17:48:01.652|630=1|112=STRING|10=216|"
+
+	t.Run("BASIC", func(t *testing.T) {
+		if view := NewInspectView(raw, "", ro, spec.ValidationBasic); !view.IsValid {
+			t.Error("Expected inspector validation to pass, but failed")
+		} else if hz, bz, tz := len(view.Header), len(view.Body), len(view.Trailer); hz != 8 || bz != 1 || tz != 1 {
+			t.Errorf("Expected Header, Body, Trailer: (8, 1, 1); got (%d, %d, %d)", hz, bz, tz)
+		}
+	})
+
+	t.Run("STRICT", func(t *testing.T) {
+		if view := NewInspectView(raw, "", ro, spec.ValidationStrict); !view.IsValid {
+			t.Error("Expected inspector validation to pass, but failed")
+		} else if hz, bz, tz := len(view.Header), len(view.Body), len(view.Trailer); hz != 8 || bz != 1 || tz != 1 {
+			t.Errorf("Expected Header, Body, Trailer: (8, 1, 1); got (%d, %d, %d)", hz, bz, tz)
+		}
+	})
+}
+
 func TestInspectView_Integration_OOCAndGroups(t *testing.T) {
 	router := getTestRouter(t, "FIX44")
 
@@ -427,4 +450,54 @@ func TestInspectView_MessageWithSpaces(t *testing.T) {
 			t.Errorf("Expected Inspector validation to be %t, but got %t", tt.pass, iview.IsValid)
 		}
 	}
+}
+
+func TestInspectView_SampleAllMessages(t *testing.T) {
+	sampleAndValidate := func(t *testing.T, msgId string, ro *spec.Router) {
+		t.Helper()
+
+		msg, err := ro.Sample(msgId, spec.SampleOptions{IncludeOptional: true})
+		t.Log(msg.String("|"))
+		if err != nil {
+			t.Fatalf("Failed to sample message Id: %s: %s", msgId, err.Error())
+		}
+
+		if iview := NewInspectView(msg.String("|"), "", ro, spec.ValidationBasic); !iview.IsValid {
+			t.Errorf("MsgID [35=%s] validation (BASIC) failed", msgId)
+		}
+
+		if iview := NewInspectView(msg.String("|"), "", ro, spec.ValidationStrict); !iview.IsValid {
+			t.Errorf("MsgID [35=%s] validation (STRICT) failed", msgId)
+		}
+	}
+
+	t.Run("FIXT_Multiplexing", func(t *testing.T) {
+		ro := getTestRouter(t, "FIX44.xml")
+		for msgId := range ro.ApplSpec().Messages {
+			t.Run(fmt.Sprintf("MsgID-%s", msgId), func(t *testing.T) {
+				t.Parallel() // Run for each message parallely
+				sampleAndValidate(t, msgId, ro)
+			})
+		}
+	})
+
+	t.Run("FIXT_Multiplexing", func(t *testing.T) {
+		ro := getTestRouter(t, "FIXT11.xml")
+		for applVerID := 2; applVerID <= 9; applVerID++ {
+			applVerIDStr := fmt.Sprint(applVerID)
+			if !ro.SetDefaultApplVerID(applVerIDStr) {
+				t.Fatalf("Failed to set defaultApplVerID: %d", applVerID)
+			}
+
+			// Synchronous outer subtest: ensure all subtests finish before switching applVerID
+			t.Run(fmt.Sprintf("AppVerID-%s", ro.GetDefaultApplVerID()), func(t *testing.T) {
+				for msgId := range ro.ApplSpec().Messages {
+					t.Run(fmt.Sprintf("MsgID-%s", msgId), func(t *testing.T) {
+						t.Parallel() // Run for each message parallely
+						sampleAndValidate(t, msgId, ro)
+					})
+				}
+			})
+		}
+	})
 }
