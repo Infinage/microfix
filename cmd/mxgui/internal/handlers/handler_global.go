@@ -43,7 +43,7 @@ func (app *Application) handleAPIReset(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Trigger updation of headers and other listening components
-	w.Header().Set("HX-Trigger", "config-reloaded, session-updated")
+	w.Header().Set("HX-Trigger", "config-reloaded, refresh-alias, session-updated")
 	toast(w, app.templ, "success", "Session reset successfully")
 }
 

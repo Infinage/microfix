@@ -229,5 +229,21 @@ func splitKeyPrefix(key string) (string, string, error) {
 	if len(parts) != 2 {
 		return "", "", fmt.Errorf("Invalid key format, must be PREFIX.Name (e.g. CFG.Port)")
 	}
+
+	prefix, name := parts[0], parts[1]
+	if prefix == "" {
+		return "", "", fmt.Errorf("empty prefix: %q", key)
+	}
+
+	isValidKeyChar := func(r rune) bool {
+		return !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') ||
+			(r >= '0' && r <= '9') || r == '_' || r == '.')
+	}
+
+	// PREFIX.name to only contain alpha numeric values (and underscores)
+	if name == "" || strings.ContainsFunc(name, isValidKeyChar) {
+		return "", "", fmt.Errorf("invalid key %q: must contain only alpha numeric chars", name)
+	}
+
 	return parts[0], parts[1], nil
 }

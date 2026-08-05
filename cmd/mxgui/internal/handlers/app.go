@@ -176,8 +176,8 @@ func (app *Application) StartWails() error {
 	// Start a new window
 	app.wails.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:     "MicroFIX",
-		Width:     1200,
-		Height:    800,
+		Width:     1024,
+		Height:    680,
 		MinWidth:  900,
 		MinHeight: 600,
 	})
@@ -252,7 +252,7 @@ func (app *Application) webRoutes() http.Handler {
 	mux.HandleFunc("GET /api/alias/get", app.handleAPIGetAlias)
 	mux.HandleFunc("GET /api/alias/list", app.handleAPIListAlias)
 	mux.HandleFunc("DELETE /api/alias/delete/{aliasName}", app.handleAPIDeleteAlias)
-	mux.HandleFunc("POST /api/alias/add", app.handleAPIAddAlias)
+	mux.HandleFunc("POST /api/alias/set", app.handleAPISetAlias)
 	mux.HandleFunc("GET /api/alias/check/name", app.handleAPIAliasNameCheck)
 
 	mux.HandleFunc("POST /api/config", app.handleAPISaveConfig)

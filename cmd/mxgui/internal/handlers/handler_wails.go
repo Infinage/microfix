@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/infinage/microfix/pkg/session"
 	"github.com/infinage/microfix/pkg/store"
 )
 
@@ -39,6 +40,20 @@ func (app *Application) handleWailsImportConfig(w http.ResponseWriter, _ *http.R
 		return
 	}
 
+	// If session not started, apply changes
+	toastData := map[string]string{"type": "success", "message": "Config imported successfully, changes will be applied after session reset."}
+	if app.Session().Status().State == session.SessionNew {
+		if err := app.resetSession(); err != nil {
+			toastData["message"] = "Config imported, but reset failed"
+			renderTemplate(app.templ, w, "partials/global/toast", toastData)
+			return
+		}
+
+		// Update listening components - header, dictionary, stream select boxes
+		w.Header().Set("HX-Trigger", "config-reloaded, refresh-alias, session-updated")
+		toastData["message"] = "Configuration imported and applied successfully."
+	}
+
 	// Data for rendering config form
 	formData := map[string]any{
 		"Config":     app.Store.Config(),
@@ -47,6 +62,7 @@ func (app *Application) handleWailsImportConfig(w http.ResponseWriter, _ *http.R
 	}
 
 	// Reload config page
+	renderTemplate(app.templ, w, "partials/global/toast", toastData)
 	renderTemplate(app.templ, w, "partials/settings/config/form", formData)
 }
 

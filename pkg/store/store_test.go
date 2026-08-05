@@ -19,6 +19,7 @@ func setupTestStore(t *testing.T) *Store {
 		Port:         1234,
 		Alias: map[string]string{
 			"Logon": "35=A|98=0|",
+			"TR.1":  "35=1|112=1|",
 		},
 	}
 
@@ -26,6 +27,46 @@ func setupTestStore(t *testing.T) *Store {
 		cfg:        testCfg,
 		configPath: cfgPath,
 		vars:       make(map[string]string),
+	}
+}
+
+func TestSplitKeyPrefix(t *testing.T) {
+	tests := []struct {
+		name       string
+		key        string
+		wantPrefix string
+		wantName   string
+		expectErr  bool
+	}{
+		{"Valid CFG", "CFG.Port", "CFG", "Port", false},
+		{"Valid with Underscore", "VARS.My_Var_1", "VARS", "My_Var_1", false},
+		{"Valid with Dot", "VARS.My.Var.1", "VARS", "My.Var.1", false},
+		{"Valid single char", "BUF.8", "BUF", "8", false},
+
+		{"Missing Dot", "CFGPort", "", "", true},
+		{"Empty Name", "CFG.", "", "", true},
+		{"Empty Prefix", ".Port", "", "", true},
+		{"Invalid Dash", "VARS.My-Var", "", "", true},
+		{"Invalid Space", "VARS.My Var", "", "", true},
+		{"Invalid Special Char", "ALIAS.Logon!", "", "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			prefix, name, err := splitKeyPrefix(tt.key)
+			if (err != nil) != tt.expectErr {
+				t.Errorf("splitKeyPrefix(%q) error = %v, expectErr %v", tt.key, err, tt.expectErr)
+				return
+			}
+			if !tt.expectErr {
+				if prefix != tt.wantPrefix {
+					t.Errorf("splitKeyPrefix(%q) prefix = %q, want %q", tt.key, prefix, tt.wantPrefix)
+				}
+				if name != tt.wantName {
+					t.Errorf("splitKeyPrefix(%q) name = %q, want %q", tt.key, name, tt.wantName)
+				}
+			}
+		})
 	}
 }
 
@@ -55,7 +96,11 @@ func TestStore_Get(t *testing.T) {
 		{"Missing VARS", "VARS.Missing", "", false, false},
 		{"Missing ENV", "ENV.Missing", "", false, false},
 
-		{"Invalid Key Format", "CFG_SenderCompID", "", false, true}, // Missing dot
+		{"Invalid Key Format (No Dot)", "CFG_SenderCompID", "", false, true},
+		{"Invalid Key Format (Space)", "VARS.My Var", "", false, true},
+		{"Invalid Key Format (Dash)", "ALIAS.My-Alias", "", false, true},
+		{"Valid Key Format (Underscore)", "VARS.My_Var", "", false, false},
+		{"Valid Key Format (Dot)", "ALIAS.NEWORDER.1", "", false, false},
 		{"Unknown Prefix", "SYS.Info", "", false, true},
 	}
 
@@ -125,16 +170,16 @@ func TestStore_Set(t *testing.T) {
 		}
 	})
 
-	t.Run("Set ALIAS (Triggers Auto-Save)", func(t *testing.T) {
-		oldVal, existed, err := s.Set("ALIAS.Logon", "35=A|108=30|")
+	t.Run("Set ALIAS", func(t *testing.T) {
+		oldVal, existed, err := s.Set("ALIAS.TR.1", "35=1|112=2|")
 		if err != nil {
 			t.Fatalf("Unexpected error setting ALIAS: %v", err)
 		}
 		if !existed {
-			t.Error("Expected ALIAS.Logon to already exist")
+			t.Error("Expected ALIAS.TR.1 to already exist")
 		}
-		if oldVal != "35=A|98=0|" {
-			t.Errorf("Expected old value '35=A|98=0|', got %q", oldVal)
+		if oldVal != "35=1|112=1|" {
+			t.Errorf("Expected old value '35=1|112=1|', got %q", oldVal)
 		}
 	})
 }

@@ -130,6 +130,12 @@ func substituteSnapshot(raw string, sess *session.Session) string {
 // If quoteIfSpaces is true, resolved values containing whitespace are CSV-quoted
 // so downstream tokenizers treat them as a single argument.
 func Substitute(input string, sess *session.Session, st *store.Store, quoteIfSpaces bool) (string, error) {
+	return subsituteAll(input, sess, st, quoteIfSpaces, make(map[string]bool))
+}
+
+// subsituteAll recursively substitutes macros whilst ensuring that there aren't any cycles
+func subsituteAll(input string, sess *session.Session, st *store.Store, quoteIfSpaces bool,
+	visited map[string]bool) (string, error) {
 	var expandErr error
 
 	// match is the full string: "$VAR.Symbol" or "$UNIQUE" or "$LASTIN[35]"
@@ -168,12 +174,28 @@ func Substitute(input string, sess *session.Session, st *store.Store, quoteIfSpa
 		}
 
 		// Handle State (CFG, ALIAS, VARS, ENV, BUF)
-		// Strip the '$' and ask the store
+		// Ensure if we already trying to expand the key
 		storeKey := strings.TrimPrefix(match, "$")
+		if visited[storeKey] {
+			expandErr = fmt.Errorf("circular reference detected: %q, refers back to itself", match)
+			return match
+		}
+
+		// Query value from the store
 		val, ok, err := st.Get(storeKey)
 		if !ok || err != nil {
-			expandErr = fmt.Errorf("variable resolution failed for '%s': %w", match, err)
+			expandErr = fmt.Errorf("variable resolution failed for %q: %w", match, err)
 			return match
+		}
+
+		// Recurse deeper into the returned macro result. quoteIfSpaces is
+		// set to false since we'd only want quoting at outer most lvl
+		visited[storeKey] = true
+		val, err = subsituteAll(val, sess, st, false, visited)
+		visited[storeKey] = false
+		if err != nil {
+			expandErr = err
+			return val
 		}
 
 		// Enclose multi word strings inside quotes for a CSV reader to understand

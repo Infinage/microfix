@@ -26,15 +26,21 @@ func (app *Application) handleAPIAliasNameCheck(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	if _, ok, _ := app.Store.Get("ALIAS." + aliasName); ok {
-		fmt.Fprint(w, `<span id="alias-check" class="text-[10px] text-red-400 mt-1">Alias already exists</span>`)
+	_, ok, err := app.Store.Get("ALIAS." + aliasName)
+	if err != nil {
+		fmt.Fprintf(w, `<span id="alias-check" class="text-[10px] text-red-500 dark:text-red-400 mt-1">%s</span>`, err.Error())
+		return
+	}
+
+	if ok {
+		fmt.Fprint(w, `<span id="alias-check" class="text-[10px] text-amber-500 dark:text-amber-400 mt-1">Alias exists, will be overwritten</span>`)
 		return
 	}
 
 	fmt.Fprint(w, `<span id="alias-check" class="text-[10px] text-green-400 mt-1">Alias available</span>`)
 }
 
-func (app *Application) handleAPIAddAlias(w http.ResponseWriter, r *http.Request) {
+func (app *Application) handleAPISetAlias(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		toast(w, app.templ, "error", "Failed to parse form")
 		return
@@ -47,7 +53,12 @@ func (app *Application) handleAPIAddAlias(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	app.Store.Set("ALIAS."+aliasName, aliasValue)
+	_, _, err := app.Store.Set("ALIAS."+aliasName, aliasValue)
+	if err != nil {
+		toast(w, app.templ, "error", err.Error())
+		return
+	}
+
 	app.SaveConfig()
 	w.Header().Set("HX-Trigger", "close-modal, refresh-alias")
 	toast(w, app.templ, "success", "Alias saved")

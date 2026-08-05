@@ -163,6 +163,64 @@ func TestSubstitute_Variables(t *testing.T) {
 			expected:      `print "Execution ""Filled"" Report"`,
 			quoteIfSpaces: true,
 		},
+		{
+			name: "Recursive Substitution (Valid)",
+			setup: func(s *store.Store) {
+				s.Set("ALIAS.Level1", "$ALIAS.Level2")
+				s.Set("ALIAS.Level2", "$VARS.FinalValue")
+				s.Set("VARS.FinalValue", "35=D|11=ABC|")
+			},
+			input:    "send $ALIAS.Level1",
+			expected: "send 35=D|11=ABC|",
+		},
+		{
+			name: "Recursive Substitution Quoted (Valid)",
+			setup: func(s *store.Store) {
+				s.Set("VARS.ID", "RJ-NJ")
+				s.Set("ALIAS.Level1", "$ALIAS.Level2")
+				s.Set("ALIAS.Level2", "$VARS.FinalValue")
+				s.Set("VARS.FinalValue", "35=1|112=$VARS.ID|")
+			},
+			input:    `send "$ALIAS.Level1"`,
+			expected: `send "35=1|112=RJ-NJ|"`,
+		},
+		{
+			name: "Sibling Substitution (Valid, Not a Cycle)",
+			setup: func(s *store.Store) {
+				s.Set("VARS.ID", "ORD123")
+				s.Set("ALIAS.DoubleID", "11=$VARS.ID|41=$VARS.ID|")
+			},
+			input:    "send $ALIAS.DoubleID",
+			expected: "send 11=ORD123|41=ORD123|",
+		},
+		{
+			name: "Circular Reference (Direct)",
+			setup: func(s *store.Store) {
+				s.Set("ALIAS.Loop", "$ALIAS.Loop")
+			},
+			input:     "send $ALIAS.Loop",
+			expectErr: true,
+		},
+		{
+			name: "Circular Reference (Indirect A->B->C->A)",
+			setup: func(s *store.Store) {
+				s.Set("ALIAS.A", "35=D|$ALIAS.B")
+				s.Set("ALIAS.B", "41=XYZ|$ALIAS.C")
+				s.Set("ALIAS.C", "11=ABC|$ALIAS.A")
+			},
+			input:     "send $ALIAS.A",
+			expectErr: true,
+		},
+		{
+			name: "Cross-Namespace Circular Reference",
+			setup: func(s *store.Store) {
+				s.Set("ALIAS.Start", "$VARS.Middle")
+				s.Set("VARS.Middle", "$BUF.End")
+				s.Set("BUF.End", "$ALIAS.Start")
+			},
+			input:     "send $ALIAS.Start",
+			expectErr: true,
+		},
 	}
 
 	// Run table-driven tests
@@ -189,6 +247,17 @@ func TestSubstitute_Variables(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("Recursive substitution doesn't mask errors", func(t *testing.T) {
+		st.Set("VARS.A", "$VARS.B")
+		st.Set("VARS.B", "$VARS.DoesNotExist")
+		st.Set("ALIAS.Test", "$VARS.A|$VARS.A")
+		if _, err := Substitute("print $ALIAS.Test", nil, &st, false); err == nil {
+			t.Error("Expected substitution to fail, but passed")
+		} else if errMsg := err.Error(); !strings.Contains(errMsg, `variable resolution failed for "$VARS.DoesNotExist"`) {
+			t.Errorf("Expected a 'variable resolution failed error', got: %s", errMsg)
+		}
+	})
 
 	t.Run("Magics: Unique and Timestamp", func(t *testing.T) {
 		input := "11=$UNIQUE|52=$TIMESTAMP|"

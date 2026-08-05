@@ -10,14 +10,19 @@ import (
 )
 
 // <connect|listen> [<host:port>]
-func parseStartSession(args []string, cfg *store.Config) (string, uint16, error) {
-	// Connect from Config defaults
-	if len(args) == 1 {
-		return "", 0, nil
+func parseStartSession(args []string, cfg *store.Config) (host string, port uint16, err error) {
+	if len(args) == 0 || len(args) > 2 || (args[0] != "connect" && args[0] != "listen") {
+		return "", 0, fmt.Errorf("invalid syntax, expected: `<connect|listen> [<host:port>]`")
 	}
 
-	if len(args) > 2 {
-		return "", 0, fmt.Errorf("invalid syntax, expected: `<connect|listen> [<host:port>]`")
+	// For connect without any args, use config defaults
+	// For listen without any args, listen on :0 (default values)
+	if args[0] == "connect" {
+		host, port = cfg.IpAddr, cfg.Port
+	}
+
+	if len(args) == 1 {
+		return host, port, nil
 	}
 
 	splits := strings.SplitN(args[1], ":", 2)
@@ -25,20 +30,18 @@ func parseStartSession(args []string, cfg *store.Config) (string, uint16, error)
 		return "", 0, fmt.Errorf("invalid format, expected: `host:port` as second arg")
 	}
 
-	port64, err := strconv.ParseUint(strings.TrimSpace(splits[1]), 10, 16)
-	if err != nil {
-		return "", 0, fmt.Errorf("invalid port: %w", err)
+	// If host provided, override defaults
+	if hostStr := strings.TrimSpace(splits[0]); hostStr != "" {
+		host = hostStr
 	}
 
-	// Final variables from input passed
-	host, port := strings.TrimSpace(splits[0]), uint16(port64)
-
-	// If missing, fill in from configs
-	if host == "" {
-		host = cfg.IpAddr
-	}
-	if port == 0 {
-		port = cfg.Port
+	// If port provided, override defaults
+	if portStr := strings.TrimSpace(splits[1]); portStr != "" {
+		port64, err := strconv.ParseUint(portStr, 10, 16)
+		if err != nil {
+			return "", 0, fmt.Errorf("invalid port: %w", err)
+		}
+		port = uint16(port64)
 	}
 
 	return host, port, nil
