@@ -275,7 +275,7 @@ func (sess *Session) writeLog(log Log) {
 	}
 }
 
-// Blocking delivery of message to user's incoming channel
+// Non blocking delivery of message to user's incoming channel
 func (sess *Session) deliverMessage(msg *message.Message) {
 	select {
 	// Send the message to users incoming channel

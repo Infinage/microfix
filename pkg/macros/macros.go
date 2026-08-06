@@ -15,7 +15,7 @@ import (
 
 // Regex to find $SOMETHING or $PREFIX.SOMETHING
 var varRegex = regexp.MustCompile(
-	`\$([A-Z_]+)(?:\.([A-Za-z0-9_.]+))?(?:\[([^\]]*)\])?`,
+	`\$([A-Z_]+)(?:\.([A-Za-z0-9_.]*))?(?:\[([^\]]*)\])?`,
 )
 
 // Helper to generate a random UUID

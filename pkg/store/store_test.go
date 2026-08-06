@@ -271,10 +271,16 @@ func TestStore_Buffer(t *testing.T) {
 			t.Errorf("Buffer contents doesn't match, want %v but got %v", original, got)
 		}
 
-		if got, ok, err := s.Get("BUF.35"); !ok || got != "D" {
+		if got, ok, err := s.Get("BUF"); !ok || err != nil {
+			t.Errorf("Expected to resolve '$BUF', but failed: (%t, %v)", ok, err)
+		} else if got != "8=FIX.4.4|35=D|" {
+			t.Errorf("Expected '$BUF' to return %q, got '%q'", original, got)
+		}
+
+		if got, ok, err := s.Get("BUF.35"); !ok || err != nil {
+			t.Errorf("Expected to resolve GET[35], but failed: (%t, %v)", ok, err)
+		} else if got != "D" {
 			t.Errorf("Expected GET[35] to return 'D', got '%s'", got)
-		} else if err != nil {
-			t.Errorf("Unexpected error: %v", err)
 		}
 
 		if got, ok, err := s.Get("BUF.10"); ok {

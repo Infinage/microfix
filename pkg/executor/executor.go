@@ -74,6 +74,7 @@ SCRIPT FLOW & UTILITY
 
 GLOBAL VARIABLES
   Variables can be injected into any command using the '$' prefix.
+  Macros support recursive evaluation (e.g., an ALIAS can contain a $VARS reference).
 
   -- System & State --
   $UNIQUE                   Random UUID (e.g., for ClOrdID generation)
@@ -89,7 +90,8 @@ GLOBAL VARIABLES
   $VARS.<key>               Script-defined values (set via 'set' command)
   $ALIAS.<name>             Saved aliases
   $ENV.<name>               Environment variables
-  $BUF.<tag>                Extract integer <tag> from the currently buffered message.
+  $BUF                      Extract the entire raw FIX string currently in the buffer.
+  $BUF.<tag>                Extract specific <tag> from the currently buffered message.
                             Message is loaded into buffer upon a successful 'wait',
                             'expect', or explicit 'loadmsg'. Will fail if buffer is empty.
                             (e.g., $BUF.35 or $BUF.11)

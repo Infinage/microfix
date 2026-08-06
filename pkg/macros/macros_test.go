@@ -121,6 +121,16 @@ func TestSubstitute_Variables(t *testing.T) {
 			expected: "8=FIX.4.4|35=D|55=AAPL|38=100|",
 		},
 		{
+			name:     "Full buffer contents",
+			input:    "$BUF",
+			expected: "8=FIX.4.4|35=D|",
+		},
+		{
+			name:      "Invalid buffer key",
+			input:     "$BUF.",
+			expectErr: true,
+		},
+		{
 			name:     "Alias Expansion",
 			input:    "send $ALIAS.Logon",
 			expected: "send 35=A|98=0|108=30",
@@ -215,8 +225,8 @@ func TestSubstitute_Variables(t *testing.T) {
 			name: "Cross-Namespace Circular Reference",
 			setup: func(s *store.Store) {
 				s.Set("ALIAS.Start", "$VARS.Middle")
-				s.Set("VARS.Middle", "$BUF.End")
-				s.Set("BUF.End", "$ALIAS.Start")
+				s.Set("VARS.Middle", "$VARS.End")
+				s.Set("VARS.End", "$ALIAS.Start")
 			},
 			input:     "send $ALIAS.Start",
 			expectErr: true,
@@ -233,6 +243,7 @@ func TestSubstitute_Variables(t *testing.T) {
 			res, err := Substitute(tt.input, nil, &st, tt.quoteIfSpaces)
 			if tt.expectErr {
 				if err == nil {
+					t.Log("Result:", res)
 					t.Fatalf("Expected an error but got nil")
 				}
 				return // Test passes if error is expected and caught

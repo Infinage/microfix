@@ -16,7 +16,7 @@ import (
 func NewSession(store *store.Store) (*session.Session, error) {
 	// Create new session
 	cfg := store.Config()
-	return session.NewSession(
+	sess, err := session.NewSession(
 		cfg.SessionSpec,
 		cfg.SenderCompID,
 		cfg.TargetCompID,
@@ -27,6 +27,18 @@ func NewSession(store *store.Store) (*session.Session, error) {
 			FixValidateStrict: cfg.FixValidateStrict,
 		},
 	)
+
+	// Drain and discard all incoming messages
+	// This exits when the session closes the channel
+	if err == nil {
+		go func() {
+			for range sess.Incoming() {
+				// Intentionally discarded
+			}
+		}()
+	}
+
+	return sess, err
 }
 
 func handleStatus(ctx *ShellContext, _ []string) {

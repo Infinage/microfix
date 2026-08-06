@@ -123,6 +123,11 @@ func (s *Store) Get(key string) (string, bool, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
+	// Shortform to return full string in buffer
+	if key == "BUF" {
+		return s.buffer.String("|"), true, nil
+	}
+
 	prefix, name, err := splitKeyPrefix(key)
 	if err != nil {
 		return "", false, err

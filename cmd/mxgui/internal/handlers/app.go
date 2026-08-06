@@ -39,7 +39,7 @@ type Application struct {
 }
 
 func newSession(cfg store.Config) (*session.Session, error) {
-	return session.NewSession(
+	sess, err := session.NewSession(
 		cfg.SessionSpec,
 		cfg.SenderCompID,
 		cfg.TargetCompID,
@@ -49,6 +49,18 @@ func newSession(cfg store.Config) (*session.Session, error) {
 			SkipLatencyCheck:  cfg.SkipLatencyCheckInValidate,
 			FixValidateStrict: cfg.FixValidateStrict,
 		})
+
+	// Drain and discard all incoming messages
+	// This exits when the session closes the channel
+	if err == nil {
+		go func() {
+			for range sess.Incoming() {
+				// Intentionally discarded
+			}
+		}()
+	}
+
+	return sess, err
 }
 
 func NewApplication(version, commit string, assets embed.FS) (*Application, error) {
