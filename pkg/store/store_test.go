@@ -264,6 +264,12 @@ func TestStore_Buffer(t *testing.T) {
 			t.Fatalf("Failed to parse message: %v", err)
 		}
 
+		if got, ok, err := s.Get("BUF"); ok || err != nil {
+			t.Errorf("Expected $BUF resolution to return (false, nil), got: (%t, %v)", ok, err)
+		} else if got != "" {
+			t.Errorf("Expected '$BUF' to return empty, got %q", got)
+		}
+
 		s.SetBuffer(msg)
 
 		buf := s.Buffer()
@@ -274,7 +280,7 @@ func TestStore_Buffer(t *testing.T) {
 		if got, ok, err := s.Get("BUF"); !ok || err != nil {
 			t.Errorf("Expected to resolve '$BUF', but failed: (%t, %v)", ok, err)
 		} else if got != "8=FIX.4.4|35=D|" {
-			t.Errorf("Expected '$BUF' to return %q, got '%q'", original, got)
+			t.Errorf("Expected '$BUF' to return %q, got %q", original, got)
 		}
 
 		if got, ok, err := s.Get("BUF.35"); !ok || err != nil {

@@ -125,6 +125,9 @@ func (s *Store) Get(key string) (string, bool, error) {
 
 	// Shortform to return full string in buffer
 	if key == "BUF" {
+		if len(s.buffer) == 0 {
+			return "", false, nil
+		}
 		return s.buffer.String("|"), true, nil
 	}
 

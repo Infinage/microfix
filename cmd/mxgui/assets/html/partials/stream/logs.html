@@ -42,6 +42,10 @@
         rafScheduled: false,
         maxEntries: 1000,
 
+        // State for jump to bottom floating button
+        showJumpButton: false,
+        jumpTimeout: null,
+
         // Toggle the visual 'selected' state directly via classList — no per-row Alpine component needed
         setSelected(el) {
             if (this.selectedEl) {
@@ -136,7 +140,10 @@
 
             let removedHeight = 0;
             for (let i = 0; i < excess; i++) {
-                if (entries[i] === this.selectedEl) this.selectedEl = null;
+                if (entries[i] === this.selectedEl) {
+                  this.selectedEl = null;
+                  window.dispatchEvent(new CustomEvent('log-selected', { detail: null }));
+                }
                 removedHeight += entries[i].offsetHeight;
                 entries[i].remove();
             }
@@ -162,6 +169,31 @@
             });
         },
 
+        // Locate metod trigger from the inspector
+        locateSelected() {
+            if (!this.selectedEl || !document.body.contains(this.selectedEl)) return;
+
+            // Disable scrolling
+            this.isAtBottom = false;
+            this.forceScroll = false;
+            
+            // Clear filters
+            if (this.regexStr !== '' || this.activeFilters.length > 0) {
+                this.regexStr = '';
+                this.activeFilters = [];
+                this.applyFilters();
+            }
+            
+            // Allow DOM to unhide elements, then scroll target to center
+            setTimeout(() => {
+                this.selectedEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                
+                // Add a flash effect
+                this.selectedEl.classList.add('bg-blue-100', 'dark:bg-blue-900/40');
+                setTimeout(() => this.selectedEl.classList.remove('bg-blue-100', 'dark:bg-blue-900/40'), 1000);
+            }, 50);
+        },
+
         init() {
           this.$nextTick(() => {
               let c = document.getElementById('log-stream-container');
@@ -180,6 +212,15 @@
               
               c.addEventListener('scroll', () => {
                   this.isAtBottom = Math.abs(c.scrollHeight - c.clientHeight - c.scrollTop) <= 50;
+                  if (!this.isAtBottom) {
+                      this.showJumpButton = true;
+                      clearTimeout(this.jumpTimeout);
+                      this.jumpTimeout = setTimeout(() => { this.showJumpButton = false; }, 2500); // Hides after 2.5s of no scrolling
+                  } else {
+                      // Instantly hide if we hit the bottom naturally
+                      this.showJumpButton = false;
+                      clearTimeout(this.jumpTimeout);
+                  }
               });
           });
         },
@@ -187,7 +228,8 @@
     @message-sent.window="forceScroll = true"
     @close-inspector.window="setSelected(null)"
     @log-selected.window="setSelected($event.detail)"
-    class="flex-1 flex flex-col min-w-0 min-h-0"
+    @locate-context.window="locateSelected()"
+    class="flex-1 flex flex-col min-w-0 min-h-0 relative"
 >
     <div class="bg-gray-50 dark:bg-gray-950 px-4 py-2 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between gap-x-2 shrink-0">
         <input 
@@ -268,6 +310,28 @@
         class="flex-1 overflow-y-auto min-h-0 p-3 font-mono text-sm space-y-1 scroll-smooth"
     >
         <div class="hidden only:block text-gray-500 dark:text-gray-600 text-center mt-10 select-none"> Waiting for messages... </div>
+    </div>
+
+    <!-- Floating Action Button (Jump to Bottom) -->
+    <div class="absolute bottom-6 right-8 flex flex-col items-end pointer-events-none z-40">
+        <button
+            x-show="showJumpButton"
+            x-transition.opacity.duration.300ms
+            style="display: none;"
+            @mouseenter="clearTimeout(jumpTimeout)"
+            @mouseleave="jumpTimeout = setTimeout(() => showJumpButton = false, 2500)"
+            @click="
+                showJumpButton = false;
+                let c = document.getElementById('log-stream-container');
+                c.scrollTo({ top: c.scrollHeight, behavior: 'smooth' });
+            "
+            class="pointer-events-auto flex items-center gap-2 bg-gray-900/90 hover:bg-gray-800 dark:bg-white/90 dark:hover:bg-white text-white dark:text-gray-900 px-4 py-2 rounded-full shadow-lg transition cursor-pointer text-xs font-bold tracking-wider backdrop-blur-sm"
+        >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+            </svg>
+            <span>Jump to Bottom</span>
+        </button>
     </div>
 </div>
 {{end}}

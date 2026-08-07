@@ -105,6 +105,12 @@ func TestSubstitute_Variables(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to parse string as message: %v", err)
 	}
+
+	// If buffer is empty, Store.Get returns false and macro substitution fails
+	if res, err := Substitute("$BUF", nil, &st, false); err == nil || res != "$BUF" {
+		t.Errorf("Expected $BUF resolution to fail, but passed: %v", res)
+	}
+
 	st.SetBuffer(msg)
 
 	tests := []struct {
