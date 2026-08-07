@@ -47,10 +47,24 @@ var appShortcuts = []shortcut{
 	},
 
 	{
+		Key:         "a",
+		Alt:         true,
+		Events:      []string{"view-alias-settings"},
+		Description: "Open alias settings",
+	},
+
+	{
 		Key:         "r",
 		Alt:         true,
 		Events:      []string{"view-script-runner"},
 		Description: "Open script runner",
+	},
+
+	{
+		Key:         "f",
+		Alt:         true,
+		Events:      []string{"view-finalizer"},
+		Description: "Open finalize toolbox",
 	},
 }
 

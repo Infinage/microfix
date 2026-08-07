@@ -26,18 +26,18 @@ func (app *Application) handleAPIAliasNameCheck(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	_, ok, err := app.Store.Get("ALIAS." + aliasName)
+	val, ok, err := app.Store.Get("ALIAS." + aliasName)
 	if err != nil {
-		fmt.Fprintf(w, `<span id="alias-check" class="text-[10px] text-red-500 dark:text-red-400 mt-1">%s</span>`, err.Error())
+		app.templ.ExecuteTemplate(w, "partials/modals/alias/check_error", err.Error())
 		return
 	}
 
 	if ok {
-		fmt.Fprint(w, `<span id="alias-check" class="text-[10px] text-amber-500 dark:text-amber-400 mt-1">Alias exists, will be overwritten</span>`)
+		app.templ.ExecuteTemplate(w, "partials/modals/alias/check_exists", val)
 		return
 	}
 
-	fmt.Fprint(w, `<span id="alias-check" class="text-[10px] text-green-400 mt-1">Alias available</span>`)
+	app.templ.ExecuteTemplate(w, "partials/modals/alias/check_ok", nil)
 }
 
 func (app *Application) handleAPISetAlias(w http.ResponseWriter, r *http.Request) {
