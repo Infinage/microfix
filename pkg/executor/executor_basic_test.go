@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	script "github.com/infinage/microfix/pkg/executor/internal/handlers"
+	"github.com/infinage/microfix/pkg/message"
 	"github.com/infinage/microfix/pkg/session"
 	"github.com/infinage/microfix/pkg/store"
 )
@@ -55,7 +56,7 @@ func TestEvalBatch_CommentsAndEmptyLines(t *testing.T) {
    # Indented comment
 
 set VARS.Symbol AAPL
-print $VARS.Symbol
+print $VARS.Symbol.
 `
 	if err := EvalBatch(strings.NewReader(script), ctx); err != nil {
 		t.Fatalf("EvalBatch failed: %v", err)
@@ -399,5 +400,70 @@ func TestEval_AssertRegex(t *testing.T) {
 	// Test Invalid Regex Pattern
 	if err := Eval("assert string ~ [broken-regex", ctx); err == nil {
 		t.Error("Expected invalid regex compilation to fail gracefully, but it passed")
+	}
+}
+
+func TestEval_IssetBufferAndMacros(t *testing.T) {
+	ctx, _ := setupTestContext(t, nil)
+
+	// Empty buffer -> isset BUF should fail
+	if err := Eval("isset BUF", ctx); err == nil {
+		t.Error("Expected isset BUF to fail on empty buffer")
+	}
+
+	// Load a dummy message into the store buffer
+	msg, err := message.MessageFromString("8=FIX.4.4|35=D|55=AAPL|", "|")
+	if err != nil {
+		t.Fatalf("Failed to parse test message: %v", err)
+	}
+	ctx.Store.SetBuffer(msg)
+
+	// isset BUF -> should pass
+	if err := Eval("isset BUF", ctx); err != nil {
+		t.Errorf("Expected isset BUF to pass, got: %v", err)
+	}
+
+	// isset BUF[35] -> should pass (Tag 35 exists)
+	if err := Eval("isset BUF[35]", ctx); err != nil {
+		t.Errorf("Expected isset BUF[35] to pass, got: %v", err)
+	}
+
+	// isset BUF[99] -> should fail (Tag 99 is missing)
+	if err := Eval("isset BUF[99]", ctx); err == nil {
+		t.Error("Expected isset BUF[99] to fail (tag missing), but it passed")
+	}
+
+	// isset BUF[55,2] -> should fail (Only 1 instance of tag 55 exists)
+	if err := Eval("isset BUF[55,2]", ctx); err == nil {
+		t.Error("Expected isset BUF[55,2] to fail (instance missing), but it passed")
+	}
+
+	// Test combination of Store vars and BUF vars
+	ctx.Store.Set("VARS.Test", "123")
+	if err := Eval("isset VARS.Test BUF[55]", ctx); err != nil {
+		t.Errorf("Expected multi-isset to pass, got: %v", err)
+	}
+	if err := Eval("isset VARS.Test BUF[99]", ctx); err == nil {
+		t.Error("Expected multi-isset to fail because BUF[99] is missing, but it passed")
+	}
+}
+
+func TestEval_ErrorQuotingWithRegex(t *testing.T) {
+	ctx, _ := setupTestContext(t, nil)
+
+	// Trigger a failing assertion so $ERROR is populated with a
+	// multi-word message: assertion failed: '1 == 2'
+	if err := Eval("not assert 1 2", ctx); err != nil {
+		t.Fatalf("Eval failed: %v", err)
+	}
+
+	// $ERROR contains spaces, so ensure it is CSV quoted. Otherwise below will fail
+	if err := Eval(`assert $ERROR ~ "^assertion failed.*"`, ctx); err != nil {
+		t.Errorf("Expected regex match against quoted $ERROR to pass, got: %v", err)
+	}
+
+	// Confirm it actually fails against a non-matching pattern
+	if err := Eval(`assert $ERROR ~ "^NOPE.*"`, ctx); err == nil {
+		t.Error("Expected regex match to fail for non-matching pattern, but it passed")
 	}
 }

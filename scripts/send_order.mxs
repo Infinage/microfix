@@ -16,7 +16,7 @@ send "8=|9=|35=D|49=|56=|34=|52=|11=$VARS.ClOrdID|54=$VARS.Side|55=$VARS.Symbol|
 
 # Market orders should be acked immediately (ExecutionReport, OrdStatus=New)
 if wait 35=8 & 39=0
-    print Filled $VARS.Symbol qty=$VARS.Qty -> OrderID=$BUF.37
+    print Filled $VARS.Symbol qty=$VARS.Qty -> OrderID=$BUF[37]
 else
     print No ack for $VARS.Symbol , ClOrdID=$VARS.ClOrdID
 endif

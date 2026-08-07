@@ -21,9 +21,9 @@ if waitstatus Active
     print "Scenario 1: unsupported message type"
     send "8=|9=|35=F|49=|56=|34=|52=|41=$UNIQUE|11=$UNIQUE|54=1|60=$TIMESTAMP|10=|"
     if expect 35=j
-        assert $BUF.380 == 3
-        assert $BUF.58 == "Unsupported application message"
-        print Rejected as expected. Reason code (380): $BUF.380
+        assert $BUF[380] == 3
+        assert $BUF[58] == "Unsupported application message"
+        print Rejected as expected. Reason code (380): $BUF[380]
     else
         print "FAIL: expected a Business Message Reject"
         disconnect
@@ -36,11 +36,11 @@ if waitstatus Active
     print "Scenario 2: missing required fields"
     send "8=|9=|35=D|49=|56=|34=|52=|11=$UNIQUE|54=1|60=$TIMESTAMP|40=1|10=|"
     if expect 35=j
-        assert $BUF.380 == 5
+        assert $BUF[380] == 5
         # Fuzzy match (~) since the exact tag list in the message can vary -
         # only care that the reason text mentions missing fields
-        assert $BUF.58 ~ "Missing required fields.+"
-        print Rejected as expected. Reason code (380): $BUF.380
+        assert $BUF[58] ~ "Missing required fields.+"
+        print Rejected as expected. Reason code (380): $BUF[380]
     else
         print "FAIL: expected a Business Message Reject"
         disconnect
@@ -53,9 +53,9 @@ if waitstatus Active
     print "Scenario 3: unsupported order type"
     send "8=|9=|35=D|49=|56=|34=|52=|11=$UNIQUE|54=1|55=AAPL|38=1000|60=$TIMESTAMP|40=2|10=|"
     if expect 35=j
-        assert $BUF.380 == 3
-        assert $BUF.58 == "Unsupported order type"
-        print "Rejected as expected. Reason code (380): " $BUF.380
+        assert $BUF[380] == 3
+        assert $BUF[58] == "Unsupported order type"
+        print "Rejected as expected. Reason code (380): " $BUF[380]
     else
         print "FAIL: expected a Business Message Reject"
         disconnect

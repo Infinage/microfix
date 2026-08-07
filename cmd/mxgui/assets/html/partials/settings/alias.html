@@ -36,7 +36,8 @@
                 <th class="p-4 text-right">Actions</th>
             </tr>
             {{range $aliasName, $aliasValue := .Aliases}}
-              <tr x-show="aliasSearch === '' || '{{$aliasName}}'.toLowerCase().includes(aliasSearch.toLowerCase())"
+              <tr data-alias-name="{{$aliasName}}" 
+                x-show="aliasSearch === '' || $el.dataset.aliasName.toLowerCase().includes(aliasSearch.toLowerCase())"
                 class="border-b border-gray-200 dark:border-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800/30 transition"
               >
                   <td class="p-4 text-blue-700 dark:text-blue-400 font-bold">

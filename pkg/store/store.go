@@ -3,7 +3,6 @@ package store
 import (
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -72,16 +71,6 @@ func (s *Store) SetLastError(err error) {
 	s.lastError = err
 }
 
-func (s *Store) getTagFromBuffer(key string) (string, bool, error) {
-	tag, err := strconv.ParseUint(key, 10, 16)
-	if err != nil {
-		return "", false, fmt.Errorf("failed to parse '%s' as a tag: %w", key, err)
-	}
-
-	val, ok := s.buffer.Get(uint16(tag))
-	return val, ok, nil
-}
-
 // Config returns a safe, by-value copy of the underlying typed configuration.
 func (s *Store) Config() Config {
 	s.mu.RLock()
@@ -123,14 +112,6 @@ func (s *Store) Get(key string) (string, bool, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	// Shortform to return full string in buffer
-	if key == "BUF" {
-		if len(s.buffer) == 0 {
-			return "", false, nil
-		}
-		return s.buffer.String("|"), true, nil
-	}
-
 	prefix, name, err := splitKeyPrefix(key)
 	if err != nil {
 		return "", false, err
@@ -152,9 +133,6 @@ func (s *Store) Get(key string) (string, bool, error) {
 	case "ENV":
 		val, ok := os.LookupEnv(name)
 		return val, ok, nil
-
-	case "BUF":
-		return s.getTagFromBuffer(name)
 
 	default:
 		return "", false, fmt.Errorf("Unsupported prefix: '%s'", prefix)
@@ -191,9 +169,6 @@ func (s *Store) Set(key, value string) (string, bool, error) {
 
 	case "ENV":
 		return "", false, fmt.Errorf("Cannot modify system env variables")
-
-	case "BUF":
-		return "", false, fmt.Errorf("Cannot modify message buffer")
 
 	default:
 		return "", false, fmt.Errorf("Unsupported prefix: '%s'", prefix)
@@ -245,7 +220,7 @@ func splitKeyPrefix(key string) (string, string, error) {
 
 	isValidKeyChar := func(r rune) bool {
 		return !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') ||
-			(r >= '0' && r <= '9') || r == '_' || r == '.')
+			(r >= '0' && r <= '9') || r == '_')
 	}
 
 	// PREFIX.name to only contain alpha numeric values (and underscores)

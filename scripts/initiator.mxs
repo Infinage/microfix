@@ -30,7 +30,7 @@ if waitstatus Active
 
         # Acceptor should respond with ExecutionReport, OrdStatus=New (39=0)
         expect 35=8 & 39=0
-        print Order $VARS.ClOrdID acked, OrderID=$BUF.37
+        print Order $VARS.ClOrdID acked, OrderID=$BUF[37]
 
         # incr takes a bare VARS key (no $, no VARS. prefix) - it always
         # operates on the VARS namespace internally

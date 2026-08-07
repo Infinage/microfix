@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/infinage/microfix/pkg/macros"
 	"github.com/infinage/microfix/pkg/store"
 )
 
@@ -77,6 +78,16 @@ func handleSet(ctx *ScriptContext, args []string) error {
 func handleIsSet(ctx *ScriptContext, args []string) error {
 	for i := 1; i < len(args); i++ {
 		key := strings.TrimSpace(args[i])
+
+		// For dynamic FIX macros (BUF, LASTIN, LASTOUT), we delegate to the macro package
+		if strings.HasPrefix(key, "BUF") || strings.HasPrefix(key, "LAST") {
+			if _, err := macros.Substitute("$"+key, ctx.Session(), ctx.Store, false); err != nil {
+				return Falsy(fmt.Errorf("macro '%s' not set or invalid: %v", key, err))
+			}
+			continue
+		}
+
+		// For standard variables (VARS.Symbol, CFG.Target), use the fast store lookup
 		if _, ok, _ := ctx.Store.Get(key); !ok {
 			return Falsy(fmt.Errorf("key '%s' not set", key))
 		}

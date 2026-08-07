@@ -19,7 +19,7 @@ func setupTestStore(t *testing.T) *Store {
 		Port:         1234,
 		Alias: map[string]string{
 			"Logon": "35=A|98=0|",
-			"TR.1":  "35=1|112=1|",
+			"TR_1":  "35=1|112=1|",
 		},
 	}
 
@@ -39,14 +39,15 @@ func TestSplitKeyPrefix(t *testing.T) {
 		expectErr  bool
 	}{
 		{"Valid CFG", "CFG.Port", "CFG", "Port", false},
+		{"Valid lowercase", "cfg.port", "cfg", "port", false},
 		{"Valid with Underscore", "VARS.My_Var_1", "VARS", "My_Var_1", false},
-		{"Valid with Dot", "VARS.My.Var.1", "VARS", "My.Var.1", false},
-		{"Valid single char", "BUF.8", "BUF", "8", false},
+		{"Valid single char", "VARS.8", "VARS", "8", false},
 
 		{"Missing Dot", "CFGPort", "", "", true},
 		{"Empty Name", "CFG.", "", "", true},
 		{"Empty Prefix", ".Port", "", "", true},
 		{"Invalid Dash", "VARS.My-Var", "", "", true},
+		{"Invalid Dot", "VARS.My.Var.1", "VARS", "", true},
 		{"Invalid Space", "VARS.My Var", "", "", true},
 		{"Invalid Special Char", "ALIAS.Logon!", "", "", true},
 	}
@@ -91,6 +92,11 @@ func TestStore_Get(t *testing.T) {
 		{"Valid VARS", "VARS.SessionID", "12345", true, false},
 		{"Valid ENV", "ENV.MFIX_TEST_ENV", "hello_world", true, false},
 
+		{"Lowercase CFG Prefix", "cfg.SenderCompID", "TESTSENDER", true, false},
+		{"Lowercase Alias Prefix", "alias.Logon", "35=A|98=0|", true, false},
+		{"Lowercase Vars Prefix", "vars.SessionID", "12345", true, false},
+		{"Lowercase Env Prefix", "env.MFIX_TEST_ENV", "hello_world", true, false},
+
 		{"Missing CFG Field", "CFG.Missing", "", false, true},
 		{"Missing ALIAS", "ALIAS.Missing", "", false, false},
 		{"Missing VARS", "VARS.Missing", "", false, false},
@@ -99,8 +105,8 @@ func TestStore_Get(t *testing.T) {
 		{"Invalid Key Format (No Dot)", "CFG_SenderCompID", "", false, true},
 		{"Invalid Key Format (Space)", "VARS.My Var", "", false, true},
 		{"Invalid Key Format (Dash)", "ALIAS.My-Alias", "", false, true},
+		{"Invalid Key Format (Dot)", "ALIAS.NEWORDER.1", "", false, true},
 		{"Valid Key Format (Underscore)", "VARS.My_Var", "", false, false},
-		{"Valid Key Format (Dot)", "ALIAS.NEWORDER.1", "", false, false},
 		{"Unknown Prefix", "SYS.Info", "", false, true},
 	}
 
@@ -150,6 +156,22 @@ func TestStore_Set(t *testing.T) {
 		}
 	})
 
+	t.Run("Set lowercase VARS", func(t *testing.T) {
+		oldVal, existed, err := s.Set("vars.Foo", "FooBaz")
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		if !existed {
+			t.Error("Expected existed to be true for vars update")
+		}
+		if oldVal != "Baz" {
+			t.Errorf("Expected old value to be 'Baz', got %q", oldVal)
+		}
+		if val, found, _ := s.Get("VARS.Foo"); !found || val != "FooBaz" {
+			t.Fatalf("expected VARS.Foo to be FooBaz, got %q", val)
+		}
+	})
+
 	t.Run("Set ENV (Protected)", func(t *testing.T) {
 		_, _, err := s.Set("ENV.PATH", "/dev/null")
 		if err == nil {
@@ -171,12 +193,12 @@ func TestStore_Set(t *testing.T) {
 	})
 
 	t.Run("Set ALIAS", func(t *testing.T) {
-		oldVal, existed, err := s.Set("ALIAS.TR.1", "35=1|112=2|")
+		oldVal, existed, err := s.Set("ALIAS.TR_1", "35=1|112=2|")
 		if err != nil {
 			t.Fatalf("Unexpected error setting ALIAS: %v", err)
 		}
 		if !existed {
-			t.Error("Expected ALIAS.TR.1 to already exist")
+			t.Error("Expected ALIAS.TR_1 to already exist")
 		}
 		if oldVal != "35=1|112=1|" {
 			t.Errorf("Expected old value '35=1|112=1|', got %q", oldVal)
@@ -208,6 +230,19 @@ func TestStore_Unset(t *testing.T) {
 		}
 	})
 
+	t.Run("Unset lowercase ALIAS", func(t *testing.T) {
+		_, existed, err := s.Unset("alias.TR_1")
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+		if !existed {
+			t.Fatal("expected alias to exist")
+		}
+		if _, found, _ := s.Get("ALIAS.TR_1"); found {
+			t.Fatal("expected alias to be deleted")
+		}
+	})
+
 	t.Run("Unset CFG (Protected)", func(t *testing.T) {
 		_, _, err := s.Unset("CFG.Port")
 		if err == nil {
@@ -229,72 +264,25 @@ func TestStore_ConfigCopy(t *testing.T) {
 	}
 }
 
-// Ensure you have a mock or standard way to initialize a message.Message in your test
 func TestStore_Buffer(t *testing.T) {
 	s := setupTestStore(t)
 
-	t.Run("Get from empty buffer", func(t *testing.T) {
-		if buf := s.Buffer(); len(buf) > 0 {
-			t.Errorf("Expected empty buffer, got %v", buf)
-		} else if val, found, err := s.Get("BUF.35"); err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		} else if found || val != "" {
-			t.Errorf("Expected empty buffer to return not found, got %q", val)
-		}
-	})
+	original := "8=FIX.4.4|35=D|"
+	msg, err := message.MessageFromString(original, "|")
+	if err != nil {
+		t.Fatalf("Failed to parse message: %v", err)
+	}
 
-	t.Run("Invalid tag format", func(t *testing.T) {
-		_, _, err := s.Get("BUF.InvalidTag")
-		if err == nil {
-			t.Error("Expected error when parsing non-integer tag, got nil")
-		}
-	})
+	if buf := s.Buffer(); len(buf) > 0 {
+		t.Errorf("Expected empty buffer, got %v", buf)
+	}
 
-	t.Run("Set API is protected", func(t *testing.T) {
-		_, _, err := s.Set("BUF.35", "D")
-		if err == nil {
-			t.Error("Expected an error when attempting to modify BUF via Set, got nil")
-		}
-	})
+	s.SetBuffer(msg)
 
-	t.Run("Set and Get buffer", func(t *testing.T) {
-		original := "8=FIX.4.4|35=D|"
-		msg, err := message.MessageFromString(original, "|")
-		if err != nil {
-			t.Fatalf("Failed to parse message: %v", err)
-		}
-
-		if got, ok, err := s.Get("BUF"); ok || err != nil {
-			t.Errorf("Expected $BUF resolution to return (false, nil), got: (%t, %v)", ok, err)
-		} else if got != "" {
-			t.Errorf("Expected '$BUF' to return empty, got %q", got)
-		}
-
-		s.SetBuffer(msg)
-
-		buf := s.Buffer()
-		if got := buf.String("|"); got != original {
-			t.Errorf("Buffer contents doesn't match, want %v but got %v", original, got)
-		}
-
-		if got, ok, err := s.Get("BUF"); !ok || err != nil {
-			t.Errorf("Expected to resolve '$BUF', but failed: (%t, %v)", ok, err)
-		} else if got != "8=FIX.4.4|35=D|" {
-			t.Errorf("Expected '$BUF' to return %q, got %q", original, got)
-		}
-
-		if got, ok, err := s.Get("BUF.35"); !ok || err != nil {
-			t.Errorf("Expected to resolve GET[35], but failed: (%t, %v)", ok, err)
-		} else if got != "D" {
-			t.Errorf("Expected GET[35] to return 'D', got '%s'", got)
-		}
-
-		if got, ok, err := s.Get("BUF.10"); ok {
-			t.Errorf("Expected GET[10] to return empty, got %s", got)
-		} else if err != nil {
-			t.Errorf("Unexpected error: %v", err)
-		}
-	})
+	buf := s.Buffer()
+	if got := buf.String("|"); got != original {
+		t.Errorf("Buffer contents doesn't match, want %v but got %v", original, got)
+	}
 }
 
 func TestStore_LastError(t *testing.T) {

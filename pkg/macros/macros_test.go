@@ -2,6 +2,7 @@ package macros
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -34,16 +35,16 @@ func TestExtractSBrackets(t *testing.T) {
 	tests := []struct {
 		name      string
 		raw       string
-		expected  string
+		expected  []string
 		expectErr bool
 	}{
-		{"Valid Positive", "$DATE[+3]", "+3", false},
-		{"Valid Negative", "$DATE[-5]", "-5", false},
-		{"Valid CSV", "$LASTIN[D, 11]", "D, 11", false},
-		{"Valid Empty", "$DATE[]", "", false},
-		{"Missing Brackets", "$DATE", "", true},
-		{"Missing Close Bracket", "$DATE[+3", "", true},
-		{"Missing Open Bracket", "$DATE+3]", "", true},
+		{"Valid Positive", "$DATE[+3]", []string{"+3"}, false},
+		{"Valid Negative", "$DATE[-5]", []string{"-5"}, false},
+		{"Valid CSV", "$LASTIN[D, 11]", []string{"D", "11"}, false},
+		{"Valid Empty", "$DATE[]", nil, false},
+		{"Missing Brackets", "$DATE", nil, true},
+		{"Missing Close Bracket", "$DATE[+3", nil, true},
+		{"Missing Open Bracket", "$DATE+3]", nil, true},
 	}
 
 	for _, tt := range tests {
@@ -53,7 +54,7 @@ func TestExtractSBrackets(t *testing.T) {
 				t.Errorf("extractSBrackets(%q) error = %v, expectErr %v", tt.raw, err, tt.expectErr)
 				return
 			}
-			if res != tt.expected {
+			if !slices.Equal(res, tt.expected) {
 				t.Errorf("extractSBrackets(%q) = %q, want %q", tt.raw, res, tt.expected)
 			}
 		})
@@ -123,7 +124,7 @@ func TestSubstitute_Variables(t *testing.T) {
 	}{
 		{
 			name:     "Standard Variables",
-			input:    "8=$BUF.8|35=D|55=$VARS.Symbol|38=$VARS.Qty|",
+			input:    "8=$BUF[8]|35=D|55=$VARS.Symbol|38=$VARS.Qty|",
 			expected: "8=FIX.4.4|35=D|55=AAPL|38=100|",
 		},
 		{
@@ -133,7 +134,7 @@ func TestSubstitute_Variables(t *testing.T) {
 		},
 		{
 			name:      "Invalid buffer key",
-			input:     "$BUF.",
+			input:     "$BUF[]",
 			expectErr: true,
 		},
 		{
@@ -237,6 +238,16 @@ func TestSubstitute_Variables(t *testing.T) {
 			input:     "send $ALIAS.Start",
 			expectErr: true,
 		},
+		{
+			name:     "Buffer Slicing (End only)",
+			input:    "35=$BUF[35,1,1]",
+			expected: "35=D",
+		},
+		{
+			name:     "Buffer Slicing (Start and End)",
+			input:    "Version=$BUF[8,1,4,7]",
+			expected: "Version=4.4",
+		},
 	}
 
 	// Run table-driven tests
@@ -249,7 +260,6 @@ func TestSubstitute_Variables(t *testing.T) {
 			res, err := Substitute(tt.input, nil, &st, tt.quoteIfSpaces)
 			if tt.expectErr {
 				if err == nil {
-					t.Log("Result:", res)
 					t.Fatalf("Expected an error but got nil")
 				}
 				return // Test passes if error is expected and caught
@@ -339,35 +349,35 @@ func TestSubstituteMessageTag(t *testing.T) {
 			name:          "Invalid Syntax - Too few arguments",
 			input:         "$LASTIN[D]",
 			expectErr:     true,
-			errString:     "invalid syntax '$LASTIN[D]': must be of form",
+			errString:     "invalid syntax \"$LASTIN[D]\": expected $[MsgType,Tag[,Instance[,End]|,Start,End]]",
 			mockLastMsgFn: emptyMockFn,
 		},
 		{
 			name:          "Invalid Syntax - Too many arguments",
-			input:         "$LASTIN[D,11,2,5]",
+			input:         "$LASTIN[D,11,2,5,0,0]",
 			expectErr:     true,
-			errString:     "invalid syntax '$LASTIN[D,11,2,5]': must be of form",
+			errString:     "invalid syntax \"$LASTIN[D,11,2,5,0,0]\": expected $[MsgType,Tag",
 			mockLastMsgFn: emptyMockFn,
 		},
 		{
 			name:          "Invalid Tag - Not a number",
 			input:         "$LASTIN[D,abc]",
 			expectErr:     true,
-			errString:     "invalid tag 'abc' in '$LASTIN[D,abc]'",
+			errString:     `invalid tag "abc"`,
 			mockLastMsgFn: emptyMockFn,
 		},
 		{
 			name:          "Invalid Count - Not a number",
 			input:         "$LASTOUT[8,11,xyz]",
 			expectErr:     true,
-			errString:     "invalid instance count 'xyz' in '$LASTOUT[8,11,xyz]'",
+			errString:     "invalid instance count \"xyz\" (expected > 0)",
 			mockLastMsgFn: emptyMockFn,
 		},
 		{
 			name:          "Invalid Count - Zero",
 			input:         "$LASTIN[D,11,0]",
 			expectErr:     true,
-			errString:     "must be a positive integer > 0",
+			errString:     "invalid instance count",
 			mockLastMsgFn: emptyMockFn,
 		},
 		{
@@ -406,6 +416,56 @@ func TestSubstituteMessageTag(t *testing.T) {
 			name:          "Outgoing Tag",
 			input:         "$LASTOUT[V,146]",
 			resString:     "2",
+			mockLastMsgFn: mockMsgFn,
+		},
+		{
+			name:          "Incoming Explicit Second Instance",
+			input:         "$LASTIN[V,55,3]",
+			expectErr:     true,
+			errString:     "tag 55 (instance 3) not found",
+			mockLastMsgFn: mockMsgFn,
+		},
+		{
+			name:          "Outgoing Tag",
+			input:         "$LASTOUT[V,146]",
+			resString:     "2",
+			mockLastMsgFn: mockMsgFn,
+		},
+		{
+			name:          "Slice End Only (Extract Date from Tag 52)",
+			input:         "$LASTIN[V,52,1,8]",
+			resString:     "20260404",
+			mockLastMsgFn: mockMsgFn,
+		},
+		{
+			name:          "Slice Start and End (Extract Time from Tag 52)",
+			input:         "$LASTIN[V,52,1,9,21]",
+			resString:     "12:00:00.000",
+			mockLastMsgFn: mockMsgFn,
+		},
+		{
+			name:          "Slice Out of Bounds (End too large - caps safely)",
+			input:         "$LASTIN[V,52,1,999]",
+			resString:     "20260404-12:00:00.000",
+			mockLastMsgFn: mockMsgFn,
+		},
+		{
+			name:          "Slice Out of Bounds (Start too large - returns empty)",
+			input:         "$LASTIN[V,52,1,999,999]",
+			resString:     "",
+			mockLastMsgFn: mockMsgFn,
+		},
+		{
+			name:          "Slice Start Greater Than End (Safely returns empty)",
+			input:         "$LASTIN[V,52,1,8,4]",
+			resString:     "",
+			mockLastMsgFn: mockMsgFn,
+		},
+		{
+			name:          "Invalid Slice Arguments (Start not an int)",
+			input:         "$LASTIN[V,52,1,abc,8]",
+			expectErr:     true,
+			errString:     `invalid start index "abc"`,
 			mockLastMsgFn: mockMsgFn,
 		},
 	}

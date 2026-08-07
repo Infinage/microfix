@@ -202,7 +202,7 @@ while assert $VARS.counter < $VARS.max_orders
     
     # Wait for the Execution Report (Order ACK)
     if wait "35=8 & 39=0"
-        print Order $VARS.counter acknowledged with ExecID: $BUF.17
+        print Order $VARS.counter acknowledged with ExecID: $BUF[17]
         incr VARS.counter
         sleep 500
     else

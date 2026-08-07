@@ -91,15 +91,26 @@ GLOBAL VARIABLES
   $ALIAS.<name>             Saved aliases
   $ENV.<name>               Environment variables
   $BUF                      Extract the entire raw FIX string currently in the buffer.
-  $BUF.<tag>                Extract specific <tag> from the currently buffered message.
                             Message is loaded into buffer upon a successful 'wait',
                             'expect', or explicit 'loadmsg'. Will fail if buffer is empty.
-                            (e.g., $BUF.35 or $BUF.11)
-  $LASTIN[T,t,n]            Extract instance 'n' of tag 't' from last incoming message of MsgType 'T'.
-  $LASTOUT[T,t,n]           Extract instance 'n' of tag 't' from last outgoing message of MsgType 'T'.
-                            Defaults to 1st instance if 'n' is omitted.
-                            (e.g., $LASTOUT[8,39] gets OrdStatus from ExecutionReport,
-                            $LASTOUT[8,448,2] gets the 2nd PartyID from the repeating group)
+
+  -- Tag Extraction & Slicing --
+  Supported syntax formats for $BUF, $LASTIN, and $LASTOUT tag extraction:
+    [Tag]                   Extract Tag (Instance defaults to 1)
+    [Tag,Inst]              Extract a specific Instance of a repeating Tag
+    [Tag,Inst,End]          Slice substring from index 0 to End
+    [Tag,Inst,Start,End]    Slice substring from Start index to End index
+
+  $BUF[T,...]               Extract tag 'T' from the buffered message.
+                            (e.g., $BUF[35] or $BUF[448,2])
+  $LASTIN[Msg,T,...]        Extract tag 'T' from the last incoming message of MsgType 'Msg'.
+  $LASTOUT[Msg,T,...]       Extract tag 'T' from the last outgoing message of MsgType 'Msg'.
+
+  Examples:
+    $LASTOUT[8,39]          Gets OrdStatus from the last Outgoing ExecutionReport
+    $LASTOUT[8,448,2]       Gets the 2nd PartyID instance from the repeating group
+    $LASTIN[V,52,1,8]       Slices the first 8 characters (Date) from a Timestamp
+    $LASTIN[V,52,1,9,21]    Slices characters 9-21 (Time) from a Timestamp
 `
 
 func NewScriptContext(
