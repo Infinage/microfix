@@ -116,21 +116,21 @@ func (app *Application) handleAPIScriptStream(w http.ResponseWriter, r *http.Req
 					if !ok {
 						return
 					}
-					colorClass := "text-gray-500"
+					colorClass := "text-gray-700 dark:text-gray-400"
 					hint := ""
 
 					switch log.Type {
 					case session.LogInfo:
-						colorClass = "text-yellow-400"
+						colorClass = "text-zinc-600 dark:text-zinc-400"
 					case session.LogTran:
-						colorClass = "text-orange-400"
+						colorClass = "text-orange-700 dark:text-orange-400"
 					case session.LogErr:
-						colorClass = "text-red-400"
+						colorClass = "text-red-700 dark:text-red-400"
 					case session.LogSend, session.LogRecv:
 						if log.Type == session.LogSend {
-							colorClass = "text-blue-400"
+							colorClass = "text-blue-700 dark:text-blue-400"
 						} else {
-							colorClass = "text-green-400"
+							colorClass = "text-green-700 dark:text-green-400"
 						}
 						if msgType, ok := log.Msg.Get(35); ok {
 							if entry, ok := router.SpecForMsgType(msgType).Messages[msgType]; ok {
@@ -154,15 +154,15 @@ func (app *Application) handleAPIScriptStream(w http.ResponseWriter, r *http.Req
 		// Read temp file created via api `/api/script/execute`
 		f, err := os.Open(fpath)
 		if err != nil {
-			sseChan <- fmt.Sprintf(`<div class="text-red-500">Failed to read file: %v</div>`, err)
+			sseChan <- fmt.Sprintf(`<div class="text-red-700 dark:text-red-400">Failed to read file: %v</div>`, err)
 			return
 		}
 		defer f.Close()
 
 		if err := executor.EvalBatch(f, &scriptCtx); err != nil {
-			sseChan <- fmt.Sprintf(`<div class="text-red-400">✗ Script Failed: %v</div>`, err)
+			sseChan <- fmt.Sprintf(`<div class="text-red-700 dark:text-red-400">✗ Script Failed: %v</div>`, err)
 		} else {
-			sseChan <- `<div class="text-green-400">✓ Script Completed.</div>`
+			sseChan <- `<div class="text-green-700 dark:text-green-400">✓ Script Completed.</div>`
 		}
 	})
 

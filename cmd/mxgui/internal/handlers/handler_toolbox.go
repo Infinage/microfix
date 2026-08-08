@@ -61,6 +61,7 @@ func (app *Application) handleAPIFinalize(w http.ResponseWriter, r *http.Request
 func (app *Application) handleAPIValidate(w http.ResponseWriter, r *http.Request) {
 	msgRaw := strings.TrimSpace(r.URL.Query().Get("validate-input"))
 	if len(msgRaw) < 4 {
+		w.Header().Set("HX-Trigger", "toolbox-validation-failed")
 		renderTemplate(app.templ, w, "partials/toolbox/validate/report", map[string]any{
 			"Observations": []string{"Structural Error: Input must be at least 4 chars long"},
 		})
@@ -71,6 +72,7 @@ func (app *Application) handleAPIValidate(w http.ResponseWriter, r *http.Request
 	delim := msgRaw[len(msgRaw)-1:]
 	msg, err := message.MessageFromString(msgRaw, delim)
 	if err != nil {
+		w.Header().Set("HX-Trigger", "toolbox-validation-failed")
 		obs := []string{fmt.Sprintf("Structural Error: Invalid fix string input - %s", err.Error())}
 		renderTemplate(app.templ, w, "partials/toolbox/validate/report", map[string]any{"Observations": obs})
 		return
@@ -87,6 +89,12 @@ func (app *Application) handleAPIValidate(w http.ResponseWriter, r *http.Request
 
 	// Spec Dictionary Validation
 	result, _ := app.Session().Router().Validate(&msg, spec.ValidationStrict)
+	if len(result) > 0 {
+		w.Header().Set("HX-Trigger", "toolbox-validation-failed")
+	} else {
+		w.Header().Set("HX-Trigger", "toolbox-validation-passed")
+	}
+
 	renderTemplate(app.templ, w, "partials/toolbox/validate/report", map[string]any{
 		"Observations": result, "MsgType": msgType, "MsgName": msgName,
 	})

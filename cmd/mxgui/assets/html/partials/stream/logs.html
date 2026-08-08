@@ -52,6 +52,7 @@
     searchMode: 'jump',
     matches: [],
     currentMatchIndex: -1,
+    lastSearchState: '',
 
     // Toggle the visual 'selected' state directly via classList
     setSelected(el) {
@@ -124,12 +125,13 @@
       this.refresh();
     },
 
-    onSearchChange() {
-      this.refresh();
-    },
-
     // Full re-scan — needed whenever regex, tag filters, or mode changes
     refresh() {
+      // Unique string representing the current search parameters
+      const currentState = this.regexStr + '|' + this.activeFilters.join(',') + '|' + this.searchMode;
+      if (this.lastSearchState === currentState) return;
+      this.lastSearchState = currentState;
+
       const re = this.getRegex();
       this.clearActiveHighlight();
       this.matches = [];
@@ -323,8 +325,8 @@
       <!-- Input & Status Overlay -->
       <div class="relative flex items-center w-52 sm:w-64">
         <!-- .debounce for typing performance on large DOMs -->
-        <input type="text" x-model="regexStr" @input.debounce.250ms="onSearchChange()"
-          @keydown.enter.prevent="nextMatch()" @keydown.enter.shift.prevent="prevMatch()"
+        <input type="text" x-model="regexStr" @input.debounce.250ms="refresh()"
+          @keydown.enter.prevent="refresh(); $event.shiftKey ? prevMatch() : nextMatch()"
           placeholder="Search regex..." class="w-full bg-transparent pl-3 pr-16 py-1.5 text-sm 
             outline-none font-mono text-gray-900 dark:text-gray-300"
         />
@@ -333,7 +335,7 @@
             <span class="text-red-500 dark:text-red-400 font-bold">Invalid</span>
           </template>
           <template x-if="!regexError && hasActiveSearch">
-            <span class="text-gray-400 dark:text-gray-500"
+            <span class="text-gray-600 dark:text-gray-500"
               x-text="searchMode === 'filter' ? `${matches.length}` : (matches.length === 0 ? '0/0' : `${currentMatchIndex === -1 ? '-' : currentMatchIndex + 1}/${matches.length}`)"
             >
             </span>

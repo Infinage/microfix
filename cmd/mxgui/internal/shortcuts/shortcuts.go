@@ -66,6 +66,13 @@ var appShortcuts = []shortcut{
 		Events:      []string{"view-finalizer"},
 		Description: "Open finalize toolbox",
 	},
+
+	{
+		Key:         "v",
+		Alt:         true,
+		Events:      []string{"view-validator"},
+		Description: "Open validate toolbox",
+	},
 }
 
 // Serialises appShortcuts defined to be used in the html views

@@ -23,7 +23,9 @@
   :class="view === 'stream' ? 'bg-white dark:bg-gray-900/80 border-r-2 border-blue-500 text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-900/50 border-r-2 border-transparent'" 
   class="w-full flex items-center px-5 py-3 transition group cursor-pointer" title="Live Stream"
 >
-  <svg class="w-6 h-6 shrink-0 group-hover:text-blue-400 transition" :class="view === 'stream' ? 'text-blue-500' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <svg class="w-6 h-6 shrink-0 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition" 
+    :class="view === 'stream' ? 'text-blue-500' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+  >
     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z">
     </path>
   </svg>
@@ -37,7 +39,9 @@
   class="w-full flex items-center px-5 py-3 transition group cursor-pointer" 
   title="Dictionary & Specs"
 >
-  <svg class="w-6 h-6 shrink-0 group-hover:text-blue-400 transition" :class="view === 'dictionary' ? 'text-blue-500' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <svg class="w-6 h-6 shrink-0 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition" 
+    :class="view === 'dictionary' ? 'text-blue-500' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+  >
     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
       d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253">
     </path>
@@ -56,7 +60,7 @@
     >
       <div class="flex items-center">
           <svg 
-            class="w-6 h-6 shrink-0 group-hover:text-blue-400 transition" 
+            class="w-6 h-6 shrink-0 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition" 
             :class="view === 'toolbox' ? 'text-blue-500' : ''" 
             fill="none" stroke="currentColor" viewBox="0 0 24 24"
           >
@@ -69,7 +73,7 @@
           <span x-show="sidebarOpen" class="ml-4 font-bold text-sm whitespace-nowrap">Automation Tools</span>
       </div>
       <svg x-show="sidebarOpen" :class="expandedMenu === 'toolbox' ? 'rotate-180' : ''" 
-        class="w-4 h-4 shrink-0 transition-transform text-gray-400 dark:text-gray-600" 
+        class="w-4 h-4 shrink-0 transition-transform text-gray-600 dark:text-gray-400" 
         fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
         </path>
@@ -80,17 +84,17 @@
     <div x-show="expandedMenu === 'toolbox' && sidebarOpen" x-collapse class="pl-14 pr-4 space-y-1 py-1">
         <button 
           @click="view = 'toolbox'; toolboxTab = 'scripts'" 
-          :class="view === 'toolbox' && toolboxTab === 'scripts' ? 'text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/50'" 
+          :class="view === 'toolbox' && toolboxTab === 'scripts' ? 'text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/20' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/50'" 
           class="w-full text-left px-3 py-1.5 text-xs font-bold rounded transition whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer"
         >Script Runner</button>
         <button 
           @click="view = 'toolbox'; toolboxTab = 'finalize'" 
-          :class="view === 'toolbox' && toolboxTab === 'finalize' ? 'text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/50'" 
+          :class="view === 'toolbox' && toolboxTab === 'finalize' ? 'text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/20' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/50'" 
           class="w-full text-left px-3 py-1.5 text-xs font-bold rounded transition whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer"
         >FIX Finalize</button>
         <button 
           @click="view = 'toolbox'; toolboxTab = 'validate'" 
-          :class="view === 'toolbox' && toolboxTab === 'validate' ? 'text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/50'" 
+          :class="view === 'toolbox' && toolboxTab === 'validate' ? 'text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/20' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/50'" 
           class="w-full text-left px-3 py-1.5 text-xs font-bold rounded transition whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer"
         >Validate Message</button>
     </div>
@@ -106,7 +110,7 @@
   title="Workspace Settings"
 >
   <div class="flex items-center">
-    <svg class="w-6 h-6 shrink-0 group-hover:text-blue-400 transition" :class="view === 'settings' ? 'text-blue-500' : ''" 
+    <svg class="w-6 h-6 shrink-0 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition" :class="view === 'settings' ? 'text-blue-500' : ''" 
       fill="none" stroke="currentColor" viewBox="0 0 24 24"
     >
       <path stroke-linecap="round" stroke-linejoin="round" 
@@ -119,7 +123,7 @@
     <span x-show="sidebarOpen" class="ml-4 font-bold text-sm whitespace-nowrap">Settings</span>
   </div>
   <svg x-show="sidebarOpen" :class="expandedMenu === 'settings' ? 'rotate-180' : ''" 
-    class="w-4 h-4 shrink-0 transition-transform text-gray-400 dark:text-gray-600" fill="none" stroke="currentColor" 
+    class="w-4 h-4 shrink-0 transition-transform text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" 
     viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"
   ></path></svg>
 </button>
@@ -128,17 +132,17 @@
 <div x-show="expandedMenu === 'settings' && sidebarOpen" x-collapse class="pl-14 pr-4 space-y-1 py-1 mb-2">
     <button 
       @click="view = 'settings'; settingsTab = 'about'" 
-      :class="view === 'settings' && settingsTab === 'about' ? 'text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/50'" 
+      :class="view === 'settings' && settingsTab === 'about' ? 'text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/20' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/50'" 
       class="w-full text-left px-3 py-1.5 text-xs font-bold rounded transition whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer"
     >About &amp; Help</button>
     <button 
       @click="view = 'settings'; settingsTab = 'config'" 
-      :class="view === 'settings' && settingsTab === 'config' ? 'text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/50'" 
+      :class="view === 'settings' && settingsTab === 'config' ? 'text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/20' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/50'" 
       class="w-full text-left px-3 py-1.5 text-xs font-bold rounded transition whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer"
     >Session Config</button>
     <button 
       @click="view = 'settings'; settingsTab = 'aliases'" 
-      :class="view === 'settings' && settingsTab === 'aliases' ? 'text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/20' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/50'" 
+      :class="view === 'settings' && settingsTab === 'aliases' ? 'text-blue-700 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/20' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/50'" 
       class="w-full text-left px-3 py-1.5 text-xs font-bold rounded transition whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer"
     >Aliases</button>
 </div>

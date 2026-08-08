@@ -105,17 +105,17 @@ func Test_sseWriter_Write(t *testing.T) {
 		{
 			name:     "replaces SOH separators",
 			input:    "8=FIX.4.4\x019=100\x0135=D\x01",
-			expected: `<div class="text-blue-400">&gt; 8=FIX.4.4|9=100|35=D|</div>`,
+			expected: `<div class="text-blue-700 dark:text-blue-400">&gt; 8=FIX.4.4|9=100|35=D|</div>`,
 		},
 		{
 			name:     "no SOH",
 			input:    "8=FIX.4.4|9=100|35=D",
-			expected: `<div class="text-blue-400">&gt; 8=FIX.4.4|9=100|35=D</div>`,
+			expected: `<div class="text-blue-700 dark:text-blue-400">&gt; 8=FIX.4.4|9=100|35=D</div>`,
 		},
 		{
 			name:     "trims surrounding whitespace",
 			input:    "  8=FIX.4.4\x019=100\x01  \n",
-			expected: `<div class="text-blue-400">&gt; 8=FIX.4.4|9=100|</div>`,
+			expected: `<div class="text-blue-700 dark:text-blue-400">&gt; 8=FIX.4.4|9=100|</div>`,
 		},
 	}
 
