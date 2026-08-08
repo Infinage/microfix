@@ -1,337 +1,475 @@
 {{define "partials/stream/logs/entry"}}
-{{$LogType := .Type.String}}
+{{$LogType := .Log.Type.String}}
 {{$theme := getThemeForLogType $LogType}}
 {{$clickable := or (eq $LogType "SEND") (eq $LogType "RECV")}}
-<div 
-  data-log-type="{{$LogType}}" 
+<div
+  data-log-type="{{$LogType}}" data-log-is-appl="{{.IsApplMsg}}"
   class="log-entry group relative flex items-start space-x-4 p-2 rounded border-l-2 {{$theme.Border}} transition 
-    hover:bg-gray-100 dark:hover:bg-gray-800/50
-    {{if $clickable}}cursor-pointer{{end}}"
+    hover:bg-gray-100 dark:hover:bg-gray-800/50"
 >
-  {{if $clickable}} <input type="hidden" name="message" value="{{.Content}}"> {{end}}
+  {{if $clickable}} <input type="hidden" name="message" value="{{.Log.Content}}" /> {{end}}
   <span class="text-gray-600 dark:text-gray-500 shrink-0 whitespace-nowrap">
-    <span class="hidden lg:inline">{{.Timestamp.Format "2006-01-02"}}</span>
-    <span>{{.Timestamp.Format "15:04:05.000"}}</span>
+    <span class="hidden lg:inline">{{.Log.Timestamp.Format "2006-01-02"}}</span>
+    <span>{{.Log.Timestamp.Format "15:04:05.000"}}</span>
   </span>
   <span class="{{$theme.Text}} font-bold shrink-0 w-12 text-sm">{{$LogType}}</span>
-  <span class="text-gray-700 dark:text-gray-300 break-all leading-relaxed font-mono text-sm pr-24">{{.Content}}</span>
+  <span class="text-gray-700 dark:text-gray-300 break-all leading-relaxed font-mono text-sm pr-24">{{.Log.Content}}</span>
 
   {{if $clickable}}
-    <div class="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 group-[.selected]:hidden transition duration-200">
-        <span class="bg-white dark:bg-gray-900 border border-blue-500/50 text-blue-600 dark:text-blue-400 text-[10px] font-bold uppercase 
-            tracking-wider px-2 py-1 rounded shadow-lg flex items-center space-x-1">
-          <span>Inspect</span>
-          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-          </svg>
-        </span>
-    </div>
+  <div class="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 group-[.selected]:hidden transition duration-200">
+    <button type="button" class="inspect-btn bg-white dark:bg-gray-900 border border-blue-500/50 text-blue-600 dark:text-blue-400 text-[10px] font-bold uppercase 
+      tracking-wider px-2 py-1 rounded shadow-lg flex items-center space-x-1 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/40 transition"
+    >
+      <span>Inspect</span>
+      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+      </svg>
+    </button>
+  </div>
   {{end}}
 </div>
 {{end}}
 
 {{define "partials/stream/logs"}}
-<div 
+<div
   x-data="{
-        regexStr: '',
-        activeFilters: [],
-        isAtBottom: true,
-        forceScroll: false,
-        selectedEl: null,
-        pendingNodes: [],
-        rafScheduled: false,
-        maxEntries: 1000,
+    regexStr: '',
+    activeFilters: [],
+    isAtBottom: true,
+    forceScroll: false,
+    selectedEl: null,
+    pendingNodes: [],
+    rafScheduled: false,
+    maxEntries: 1000,
 
-        // State for jump to bottom floating button
-        showJumpButton: false,
-        jumpTimeout: null,
+    // State for jump to bottom floating button
+    showJumpButton: false,
+    jumpTimeout: null,
 
-        // Toggle the visual 'selected' state directly via classList — no per-row Alpine component needed
-        setSelected(el) {
-            if (this.selectedEl) {
-                this.selectedEl.classList.remove('bg-gray-200', 'dark:bg-gray-800/90', 'shadow-md', 'ring-1', 'ring-blue-500/50', 'z-10', 'selected');
+    // Search: 'filter' hides non-matches, 'jump' keeps all visible and steps through matches
+    searchMode: 'jump',
+    matches: [],
+    currentMatchIndex: -1,
+
+    // Toggle the visual 'selected' state directly via classList
+    setSelected(el) {
+      if (this.selectedEl) {
+        this.selectedEl.classList.remove('bg-gray-200', 'dark:bg-gray-800/90', 'shadow-md', 'ring-1', 'ring-blue-500/50', 'z-10', 'selected');
+      }
+      this.selectedEl = el;
+      if (el) {
+        el.classList.add('bg-gray-200', 'dark:bg-gray-800/90', 'shadow-md', 'ring-1', 'ring-blue-500/50', 'z-10', 'selected');
+      }
+    },
+
+    // Single delegated click handler replaces thousands of per-entry listeners
+    handleLogClick(e) {
+      const entry = e.target.closest('.log-entry');
+      if (!entry) return;
+
+      // Only proceed if user explicitly clicked the Inspect button
+      const isInspectBtn = e.target.closest('.inspect-btn');
+      if (!isInspectBtn) return;
+
+      this.setSelected(entry);
+      this.inspectorOpen = true;
+      this.inspectorTab = 'decoded';
+
+      const msgInput = entry.querySelector(`input[name='message']`);
+      htmx.ajax('GET', '/api/inspect', {
+        target: '#msg-inspector',
+        swap: 'outerHTML',
+        values: { LogType: (entry.dataset.logType || '').trim(), message: msgInput ? msgInput.value : '' }
+      });
+    },
+
+    get hasActiveSearch() { return this.regexStr.trim() !== ''; },
+
+    get regexError() {
+      if (!this.regexStr) return false;
+      try { new RegExp(this.regexStr); return false; } catch(e) { return true; }
+    },
+
+    getRegex() {
+      if (!this.regexStr) return null;
+      try { return new RegExp(this.regexStr, 'i'); } catch(e) { return null; }
+    },
+
+    matchesTagFilter(el) {
+      const type = (el.dataset.logType || '').trim();
+      const isApplMsg = el.dataset.logIsAppl === 'true';
+      if (this.activeFilters.length === 0) return true;
+      let tags = [];
+      if (type === 'RECV') tags.push('IN');
+      if (type === 'SEND') tags.push('OUT');
+      if (type === 'ERR') tags.push('Error');
+      if (type === 'INFO' || type === 'TRAN') tags.push('Sys');
+      if (isApplMsg) tags.push('App');
+      return this.activeFilters.some(f => tags.includes(f));
+    },
+
+    clearActiveHighlight() {
+      document.querySelectorAll('.search-match-active').forEach(e =>
+        e.classList.remove('search-match-active', 'bg-amber-100', 'dark:bg-amber-900/30'));
+    },
+
+    toggleFilter(f) {
+      if (this.activeFilters.includes(f)) {
+        this.activeFilters = this.activeFilters.filter(x => x !== f);
+      } else {
+        this.activeFilters.push(f);
+      }
+      this.refresh();
+    },
+
+    onSearchChange() {
+      this.refresh();
+    },
+
+    // Full re-scan — needed whenever regex, tag filters, or mode changes
+    refresh() {
+      const re = this.getRegex();
+      this.clearActiveHighlight();
+      this.matches = [];
+
+      document.querySelectorAll('.log-entry').forEach(el => {
+        const tagOk = this.matchesTagFilter(el);
+        const regexOk = re ? re.test(el.textContent) : true;
+
+        el.style.display = (this.searchMode === 'filter')
+          ? ((tagOk && regexOk) ? '' : 'none')
+          : (tagOk ? '' : 'none');
+
+        if (tagOk && re && regexOk) this.matches.push(el);
+      });
+
+      this.currentMatchIndex = -1;
+    },
+
+    // Incremental pass — only touches newly appended nodes
+    applyFiltersToNodes(nodes) {
+      const re = this.getRegex();
+      nodes.forEach(el => {
+        if (!el.classList || !el.classList.contains('log-entry')) return;
+        const tagOk = this.matchesTagFilter(el);
+        const regexOk = re ? re.test(el.textContent) : true;
+
+        el.style.display = (this.searchMode === 'filter')
+          ? ((tagOk && regexOk) ? '' : 'none')
+          : (tagOk ? '' : 'none');
+
+        // New nodes always append at the bottom, so pushing preserves match order
+        if (tagOk && re && regexOk) this.matches.push(el);
+      });
+    },
+
+    // Finds nearest match at/after current scroll position — start from current position
+    anchorFromViewport() {
+      const c = document.getElementById('log-stream-container');
+      const viewTop = c.scrollTop;
+      let idx = this.matches.findIndex(el => el.offsetTop >= viewTop);
+      return idx === -1 ? this.matches.length - 1 : idx;
+    },
+
+    jumpToMatch(idx) {
+      const el = this.matches[idx];
+      if (!el) return;
+      this.isAtBottom = false;
+      this.forceScroll = false;
+      this.clearActiveHighlight();
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('search-match-active', 'bg-amber-100', 'dark:bg-amber-900/30');
+    },
+
+    nextMatch() {
+      if (this.matches.length === 0 || this.searchMode === 'filter') return;
+      this.currentMatchIndex = this.currentMatchIndex === -1
+        ? this.anchorFromViewport()
+        : (this.currentMatchIndex + 1) % this.matches.length;
+      this.jumpToMatch(this.currentMatchIndex);
+    },
+
+    prevMatch() {
+      if (this.matches.length === 0 || this.searchMode === 'filter') return;
+      this.currentMatchIndex = this.currentMatchIndex === -1
+        ? this.anchorFromViewport()
+        : (this.currentMatchIndex - 1 + this.matches.length) % this.matches.length;
+      this.jumpToMatch(this.currentMatchIndex);
+    },
+
+    clearLogs() {
+      document.querySelectorAll('.log-entry').forEach(el => el.remove());
+      this.setSelected(null);
+      this.matches = [];
+      this.currentMatchIndex = -1;
+    },
+
+    // Cap total DOM entries so long sessions don't grow the tree unbounded (full history stays in backend export)
+    trimOldEntries(container) {
+      const entries = container.querySelectorAll('.log-entry');
+      const excess = entries.length - this.maxEntries;
+      if (excess <= 0) return;
+
+      let removedHeight = 0;
+      for (let i = 0; i < excess; i++) {
+        if (entries[i] === this.selectedEl) {
+          this.selectedEl = null;
+          window.dispatchEvent(new CustomEvent('log-selected', { detail: null }));
+        }
+
+        // Eject trimmed nodes from the matches array to prevent scrolling to detached DOM elements
+        if (this.matches.length > 0 && this.matches[0] === entries[i]) {
+          this.matches.shift();
+          if (this.currentMatchIndex > -1) this.currentMatchIndex = Math.max(-1, this.currentMatchIndex - 1);
+        }
+
+        removedHeight += entries[i].offsetHeight;
+        entries[i].remove();
+      }
+
+      if (!this.isAtBottom && removedHeight >= 0) {
+        container.scrollTop -= removedHeight;
+      }
+    },
+
+    // Coalesce bursts of SSE mutations into a single filter/scroll/cap pass per animation frame
+    scheduleFlush(container) {
+      if (this.rafScheduled) return;
+      this.rafScheduled = true;
+      requestAnimationFrame(() => {
+        this.rafScheduled = false;
+        this.applyFiltersToNodes(this.pendingNodes);
+        this.pendingNodes = [];
+        this.trimOldEntries(container);
+        if (this.isAtBottom || this.forceScroll) {
+          container.scrollTop = container.scrollHeight;
+          this.forceScroll = false;
+        }
+      });
+    },
+
+    // Locate method trigger from the inspector
+    locateSelected() {
+      if (!this.selectedEl || !document.body.contains(this.selectedEl)) return;
+
+      // Disable scrolling
+      this.isAtBottom = false;
+      this.forceScroll = false;
+      
+      // Clear filters
+      if (this.regexStr !== '' || this.activeFilters.length > 0) {
+        this.regexStr = '';
+        this.activeFilters = [];
+        this.refresh();
+      }
+      
+      // Capture exact element reference to prevent flash style getting stuck if selection changes
+      const targetEl = this.selectedEl;
+
+      // Allow DOM to unhide elements, then scroll target to center
+      setTimeout(() => {
+        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // Add a flash effect
+        targetEl.classList.add('bg-blue-100', 'dark:bg-blue-900/40');
+        setTimeout(() => targetEl.classList.remove('bg-blue-100', 'dark:bg-blue-900/40'), 1000);
+      }, 50);
+    },
+
+    init() {
+    this.$nextTick(() => {
+      let c = document.getElementById('log-stream-container');
+      if (!c) return;
+
+      new MutationObserver((mutations) => {
+        if (this.isAtBottom) { this.forceScroll = true; }
+        for (const m of mutations) {
+            for (const node of m.addedNodes) {
+                if (node.nodeType === 1) this.pendingNodes.push(node);
             }
-            this.selectedEl = el;
-            if (el) {
-                el.classList.add('bg-gray-200', 'dark:bg-gray-800/90', 'shadow-md', 'ring-1', 'ring-blue-500/50', 'z-10', 'selected');
-            }
-        },
-
-        // Single delegated click handler replaces thousands of per-entry listeners
-        handleLogClick(e) {
-            const entry = e.target.closest('.log-entry');
-            if (!entry || !entry.classList.contains('cursor-pointer')) return;
-
-            this.setSelected(entry);
-            this.inspectorOpen = true;
-            this.inspectorTab = 'decoded';
-
-            const msgInput = entry.querySelector(`input[name='message']`);
-            htmx.ajax('GET', '/api/inspect', {
-                target: '#msg-inspector',
-                swap: 'outerHTML',
-                values: { LogType: (entry.dataset.logType || '').trim(), message: msgInput ? msgInput.value : '' }
-            });
-        },
-
-        toggleFilter(f) {
-            if (this.activeFilters.includes(f)) {
-                this.activeFilters = this.activeFilters.filter(x => x !== f);
-            } else {
-                this.activeFilters.push(f);
-            }
-            this.applyFilters();
-        },
-
-        clearLogs() {
-            document.querySelectorAll('.log-entry').forEach(el => el.remove());
-            this.setSelected(null);
-        },
-
-        matchesFilters(el, re) {
-            const text = el.textContent;
-            const type = (el.dataset.logType || '').trim();
-
-            let matchRegex = true;
-            if (re) matchRegex = re.test(text);
-
-            let matchFilter = true;
-            if (this.activeFilters.length > 0) {
-                let tags = [];
-                if (type === 'RECV') tags.push('IN');
-                if (type === 'SEND') tags.push('OUT');
-                if (type === 'ERR') tags.push('Error');
-                if (type === 'INFO' || type === 'TRAN') tags.push('Sys');
-                if (type === 'RECV' || type === 'SEND') tags.push('App');
-                matchFilter = this.activeFilters.some(f => tags.includes(f));
-            }
-
-            return matchRegex && matchFilter;
-        },
-
-        // Full re-scan — only needed when filter criteria itself changes (typing, toggling a tag)
-        applyFilters() {
-            let re = null;
-            if (this.regexStr) {
-                try { re = new RegExp(this.regexStr, 'i'); } catch(e) { /* Ignore invalid regex */ }
-            }
-            document.querySelectorAll('.log-entry').forEach(el => {
-                el.style.display = this.matchesFilters(el, re) ? '' : 'none';
-            });
-        },
-
-        // Incremental pass — only touches newly appended nodes, not the whole history
-        applyFiltersToNodes(nodes) {
-            let re = null;
-            if (this.regexStr) {
-                try { re = new RegExp(this.regexStr, 'i'); } catch(e) { /* Ignore invalid regex */ }
-            }
-            nodes.forEach(el => {
-                if (!el.classList || !el.classList.contains('log-entry')) return;
-                el.style.display = this.matchesFilters(el, re) ? '' : 'none';
-            });
-        },
-
-        // Cap total DOM entries so long sessions don't grow the tree unbounded (full history stays in backend export)
-        trimOldEntries(container) {
-            const entries = container.querySelectorAll('.log-entry');
-            const excess = entries.length - this.maxEntries;
-            if (excess <= 0) return;
-
-            let removedHeight = 0;
-            for (let i = 0; i < excess; i++) {
-                if (entries[i] === this.selectedEl) {
-                  this.selectedEl = null;
-                  window.dispatchEvent(new CustomEvent('log-selected', { detail: null }));
-                }
-                removedHeight += entries[i].offsetHeight;
-                entries[i].remove();
-            }
-
-            if (!this.isAtBottom && removedHeight >= 0) {
-              container.scrollTop -= removedHeight;
-            }
-        },
-
-        // Coalesce bursts of SSE mutations into a single filter/scroll/cap pass per animation frame
-        scheduleFlush(container) {
-            if (this.rafScheduled) return;
-            this.rafScheduled = true;
-            requestAnimationFrame(() => {
-                this.rafScheduled = false;
-                this.applyFiltersToNodes(this.pendingNodes);
-                this.pendingNodes = [];
-                this.trimOldEntries(container);
-                if (this.isAtBottom || this.forceScroll) {
-                    container.scrollTop = container.scrollHeight;
-                    this.forceScroll = false;
-                }
-            });
-        },
-
-        // Locate metod trigger from the inspector
-        locateSelected() {
-            if (!this.selectedEl || !document.body.contains(this.selectedEl)) return;
-
-            // Disable scrolling
-            this.isAtBottom = false;
-            this.forceScroll = false;
-            
-            // Clear filters
-            if (this.regexStr !== '' || this.activeFilters.length > 0) {
-                this.regexStr = '';
-                this.activeFilters = [];
-                this.applyFilters();
-            }
-            
-            // Allow DOM to unhide elements, then scroll target to center
-            setTimeout(() => {
-                this.selectedEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                
-                // Add a flash effect
-                this.selectedEl.classList.add('bg-blue-100', 'dark:bg-blue-900/40');
-                setTimeout(() => this.selectedEl.classList.remove('bg-blue-100', 'dark:bg-blue-900/40'), 1000);
-            }, 50);
-        },
-
-        init() {
-          this.$nextTick(() => {
-              let c = document.getElementById('log-stream-container');
-              if (!c) return;
-
-              new MutationObserver((mutations) => {
-                  if (this.isAtBottom) { this.forceScroll = true; }
-
-                  for (const m of mutations) {
-                      for (const node of m.addedNodes) {
-                          if (node.nodeType === 1) this.pendingNodes.push(node);
-                      }
-                  }
-                  this.scheduleFlush(c);
-              }).observe(c, { childList: true });
-              
-              c.addEventListener('scroll', () => {
-                  this.isAtBottom = Math.abs(c.scrollHeight - c.clientHeight - c.scrollTop) <= 50;
-                  if (!this.isAtBottom) {
-                      this.showJumpButton = true;
-                      clearTimeout(this.jumpTimeout);
-                      this.jumpTimeout = setTimeout(() => { this.showJumpButton = false; }, 2500); // Hides after 2.5s of no scrolling
-                  } else {
-                      // Instantly hide if we hit the bottom naturally
-                      this.showJumpButton = false;
-                      clearTimeout(this.jumpTimeout);
-                  }
-              });
-          });
-        },
-    }" 
-    @message-sent.window="forceScroll = true"
-    @close-inspector.window="setSelected(null)"
-    @log-selected.window="setSelected($event.detail)"
-    @locate-context.window="locateSelected()"
-    class="flex-1 flex flex-col min-w-0 min-h-0 relative"
+        }
+        this.scheduleFlush(c);
+      }).observe(c, { childList: true });
+      
+      c.addEventListener('scroll', () => {
+        this.isAtBottom = Math.abs(c.scrollHeight - c.clientHeight - c.scrollTop) <= 50;
+        if (!this.isAtBottom) {
+          this.showJumpButton = true;
+          clearTimeout(this.jumpTimeout);
+          this.jumpTimeout = setTimeout(() => { this.showJumpButton = false; }, 2500);
+        } else {
+          // Instantly hide if we hit the bottom naturally
+          this.showJumpButton = false;
+          clearTimeout(this.jumpTimeout);
+        }
+      });
+    });
+    },
+  }"
+  @message-sent.window="forceScroll = true"
+  @close-inspector.window="setSelected(null)"
+  @log-selected.window="setSelected($event.detail)"
+  @locate-context.window="locateSelected()"
+  class="flex-1 flex flex-col min-w-0 min-h-0 relative"
 >
-    <div class="bg-gray-50 dark:bg-gray-950 px-4 py-2 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between gap-x-2 shrink-0">
-        <input 
-            type="text" 
-            x-model="regexStr" 
-            @input="applyFilters()"
-            placeholder="Search regex..." 
-            class="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded px-3 py-1.5 text-sm text-gray-900 dark:text-gray-300 focus:outline-none focus:border-blue-500 w-64 font-mono"
-        >
-        <div class="flex space-x-2 items-center">
-            <span class="text-xs text-gray-600 dark:text-gray-500 italic shrink-0 hidden 2xl:inline">Filters are additive (OR) &rarr;</span>
-            <button 
-                title="Incoming FIX messages"
-                @click="toggleFilter('IN')" 
-                :class="activeFilters.includes('IN') ? 'ring-2 ring-green-500' : ''" 
-                class="cursor-pointer text-xs font-bold px-3 py-1.5 rounded border border-green-300 dark:border-green-900/50 bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/40 hover:text-green-800 dark:hover:text-green-300 transition"
-            >IN</button>
-
-            <button 
-                title="Outgoing FIX messages"
-                @click="toggleFilter('OUT')" 
-                :class="activeFilters.includes('OUT') ? 'ring-2 ring-blue-500' : ''" 
-                class="cursor-pointer text-xs font-bold px-3 py-1.5 rounded border border-blue-300 dark:border-blue-900/50 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/40 hover:text-blue-800 dark:hover:text-blue-300 transition"
-            >OUT</button>
-            
-             <button 
-              title="All FIX messages (IN|OUT)"
-              @click="toggleFilter('App')" 
-              :class="activeFilters.includes('App') ? 'ring-2 ring-teal-500' : ''" 
-              class="cursor-pointer text-xs font-bold px-3 py-1.5 rounded border border-teal-300 dark:border-teal-900/50 bg-teal-100 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 hover:bg-teal-200 dark:hover:bg-teal-900/40 hover:text-teal-800 dark:hover:text-teal-300 transition hidden sm:inline"
-            >App</button>
-            
-            <button 
-              title="Session events and informational messages"
-              @click="toggleFilter('Sys')" 
-              :class="activeFilters.includes('Sys') ? 'ring-2 ring-yellow-500' : ''" 
-              class="cursor-pointer text-xs font-bold px-3 py-1.5 rounded border border-yellow-300 dark:border-yellow-900/50 bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 hover:bg-yellow-200 dark:hover:bg-yellow-900/40 hover:text-yellow-800 dark:hover:text-yellow-300 transition hidden sm:inline"
-            >Sys</button>
-            
-            <button 
-              title="Errors and warnings"
-              @click="toggleFilter('Error')" 
-              :class="activeFilters.includes('Error') ? 'ring-2 ring-red-500' : ''" 
-              class="cursor-pointer text-xs font-bold px-3 py-1.5 rounded border border-red-300 dark:border-red-900/50 bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/40 hover:text-red-800 dark:hover:text-red-300 transition"
-            >Errors</button> 
-            <div class="w-px h-5 bg-gray-100 dark:bg-gray-800 mx-1"></div>
-            
-            <a
-                {{if .IsWailsApp}}
-                    hx-get="/wails/logs/export" hx-swap="none"
-                {{else}}
-                    href="/api/logs/export" download="microfix_stream.log"
-                {{end}}
-                title="Export all logs to file"
-                class="cursor-pointer flex items-center space-x-1.5 text-xs font-medium px-3 py-1.5 rounded text-gray-600 dark:text-gray-500 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-100 dark:hover:bg-green-500/10 transition"
-            >
-                <span class="select-none">Export</span>
-            </a>
-
-            <button
-                @click="clearLogs()"
-                title="Clear all logs"
-                class="cursor-pointer text-xs font-medium px-3 py-1.5 rounded text-gray-600 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/10 transition"
-            >
-                <span>Clear</span>
-            </button>
-        </div>
-    </div>
-
-    <div 
-        hx-ext="sse"
-        id="log-stream-container"
-        sse-connect="{{if .IsWailsApp}}http://localhost:{{.SSEPort}}{{end}}/api/logs/stream" 
-        sse-swap="message"
-        hx-swap="beforeend" 
-        @click="handleLogClick($event)"
-        style="overflow-anchor: none;" 
-        class="flex-1 overflow-y-auto min-h-0 p-3 font-mono text-sm space-y-1 scroll-smooth"
+  <div class="bg-gray-50 dark:bg-gray-950 px-4 py-2 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between gap-x-2 shrink-0">
+    <!-- Search Toolbar -->
+    <div
+      class="flex items-center bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded shadow-sm focus-within:border-blue-500 
+        focus-within:ring-1 focus-within:ring-blue-500/50 transition-all"
     >
-        <div class="hidden only:block text-gray-500 dark:text-gray-600 text-center mt-10 select-none"> Waiting for messages... </div>
-    </div>
+      <!-- Input & Status Overlay -->
+      <div class="relative flex items-center w-52 sm:w-64">
+        <!-- .debounce for typing performance on large DOMs -->
+        <input type="text" x-model="regexStr" @input.debounce.250ms="onSearchChange()"
+          @keydown.enter.prevent="nextMatch()" @keydown.enter.shift.prevent="prevMatch()"
+          placeholder="Search regex..." class="w-full bg-transparent pl-3 pr-16 py-1.5 text-sm 
+            outline-none font-mono text-gray-900 dark:text-gray-300"
+        />
+        <div class="absolute right-2 text-[10px] font-mono select-none pointer-events-none">
+          <template x-if="regexError">
+            <span class="text-red-500 dark:text-red-400 font-bold">Invalid</span>
+          </template>
+          <template x-if="!regexError && hasActiveSearch">
+            <span class="text-gray-400 dark:text-gray-500"
+              x-text="searchMode === 'filter' ? `${matches.length}` : (matches.length === 0 ? '0/0' : `${currentMatchIndex === -1 ? '-' : currentMatchIndex + 1}/${matches.length}`)"
+            >
+            </span>
+          </template>
+        </div>
+      </div>
 
-    <!-- Floating Action Button (Jump to Bottom) -->
-    <div class="absolute bottom-6 right-8 flex flex-col items-end pointer-events-none z-40">
-        <button
-            x-show="showJumpButton"
-            x-transition.opacity.duration.300ms
-            style="display: none;"
-            @mouseenter="clearTimeout(jumpTimeout)"
-            @mouseleave="jumpTimeout = setTimeout(() => showJumpButton = false, 2500)"
-            @click="
-                showJumpButton = false;
-                let c = document.getElementById('log-stream-container');
-                c.scrollTo({ top: c.scrollHeight, behavior: 'smooth' });
-            "
-            class="pointer-events-auto flex items-center gap-2 bg-gray-900/90 hover:bg-gray-800 dark:bg-white/90 dark:hover:bg-white text-white dark:text-gray-900 px-4 py-2 rounded-full shadow-lg transition cursor-pointer text-xs font-bold tracking-wider backdrop-blur-sm"
+      <div class="w-px h-5 bg-gray-200 dark:bg-gray-700"></div>
+
+      <!-- Navigation Buttons -->
+      <div class="flex items-center px-1">
+        <button type="button" @click="prevMatch()" :disabled="searchMode === 'filter' || matches.length === 0"
+          title="Previous match (Shift+Enter)" class="p-1 text-gray-500 hover:text-gray-800 dark:hover:text-gray-300 
+            hover:bg-gray-100 dark:hover:bg-gray-800 rounded disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition"
+      >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+          </svg>
+        </button>
+        <button type="button" @click="nextMatch()" :disabled="searchMode === 'filter' || matches.length === 0" title="Next match (Enter)"
+            class="p-1 text-gray-500 hover:text-gray-800 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded disabled:opacity-30 
+              disabled:cursor-not-allowed transition cursor-pointer"
         >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
             </svg>
-            <span>Jump to Bottom</span>
         </button>
+      </div>
+
+      <!-- Mode Segmented Toggle -->
+      <div class="flex items-center bg-gray-100 dark:bg-gray-800/80 p-0.5 rounded-r">
+        <button @click="searchMode = 'jump'; refresh()"
+          class="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider
+                 transition cursor-pointer flex items-center gap-1"
+          :class="searchMode === 'jump' ? 'bg-white dark:bg-gray-600 shadow-sm text-gray-800 dark:text-white'
+            : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'"
+          title="Jump to matching results"
+        >
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 21l-4.35-4.35m0 0a7 7 0 10-9.9-9.9 7 7 0 009.9 9.9z"/>
+          </svg>
+          <span class="hidden lg:inline">Jump</span>
+        </button>
+        <button @click="searchMode = 'filter'; refresh()"
+          class="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider
+                 transition cursor-pointer flex items-center gap-1"
+          :class="searchMode === 'filter' ? 'bg-white dark:bg-gray-600 shadow-sm text-gray-800 dark:text-white'
+            : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'"
+          title="Show only matching results"
+        >
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 5h16M7 10h10m-7 5h4m-3 0v4"/>
+          </svg>
+          <span class="hidden lg:inline">Filter</span>
+        </button>
+      </div>
     </div>
+
+    <div class="flex space-x-1.5 items-center">
+      <span class="text-xs text-gray-600 dark:text-gray-500 italic shrink-0 hidden 2xl:inline"
+          >Filters are additive (OR) &rarr;</span
+      >
+      <button title="Incoming FIX messages" @click="toggleFilter('IN')" :class="activeFilters.includes('IN') ? 'ring-2 ring-green-500' : ''"
+          class="cursor-pointer text-xs font-bold w-15 px-3 py-1.5 rounded border border-green-300 dark:border-green-900/50 bg-green-100 dark:bg-green-900/20 
+            text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/40 hover:text-green-800 dark:hover:text-green-300 transition"
+      >IN</button>
+      <button title="Outgoing FIX messages" @click="toggleFilter('OUT')" :class="activeFilters.includes('OUT') ? 'ring-2 ring-blue-500' : ''"
+          class="cursor-pointer text-xs font-bold w-15 px-3 py-1.5 rounded border border-blue-300 dark:border-blue-900/50 bg-blue-100 dark:bg-blue-900/20 
+            text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/40 hover:text-blue-800 dark:hover:text-blue-300 transition"
+      >OUT</button>
+      <button title="Application-level FIX messages" @click="toggleFilter('App')" :class="activeFilters.includes('App') ? 'ring-2 ring-teal-500' : ''"
+          class="cursor-pointer text-xs font-bold w-15 px-3 py-1.5 rounded border border-teal-300 dark:border-teal-900/50 bg-teal-100 dark:bg-teal-900/20 
+            text-teal-700 dark:text-teal-400 hover:bg-teal-200 dark:hover:bg-teal-900/40 hover:text-teal-800 dark:hover:text-teal-300 transition"
+      >App</button>
+      <button title="Session events and informational messages" @click="toggleFilter('Sys')" :class="activeFilters.includes('Sys') ? 'ring-2 ring-yellow-500' : ''"
+          class="cursor-pointer text-xs font-bold w-15 px-3 py-1.5 rounded border border-yellow-300 dark:border-yellow-900/50 bg-yellow-100 dark:bg-yellow-900/20 
+            text-yellow-700 dark:text-yellow-400 hover:bg-yellow-200 dark:hover:bg-yellow-900/40 hover:text-yellow-800 dark:hover:text-yellow-300 
+            transition hidden lg:inline"
+      >Sys</button>
+      <button title="Errors and warnings" @click="toggleFilter('Error')" :class="activeFilters.includes('Error') ? 'ring-2 ring-red-500' : ''"
+          class="cursor-pointer text-xs font-bold w-15 px-3 py-1.5 rounded border border-red-300 dark:border-red-900/50 bg-red-100 dark:bg-red-900/20 
+            text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/40 hover:text-red-800 dark:hover:text-red-300 transition"
+      >Errors</button>
+      <div class="w-px h-5 bg-gray-200 dark:bg-gray-800 mx-1"></div>
+      <a
+          {{if .IsWailsApp}}
+            hx-get="/wails/logs/export" hx-swap="none"
+          {{else}}
+            href="/api/logs/export" download="microfix_stream.log"
+          {{end}}
+          title="Export all logs to file"
+          class="cursor-pointer flex items-center space-x-1 text-xs font-medium px-3 py-1.5 rounded text-gray-600 dark:text-gray-500 
+            hover:text-green-600 dark:hover:text-green-400 hover:bg-green-100 dark:hover:bg-green-500/10 transition w-15"
+          ><span class="select-none">Export</span>
+      </a>
+      <button @click="clearLogs()" title="Clear all logs" 
+        class="cursor-pointer text-xs font-medium px-3 py-1.5 rounded text-gray-600 dark:text-gray-500 hover:text-red-600 
+          dark:hover:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/10 transition w-15"
+      >
+          <span>Clear</span>
+      </button>
+    </div>
+  </div>
+
+  <div hx-ext="sse" id="log-stream-container" sse-swap="message" hx-swap="beforeend"
+      sse-connect="{{if .IsWailsApp}}http://localhost:{{.SSEPort}}{{end}}/api/logs/stream"
+      @click="handleLogClick($event)" style="overflow-anchor: none"
+      class="flex-1 overflow-y-auto min-h-0 p-3 font-mono text-sm space-y-1 scroll-smooth"
+  >
+      <div class="hidden only:block text-gray-500 dark:text-gray-600 text-center mt-10 select-none">
+          Waiting for messages...
+      </div>
+  </div>
+
+  <!-- Floating Action Button (Jump to Bottom) -->
+  <div class="absolute bottom-6 right-8 flex flex-col items-end pointer-events-none z-40">
+    <button x-show="showJumpButton" x-transition.opacity.duration.300ms
+      style="display: none" @mouseenter="clearTimeout(jumpTimeout)"
+      @mouseleave="jumpTimeout = setTimeout(() => showJumpButton = false, 2500)"
+      @click="
+          showJumpButton = false;
+          let c = document.getElementById('log-stream-container');
+          c.scrollTo({ top: c.scrollHeight, behavior: 'smooth' });
+      "
+      class="pointer-events-auto flex items-center gap-2 bg-gray-900/90 hover:bg-gray-800 dark:bg-white/90 
+        dark:hover:bg-white text-white dark:text-gray-900 px-4 py-2 rounded-full shadow-lg transition 
+        cursor-pointer text-xs font-bold tracking-wider backdrop-blur-sm"
+    >
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M19 14l-7 7m0 0l-7-7m7 7V3"
+          ></path>
+      </svg>
+      <span>Jump to Bottom</span>
+    </button>
+  </div>
 </div>
 {{end}}

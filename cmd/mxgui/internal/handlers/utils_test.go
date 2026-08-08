@@ -1,6 +1,7 @@
 package gui
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/infinage/microfix/pkg/spec"
@@ -83,4 +84,68 @@ func Test_flattenMessageSpec(t *testing.T) {
 			}
 		}
 	})
+}
+
+func Test_sseWriter_Write(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "empty",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "whitespace only",
+			input:    "   \t\n",
+			expected: "",
+		},
+		{
+			name:     "replaces SOH separators",
+			input:    "8=FIX.4.4\x019=100\x0135=D\x01",
+			expected: `<div class="text-blue-400">&gt; 8=FIX.4.4|9=100|35=D|</div>`,
+		},
+		{
+			name:     "no SOH",
+			input:    "8=FIX.4.4|9=100|35=D",
+			expected: `<div class="text-blue-400">&gt; 8=FIX.4.4|9=100|35=D</div>`,
+		},
+		{
+			name:     "trims surrounding whitespace",
+			input:    "  8=FIX.4.4\x019=100\x01  \n",
+			expected: `<div class="text-blue-400">&gt; 8=FIX.4.4|9=100|</div>`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stream := make(chan string, 1)
+			w := &sseWriter{stream: stream}
+
+			gotN, err := w.Write([]byte(tt.input))
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			} else if gotN != len([]byte(tt.input)) {
+				t.Errorf("Write returned %d bytes, want %d", gotN, len([]byte(tt.input)))
+			}
+
+			select {
+			case got := <-stream:
+				if got != tt.expected {
+					t.Errorf("stream output = %q, want %q", got, tt.expected)
+				}
+
+				if strings.Contains(got, "\x01") {
+					t.Errorf("stream output still contains SOH character: %q", got)
+				}
+
+			default:
+				if tt.expected != "" {
+					t.Fatal("expected output on stream")
+				}
+			}
+		})
+	}
 }

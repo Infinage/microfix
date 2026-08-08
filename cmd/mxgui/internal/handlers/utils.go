@@ -1,6 +1,7 @@
 package gui
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 
@@ -19,8 +20,9 @@ type sseWriter struct {
 }
 
 func (w *sseWriter) Write(p []byte) (int, error) {
-	if text := strings.TrimSpace(string(p)); text != "" {
-		html := fmt.Sprintf(`<div class="text-blue-400">&gt; %s</div>`, text)
+	if p := bytes.TrimSpace(p); len(p) > 0 {
+		p = bytes.ReplaceAll(p, []byte{'\x01'}, []byte{'|'})
+		html := fmt.Sprintf(`<div class="text-blue-400">&gt; %s</div>`, string(p))
 		w.stream <- html
 	}
 	return len(p), nil

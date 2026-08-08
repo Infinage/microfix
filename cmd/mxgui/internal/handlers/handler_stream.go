@@ -55,16 +55,26 @@ func (app *Application) handleAPILogs(w http.ResponseWriter, r *http.Request) {
 			}
 
 			// Parse and append logs to temp file logger
+			r := app.Session().Router()
 			buf1 := bufferPool.Get().(*bytes.Buffer)
 			buf1.Reset()
-			pretty.Log(buf1, log, app.Session().Router())
+			pretty.Log(buf1, log, r)
 			app.tlogger.Log(buf1.String())
 			bufferPool.Put(buf1)
+
+			// Used in the log fitering in UI (NO by default)
+			isApplMsg := false
+			if msgType, ok := log.Msg.Get(35); ok {
+				isApplMsg = !r.IsAdmin(msgType)
+			}
+
+			// Data to be fed into logEntry
+			logData := map[string]any{"Log": log, "IsApplMsg": isApplMsg}
 
 			// Parse and print the logs for GUI
 			buf2 := bufferPool.Get().(*bytes.Buffer)
 			buf2.Reset()
-			renderTemplate(app.templ, buf2, "partials/stream/logs/entry", log)
+			renderTemplate(app.templ, buf2, "partials/stream/logs/entry", logData)
 			logMarkup := sseFormatter.Replace(buf2.String())
 			bufferPool.Put(buf2)
 			fmt.Fprintf(w, "data: %s\n\n", logMarkup)

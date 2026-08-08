@@ -19,7 +19,7 @@
                         Entry {{add $index 1}}
                       </div>
                       <table class="w-full">
-                          {{template "partials/stream/inspector/render_nodes" $entryNodes}}
+                          <tbody>{{template "partials/stream/inspector/render_nodes" $entryNodes}}</tbody>
                       </table>
                   </td>
               </tr>
@@ -45,33 +45,35 @@
             <tr class="bg-gray-100 dark:bg-gray-900/50 border-y border-gray-200 dark:border-gray-800">
               <td colspan="3" class="px-3 py-2 text-xs text-gray-600 dark:text-gray-500 font-sans font-bold uppercase tracking-widest select-none">Header</td>
             </tr>
-            <tbody class="border-b border-gray-200 dark:border-gray-800">
-                {{template "partials/stream/inspector/render_nodes" .Header}}
-            </tbody>
-            
+        </tbody>
+        <tbody class="border-b border-gray-200 dark:border-gray-800">
+            {{template "partials/stream/inspector/render_nodes" .Header}}
+        </tbody>
+        
+        <tbody>
             <tr class="bg-gray-100 dark:bg-gray-900/50 border-y border-gray-200 dark:border-gray-800">
               <td colspan="3" class="px-3 py-2 text-xs text-gray-600 dark:text-gray-500 font-sans font-bold uppercase tracking-widest select-none">Body</td>
             </tr>
-            <tbody>
-                {{template "partials/stream/inspector/render_nodes" .Body}}
-            </tbody>
+        </tbody>
+        <tbody>{{template "partials/stream/inspector/render_nodes" .Body}}</tbody>
 
+        <tbody>
             <tr class="bg-gray-100 dark:bg-gray-900/50 border-y border-gray-200 dark:border-gray-800">
               <td colspan="3" class="px-3 py-2 text-xs text-gray-600 dark:text-gray-500 font-sans font-bold uppercase tracking-widest select-none">Trailer</td>
             </tr>
-            <tbody>
-                {{template "partials/stream/inspector/render_nodes" .Trailer}}
-            </tbody>
+        </tbody>
+        <tbody>{{template "partials/stream/inspector/render_nodes" .Trailer}}</tbody>
 
-            {{if .LeftOvers}}
+        {{if .LeftOvers}}
+          <tbody>
               <tr class="bg-gray-100 dark:bg-gray-900/50 border-y border-gray-200 dark:border-gray-800">
                 <td colspan="3" class="px-3 py-2 text-xs text-gray-600 dark:text-gray-500 font-sans font-bold uppercase tracking-widest select-none">Leftovers</td>
               </tr>
-              <tbody>
-                  {{template "partials/stream/inspector/render_nodes" .LeftOvers}}
-              </tbody>
-            {{end}}
-        </tbody>
+          </tbody>
+          <tbody>
+              {{template "partials/stream/inspector/render_nodes" .LeftOvers}}
+          </tbody>
+        {{end}}
     </table>
 </div>
 {{end}}
