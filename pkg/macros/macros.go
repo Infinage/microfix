@@ -18,17 +18,6 @@ var varRegex = regexp.MustCompile(
 	`\$([A-Za-z_]+)(?:\.([A-Za-z0-9_]+))?(?:\[([^\]]*)\])?`,
 )
 
-// Helper to generate a random UUID
-func uuid() string {
-	b := make([]byte, 16)
-	_, err := rand.Read(b)
-	if err != nil {
-		return ""
-	}
-
-	return fmt.Sprintf("%X-%X-%X-%X-%X", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
-}
-
 func extractSBrackets(raw string) ([]string, error) {
 	synErr := fmt.Errorf("Invalid syntax, must be of form: `$*[...]`")
 
@@ -51,6 +40,60 @@ func extractSBrackets(raw string) ([]string, error) {
 	}
 
 	return splits, nil
+}
+
+// upperCasePrefix converts the prefix portion of a macro
+// to uppercase to support case insensitive comparisons
+// For eg: "$buF[35]" -> "$BUF[35]"
+func upperCasePrefix(match string) string {
+	if idx := strings.IndexAny(match, ".["); idx != -1 {
+		return strings.ToUpper(match[:idx]) + match[idx:]
+	}
+	return strings.ToUpper(match)
+}
+
+const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+// Format: $UNIQUE or $UNIQUE[N]
+func substituteRandom(match string) (string, error) {
+	// If no args specified generate UUID
+	if match == "$UNIQUE" {
+		b := make([]byte, 16)
+		_, err := rand.Read(b)
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("%X-%X-%X-%X-%X", b[0:4], b[4:6], b[6:8], b[8:10], b[10:]), nil
+	}
+
+	args, err := extractSBrackets(match)
+	if err != nil {
+		return "", err
+	} else if len(args) != 1 {
+		return "", fmt.Errorf("invalid syntax %q: expected $UNIQUE|$UNIQUE[N]", match)
+	}
+
+	length, err := strconv.Atoi(args[0])
+	if err != nil || length <= 0 {
+		return "", fmt.Errorf("invalid length parameter %q (expected > 0): %v", args[0], err)
+	}
+
+	// Cap length at 1000
+	if length > 1000 {
+		length = 1000
+	}
+
+	b := make([]byte, length)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+
+	var sb strings.Builder
+	for i := range length {
+		sb.WriteByte(charset[b[i]%byte(len(charset))])
+	}
+
+	return sb.String(), nil
 }
 
 // Basic format: $BUF[Tag], $BUF[Tag,Instance].
@@ -171,29 +214,30 @@ func subsituteAll(input string, sess *session.Session, st *store.Store, quoteIfS
 	result := varRegex.ReplaceAllStringFunc(input, func(match string) string {
 		resolve := func() (string, error) {
 			// Handle Magics (Computation)
-			if match == "$UNIQUE" {
-				return uuid(), nil
-			}
-			if match == "$ERROR" {
+			matchUC := upperCasePrefix(match)
+			if matchUC == "$ERROR" {
 				if err := st.LastError(); err != nil {
 					return err.Error(), nil
 				}
 				return "", nil
 			}
-			if match == "$TIMESTAMP" {
+			if matchUC == "$TIMESTAMP" {
 				return time.Now().UTC().Format("20060102-15:04:05.000"), nil
 			}
-			if match == "$SEQ_OUT" || match == "$SEQ_IN" || match == "$STATUS" {
-				return substituteSnapshot(match, sess), nil
+			if strings.HasPrefix(matchUC, "$UNIQUE") {
+				return substituteRandom(matchUC)
 			}
-			if strings.HasPrefix(match, "$DATE") {
-				return substituteDate(match)
+			if matchUC == "$SEQ_OUT" || matchUC == "$SEQ_IN" || matchUC == "$STATUS" {
+				return substituteSnapshot(matchUC, sess), nil
 			}
-			if strings.HasPrefix(match, "$BUF") {
-				return substituteBuffer(match, st.Buffer())
+			if strings.HasPrefix(matchUC, "$DATE") {
+				return substituteDate(matchUC)
 			}
-			if isIncoming := strings.HasPrefix(match, "$LASTIN"); isIncoming || strings.HasPrefix(match, "$LASTOUT") {
-				return substituteMessageTag(match, isIncoming, sess.LastMessage)
+			if strings.HasPrefix(matchUC, "$BUF") {
+				return substituteBuffer(matchUC, st.Buffer())
+			}
+			if isIncoming := strings.HasPrefix(matchUC, "$LASTIN"); isIncoming || strings.HasPrefix(matchUC, "$LASTOUT") {
+				return substituteMessageTag(matchUC, isIncoming, sess.LastMessage)
 			}
 
 			// Handle State (CFG, ALIAS, VARS, ENV)

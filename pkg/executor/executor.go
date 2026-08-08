@@ -75,9 +75,13 @@ SCRIPT FLOW & UTILITY
 GLOBAL VARIABLES
   Variables can be injected into any command using the '$' prefix.
   Macros support recursive evaluation (e.g., an ALIAS can contain a $VARS reference).
+  
+  Note: Macro prefixes (e.g., $VARS, $LASTIN) are case-insensitive, but their 
+  arguments, values and payload contents remain strictly case-sensitive.
 
   -- System & State --
   $UNIQUE                   Random UUID (e.g., for ClOrdID generation)
+  $UNIQUE[N]                Random alphanumeric string of length N (max 1000)
   $TIMESTAMP                Current UTC timestamp (YYYYMMDD-HH:MM:SS.000)
   $DATE                     Current date (YYYYMMDD)
   $DATE[+N]                 Date offset by N days (e.g., $DATE[+1] is tomorrow)

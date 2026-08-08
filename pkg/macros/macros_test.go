@@ -12,25 +12,6 @@ import (
 	"github.com/infinage/microfix/pkg/store"
 )
 
-func TestUUID(t *testing.T) {
-	u1 := uuid()
-	u2 := uuid()
-
-	if u1 == "" || u2 == "" {
-		t.Fatal("uuid() returned an empty string")
-	}
-
-	if u1 == u2 {
-		t.Fatal("uuid() generated identical strings, expected randomness")
-	}
-
-	// Verify standard 8-4-4-4-12 hex format
-	matched, err := regexp.MatchString(`^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$`, u1)
-	if err != nil || !matched {
-		t.Errorf("uuid() format invalid: %s", u1)
-	}
-}
-
 func TestExtractSBrackets(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -483,6 +464,119 @@ func TestSubstituteMessageTag(t *testing.T) {
 				t.Errorf("Expected error to contain %q, but got %q", tt.errString, err.Error())
 			} else if !tt.expectErr && !strings.Contains(res, tt.resString) {
 				t.Errorf("Expected %s, got %s", tt.resString, res)
+			}
+		})
+	}
+}
+
+func TestSubstituteRandom(t *testing.T) {
+	tests := []struct {
+		name        string
+		raw         string
+		expectedLen int
+		expectErr   bool
+		isUUID      bool
+	}{
+		{"Default UUID", "$UNIQUE", 36, false, true},
+		{"Valid Custom Length", "$UNIQUE[15]", 15, false, false},
+		{"Valid Max Length Capped", "$UNIQUE[2000]", 1000, false, false},
+		{"Invalid Zero Length", "$UNIQUE[0]", 0, true, false},
+		{"Invalid Negative Length", "$UNIQUE[-10]", 0, true, false},
+		{"Invalid Format", "$UNIQUE[abc]", 0, true, false},
+		{"Missing Length Parameter", "$UNIQUE[]", 0, true, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res, err := substituteRandom(tt.raw)
+			if tt.expectErr && err != nil {
+				return
+			}
+
+			if (err != nil) != tt.expectErr {
+				t.Errorf("substituteRandom(%q) error = %v, expectErr %v", tt.raw, err, tt.expectErr)
+				return
+			}
+
+			if len(res) != tt.expectedLen {
+				t.Errorf("Expected length %d, got %d", tt.expectedLen, len(res))
+			} else if tt.isUUID {
+				matched, err := regexp.MatchString(`^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$`, res)
+				if err != nil || !matched {
+					t.Errorf("Expected valid UUID format, got: %s", res)
+				}
+			}
+		})
+	}
+
+	t.Run("Randomness Check", func(t *testing.T) {
+		res1, _ := substituteRandom("$UNIQUE[20]")
+		res2, _ := substituteRandom("$UNIQUE[20]")
+		if res1 == "" || res2 == "" {
+			t.Fatal("substituteRandom returned an empty string")
+		} else if res1 == res2 {
+			t.Fatalf("Expected consecutive calls to generate unique strings, but got duplicates: %s", res1)
+		}
+	})
+}
+
+func TestSubstituteCaseInsensitive(t *testing.T) {
+	st := store.InitStore()
+	st.Set("VARS.Symbol", "AAPL")
+	st.Set("ALIAS.ping", "35=0")
+
+	// Set up a mock session for STATUS macro
+	sess, err := session.NewSession("FIX44.xml", "SENDER", "TARGET", 30, session.EngineOptions{})
+	if err != nil {
+		t.Fatalf("Failed to initialize session for test: %v", err)
+	}
+
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "Lowercase prefix with Store lookup",
+			input:    "$vars.Symbol",
+			expected: "AAPL",
+		},
+		{
+			name:     "Mixed case prefix with Store lookup",
+			input:    "$vArS.Symbol",
+			expected: "AAPL",
+		},
+		{
+			name:     "Lowercase prefix with Alias lookup",
+			input:    "$alias.ping",
+			expected: "35=0",
+		},
+		{
+			name:     "Lowercase system macro",
+			input:    "$status",
+			expected: "New",
+		},
+		{
+			name:     "Mixed case system macro",
+			input:    "$SeQ_iN",
+			expected: "0",
+		},
+		{
+			name:     "Ensure brackets contents are NOT upper-cased",
+			input:    "$lastIn[d,11]",
+			expected: "no incoming message of type 'd' found in session history",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res, err := Substitute(tt.input, sess, &st, false)
+			if err != nil && strings.Contains(err.Error(), tt.expected) {
+				return
+			} else if err != nil {
+				t.Fatalf("Unexpected error during case-insensitive evaluation: %v", err)
+			} else if res != tt.expected {
+				t.Errorf("Expected case-insensitive resolution of %q to be %q, got %q", tt.input, tt.expected, res)
 			}
 		})
 	}
