@@ -1,4 +1,5 @@
 import { CodeJar } from './codejar.min.js';
+import { withLineNumbers } from "./codejar-linenumbers.js";
 
 const highlight = editor => {
     let code = editor.textContent;
@@ -24,18 +25,22 @@ const highlight = editor => {
 
 export async function initCodeJar(editorDiv, hiddenInput) {
     try {
-    const jar = CodeJar(editorDiv, highlight, { tab: '    ' });
+        const jar = CodeJar(editorDiv, withLineNumbers(highlight, {
+            width: '56px',
+            color: 'inherit',
+            backgroundColor: 'transparent'
+        }), { tab: '    ' });
 
-    jar.onUpdate(code => { 
-        hiddenInput.value = code; 
-        localStorage.setItem("mxshell-script", code);
-    });
-    
-    // Load initial state from storage or default
-    let saved = localStorage.getItem("mxshell-script");
-    if (!saved || !saved.trim()) saved = hiddenInput.value; 
-    jar.updateCode(saved);
-    
+        jar.onUpdate(code => { 
+            hiddenInput.value = code; 
+            localStorage.setItem("mxshell-script", code);
+        });
+        
+        // Load initial state from storage or default
+        let saved = localStorage.getItem("mxshell-script");
+        if (!saved || !saved.trim()) saved = hiddenInput.value; 
+        jar.updateCode(saved);
+        
     } catch (error) {
         console.error("CodeJar Init Error:", error);
         editorDiv.innerHTML = `<span class="text-red-600 dark:text-red-500">Editor failed to load.</span>`;

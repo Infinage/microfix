@@ -1,4 +1,29 @@
 {{define "partials/toolbox/script_runner"}}
+<style>
+    /* Make CodeJar's injected wrapper fill the flex form correctly. The 
+       linenumbers plugin reparents the editor into this wrapper at runtime. */
+    .codejar-wrap { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+
+    /* Make the contenteditable flex child scroll independently in both directions. */
+    .codejar-wrap > [contenteditable] { flex: 1; overflow: auto !important; }
+
+    /* Stretch the gutter to the editor's full height and draw the divider between line numbers and code. */
+    .codejar-linenumbers { height: 100%; border-right: 1px solid rgba(156, 163, 175, 0.2); }
+
+    /* Keep line numbers positioned so the plugin's scroll-sync can update their top offset. */
+    .codejar-linenumber { position: relative; top: 0; }
+
+    /* Pin the gutter to the top-left of the wrapper and let it shrink-wrap to its configured width. */
+    .codejar-linenumbers-inner-wrap { position: absolute; top: 0; left: 0; bottom: 0; }
+
+    /* Keep the gutter opaque while horizontally scrolling so code text does not show through the line numbers. */
+    .codejar-linenumbers-inner-wrap { background-color: #f9fafb !important; } /* bg-gray-50 */
+    .dark .codejar-linenumbers-inner-wrap { background-color: #030712 !important; } /* bg-gray-950 */
+</style>
+
+<!-- Dummy div: Forces Tailwind to compile these classes so they are ready for the JS -->
+<div class="hidden z-10 bg-gray-50 dark:bg-gray-950 border-r border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-500"></div>
+
 <div x-data="{
      scriptView: 'editor', 
      running: false, 
