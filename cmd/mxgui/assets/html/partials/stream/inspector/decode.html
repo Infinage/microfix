@@ -3,12 +3,15 @@
     {{if .IsGroup}}
       <tbody x-data="{ expanded: true }" class="border-t border-gray-200 dark:border-gray-800">
           <tr class="hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition" @click="expanded = !expanded">
-              <td class="px-2 py-1.5 text-gray-600 dark:text-gray-500">{{.Tag}}</td>
+              <td class="px-2 py-1.5 text-gray-600 dark:text-gray-500 select-text">{{.Tag}}</td>
               <td class="px-2 py-1.5 text-gray-700 dark:text-gray-300 flex items-center space-x-1">
                   <span class="text-[8px] transition-transform" :class="expanded ? 'rotate-0' : '-rotate-90'">▼</span> 
-                  <span>{{.Name}}</span>
+                  <span class="select-text">{{.Name}}</span>
               </td>
-              <td class="px-2 py-1.5 text-purple-600 dark:text-purple-400 font-bold">{{.Value}} <span class="text-gray-400 dark:text-gray-600 font-sans text-[9px]">entries</span></td>
+              <td class="px-2 py-1.5 text-purple-600 dark:text-purple-400 font-bold">
+                <span class="select-text">{{.Value}}</span>
+                <span class="text-gray-400 dark:text-gray-600 font-sans text-[9px]"> entries</span>
+              </td>
           </tr>
           
           {{range $index, $entryNodes := .Children}}
@@ -27,11 +30,13 @@
       </tbody>
     {{else}}
       <tr class="border-b border-gray-100 dark:border-gray-800/30 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
-          <td class="px-2 py-1.5 text-gray-600 dark:text-gray-500 w-12">{{.Tag}}</td>
-          <td class="px-2 py-1.5 text-gray-700 dark:text-gray-300 w-40 truncate">{{.Name}}</td>
+          <td class="px-2 py-1.5 text-gray-600 dark:text-gray-500 w-12 select-text">{{.Tag}}</td>
+          <td class="px-2 py-1.5 text-gray-700 dark:text-gray-300 w-40 truncate select-text">{{.Name}}</td>
           <td class="px-2 py-1.5 text-gray-900 dark:text-white">
-              {{.Value}} 
-              {{if .EnumDesc}}<span class="text-gray-500 dark:text-gray-600 font-sans text-[9px] font-normal ml-1">({{.EnumDesc}})</span>{{end}}
+            <span class="select-text">{{.Value}}</span>
+            {{if .EnumDesc}}
+              <span class="text-gray-500 dark:text-gray-600 font-sans text-[9px] font-normal ml-1">({{.EnumDesc}})</span>
+            {{end}}
           </td>
       </tr>
     {{end}}
@@ -43,7 +48,7 @@
     <table class="w-full text-sm text-left border-collapse font-mono">
         <tbody>
             <tr class="bg-gray-100 dark:bg-gray-900/50 border-y border-gray-200 dark:border-gray-800">
-              <td colspan="3" class="px-3 py-2 text-xs text-gray-600 dark:text-gray-500 font-sans font-bold uppercase tracking-widest select-none">Header</td>
+              <td colspan="3" class="px-3 py-2 text-xs text-gray-600 dark:text-gray-500 font-sans font-bold uppercase tracking-widest">Header</td>
             </tr>
         </tbody>
         <tbody class="border-b border-gray-200 dark:border-gray-800">
@@ -52,14 +57,14 @@
         
         <tbody>
             <tr class="bg-gray-100 dark:bg-gray-900/50 border-y border-gray-200 dark:border-gray-800">
-              <td colspan="3" class="px-3 py-2 text-xs text-gray-600 dark:text-gray-500 font-sans font-bold uppercase tracking-widest select-none">Body</td>
+              <td colspan="3" class="px-3 py-2 text-xs text-gray-600 dark:text-gray-500 font-sans font-bold uppercase tracking-widest">Body</td>
             </tr>
         </tbody>
         <tbody>{{template "partials/stream/inspector/render_nodes" .Body}}</tbody>
 
         <tbody>
             <tr class="bg-gray-100 dark:bg-gray-900/50 border-y border-gray-200 dark:border-gray-800">
-              <td colspan="3" class="px-3 py-2 text-xs text-gray-600 dark:text-gray-500 font-sans font-bold uppercase tracking-widest select-none">Trailer</td>
+              <td colspan="3" class="px-3 py-2 text-xs text-gray-600 dark:text-gray-500 font-sans font-bold uppercase tracking-widest">Trailer</td>
             </tr>
         </tbody>
         <tbody>{{template "partials/stream/inspector/render_nodes" .Trailer}}</tbody>
@@ -67,7 +72,7 @@
         {{if .LeftOvers}}
           <tbody>
               <tr class="bg-gray-100 dark:bg-gray-900/50 border-y border-gray-200 dark:border-gray-800">
-                <td colspan="3" class="px-3 py-2 text-xs text-gray-600 dark:text-gray-500 font-sans font-bold uppercase tracking-widest select-none">Leftovers</td>
+                <td colspan="3" class="px-3 py-2 text-xs text-gray-600 dark:text-gray-500 font-sans font-bold uppercase tracking-widest">Leftovers</td>
               </tr>
           </tbody>
           <tbody>

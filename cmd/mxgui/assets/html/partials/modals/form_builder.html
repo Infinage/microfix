@@ -78,7 +78,7 @@
     @mousedown.outside="modal = ''" 
     class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl w-[600px] max-h-[80vh] flex flex-col z-50 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
 >
-    <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800 shrink-0 select-none">
+    <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800 shrink-0">
         <div>
             <h3 class="text-gray-900 dark:text-white font-bold text-lg">Form Builder</h3>
             <p class="text-xs text-gray-500 dark:text-gray-400 font-mono mt-1">Syncing with raw message</p>
@@ -128,7 +128,7 @@
                         focus:border-blue-500 focus:outline-none text-center placeholder-gray-400 dark:placeholder-gray-700" 
                     >
                     <span 
-                      class="text-xs font-mono truncate max-w-[130px] select-none" 
+                      class="text-xs font-mono truncate max-w-[130px] select-text" 
                       x-text="getTagName(field.tag)" 
                       :class="!tagMap[field.tag] && field.tag.trim() !== '' ? 'text-yellow-700 dark:text-yellow-600 italic' : 'text-gray-600 dark:text-gray-500'"
                     ></span>

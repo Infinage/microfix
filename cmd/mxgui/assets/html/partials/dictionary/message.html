@@ -15,11 +15,11 @@
     <div class="min-w-0">
       <div class="flex items-center space-x-3 mb-2">
         <span class="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-bold font-mono px-3 py-1 
-          rounded text-sm border border-blue-300 dark:border-blue-800 shrink-0 select-none">MsgType = {{.Id}}</span>
+          rounded text-sm border border-blue-300 dark:border-blue-800 shrink-0">MsgType = {{.Id}}</span>
         <span class="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-3 py-1 rounded text-sm border 
-          border-gray-300 dark:border-gray-700 shrink-0 select-none">{{if .IsAdmin}}Admin{{else}}App{{end}}</span>
+          border-gray-300 dark:border-gray-700 shrink-0">{{if .IsAdmin}}Admin{{else}}App{{end}}</span>
       </div>
-      <h2 class="text-3xl font-semibold text-gray-900 dark:text-white truncate select-none" title="{{.Name}}">{{.Name}}</h2>
+      <h2 class="text-3xl font-semibold text-gray-900 dark:text-white truncate" title="{{.Name}}">{{.Name}}</h2>
     </div>
     
     <button 
@@ -43,29 +43,29 @@
 
   <div class="mb-8">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
-        <h3 class="text-sm font-bold text-gray-600 dark:text-gray-500 uppercase tracking-widest select-none">Sample Output</h3>
+        <h3 class="text-sm font-bold text-gray-600 dark:text-gray-500 uppercase tracking-widest">Sample Output</h3>
         <label class="hidden relative md:inline-flex items-center cursor-pointer self-start sm:self-auto">
             <input type="checkbox" name="SampleOptFields" x-model="dictionaryPageOpts.sampleOptFields" value="true" 
               class="sr-only peer" hx-get="/api/dictionary/message/{{.Id}}" hx-target="#dict-details" hx-include="#msg-controls">
             <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-800 peer-checked:after:translate-x-full 
               peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 
               after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-            <span class="ml-2 text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-500 select-none">Optional Fields</span>
+            <span class="ml-2 text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-500">Optional Fields</span>
         </label>
       </div>
       <div class="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded p-4 font-mono text-sm text-blue-700 
-        dark:text-blue-400 break-all shadow-inner" x-text="sampleStr"></div>
+        dark:text-blue-400 break-all shadow-inner select-text" x-text="sampleStr"></div>
   </div>
 
   <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-    <h3 class="text-sm font-bold text-gray-600 dark:text-gray-500 uppercase tracking-widest select-none">Field Specification</h3>
+    <h3 class="text-sm font-bold text-gray-600 dark:text-gray-500 uppercase tracking-widest">Field Specification</h3>
     <label class="hidden relative md:inline-flex items-center cursor-pointer self-start sm:self-auto">
         <input type="checkbox" name="DisplayOptFields" x-model="dictionaryPageOpts.displayOptFields" value="true" 
           class="sr-only peer" hx-get="/api/dictionary/message/{{.Id}}" hx-target="#dict-details" hx-include="#msg-controls">
         <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-800 peer-checked:after:translate-x-full 
           peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 
           after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-        <span class="ml-2 text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-500 select-none">Optional Fields</span>
+        <span class="ml-2 text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-500">Optional Fields</span>
     </label>
   </div>
 
@@ -86,7 +86,7 @@
 
     <div class="border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-950 shadow-lg">
       <table class="w-full text-left text-sm font-mono">
-        <tr class="bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-800 select-none">
+        <tr class="bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-800">
           <th class="p-3 w-16">Tag</th>
           <th class="p-3 w-48">Name</th>
           <th class="p-3 w-24">Required</th>
@@ -98,7 +98,7 @@
               dictionaryPageOpts.search === '' || '{{.Tag}}'.includes(dictionaryPageOpts.search) || 
               '{{.Name}}'.toLowerCase().includes(dictionaryPageOpts.search.toLowerCase())
             ">
-          <td class="p-3 text-gray-600 dark:text-gray-500">{{.Tag}}</td>
+          <td class="p-3 text-gray-600 dark:text-gray-500 select-text">{{.Tag}}</td>
           <td 
             class="p-3 text-blue-700 dark:text-blue-400 cursor-pointer hover:underline" 
             hx-get="/api/dictionary/field/{{.Tag}}" 

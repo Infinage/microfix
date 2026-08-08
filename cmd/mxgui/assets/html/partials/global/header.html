@@ -37,7 +37,7 @@
 {{define "partials/global/header/seq_reset_btn"}}
 <div 
   @click="modal = 'seq'; inSeq = {{.Snapshot.InSeqNum}}; outSeq = {{.Snapshot.OutSeqNum}}" 
-  class="flex space-x-4 text-sm font-mono bg-white dark:bg-gray-900 px-4 py-1.5 rounded border border-gray-300 dark:border-gray-800 cursor-pointer hover:border-gray-400 dark:hover:border-gray-600 transition select-none" 
+  class="flex space-x-4 text-sm font-mono bg-white dark:bg-gray-900 px-4 py-1.5 rounded border border-gray-300 dark:border-gray-800 cursor-pointer hover:border-gray-400 dark:hover:border-gray-600 transition" 
   title="Reset Sequences"
 >
   <div><span class="text-gray-600 dark:text-gray-500">IN:</span> <span class="text-green-600 dark:text-green-400 font-bold">{{.Snapshot.InSeqNum}}</span></div>
@@ -55,7 +55,7 @@
 >
     {{$state := .Snapshot.State.String}}
     {{$theme := getThemeForEngineState $state}}
-    <div class="flex items-center space-x-6 select-none">
+    <div class="flex items-center space-x-6">
         <span class="text-gray-900 dark:text-white font-bold text-lg tracking-widest">MICRO<span class="text-blue-500">FIX</span></span>
         <div class="h-6 w-px bg-gray-100 dark:bg-gray-800"></div>
         

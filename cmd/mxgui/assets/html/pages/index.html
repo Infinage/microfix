@@ -17,6 +17,14 @@
       .animate-glow-pulse {
           animation: glow-pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
       }
+      body {
+          user-select: none;
+          -webkit-user-select: none;
+      }
+      input, textarea, [contenteditable="true"] {
+          user-select: text;
+          -webkit-user-select: text;
+      }
     </style>
     <link href="/assets/css/index.css" rel="stylesheet" />
     <link rel="icon" type="image/x-icon" href="/assets/image/logo.ico">

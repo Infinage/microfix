@@ -5,7 +5,7 @@
         d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z">
       </path>
     </svg>
-    <span class="font-mono text-xs tracking-wider uppercase opacity-70 select-none">Awaiting Target Message</span>
+    <span class="font-mono text-xs tracking-wider uppercase opacity-70">Awaiting Target Message</span>
 </div>
 {{end}}
 
@@ -26,7 +26,7 @@
 {{define "partials/stream/inspector/diff_output"}}
 <div class="border border-gray-200 dark:border-gray-800 rounded h-full overflow-y-auto shadow-inner bg-gray-50 dark:bg-[#0a0d12]">
     <table class="w-full text-[12px] text-left font-mono whitespace-nowrap">
-        <thead class="bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-400 sticky top-0 z-10 shadow-sm border-b border-gray-200 dark:border-gray-800 select-none">
+        <thead class="bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-400 sticky top-0 z-10 shadow-sm border-b border-gray-200 dark:border-gray-800">
             <tr>
                 <th class="px-3 py-2 font-semibold">Tag</th>
                 <th class="px-3 py-2 font-semibold">Name</th>
@@ -34,7 +34,7 @@
                 <th class="px-3 py-2 font-semibold">Target</th>
             </tr>
         </thead>
-        <tbody class="divide-y divide-gray-200 dark:divide-gray-800/50">
+        <tbody class="divide-y divide-gray-200 dark:divide-gray-800/50 select-text">
             {{range .}}
                 {{if eq .Status 0}} <tr class="hover:bg-gray-100 dark:hover:bg-gray-800/30 transition">
                         <td class="px-3 py-1.5 text-gray-700 dark:text-gray-400">{{.Tag}}</td>
@@ -69,7 +69,7 @@
 
 {{define "partials/stream/inspector/diff"}}
 <div x-show="inspectorTab === 'diff'" style="display:none;" class="flex flex-col h-full overflow-hidden">
-    <p class="text-[12px] text-gray-600 dark:text-gray-400 mb-2 select-none">Paste another raw message below to diff against the selected stream message.</p>
+    <p class="text-[12px] text-gray-600 dark:text-gray-400 mb-2">Paste another raw message below to diff against the selected stream message.</p>
     
     <form 
       hx-post="/api/diff" hx-trigger="input from:textarea delay:400ms" 

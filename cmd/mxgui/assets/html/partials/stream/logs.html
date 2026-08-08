@@ -13,7 +13,9 @@
     <span>{{.Log.Timestamp.Format "15:04:05.000"}}</span>
   </span>
   <span class="{{$theme.Text}} font-bold shrink-0 w-12 text-sm">{{$LogType}}</span>
-  <span class="text-gray-700 dark:text-gray-300 break-all leading-relaxed font-mono text-sm pr-24">{{.Log.Content}}</span>
+  <span class="text-gray-700 dark:text-gray-300 break-all leading-relaxed font-mono text-sm pr-24 {{if $clickable}}select-text{{end}}">
+    {{.Log.Content}}
+  </span>
 
   {{if $clickable}}
   <div class="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 group-[.selected]:hidden transition duration-200">
@@ -326,7 +328,7 @@
           placeholder="Search regex..." class="w-full bg-transparent pl-3 pr-16 py-1.5 text-sm 
             outline-none font-mono text-gray-900 dark:text-gray-300"
         />
-        <div class="absolute right-2 text-[10px] font-mono select-none pointer-events-none">
+        <div class="absolute right-2 text-[10px] font-mono pointer-events-none">
           <template x-if="regexError">
             <span class="text-red-500 dark:text-red-400 font-bold">Invalid</span>
           </template>
@@ -425,7 +427,7 @@
           title="Export all logs to file"
           class="cursor-pointer flex items-center space-x-1 text-xs font-medium px-3 py-1.5 rounded text-gray-600 dark:text-gray-500 
             hover:text-green-600 dark:hover:text-green-400 hover:bg-green-100 dark:hover:bg-green-500/10 transition w-15"
-          ><span class="select-none">Export</span>
+          ><span>Export</span>
       </a>
       <button @click="clearLogs()" title="Clear all logs" 
         class="cursor-pointer text-xs font-medium px-3 py-1.5 rounded text-gray-600 dark:text-gray-500 hover:text-red-600 
@@ -441,7 +443,7 @@
       @click="handleLogClick($event)" style="overflow-anchor: none"
       class="flex-1 overflow-y-auto min-h-0 p-3 font-mono text-sm space-y-1 scroll-smooth"
   >
-      <div class="hidden only:block text-gray-500 dark:text-gray-600 text-center mt-10 select-none">
+      <div class="hidden only:block text-gray-500 dark:text-gray-600 text-center mt-10">
           Waiting for messages...
       </div>
   </div>

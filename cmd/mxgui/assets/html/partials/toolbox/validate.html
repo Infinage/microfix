@@ -19,7 +19,7 @@
 
 {{define "partials/toolbox/validate"}}
 <div x-show="toolboxTab === 'validate'" style="display: none;" class="flex-1 flex flex-col overflow-hidden">
-    <div class="flex justify-between items-center mb-6 shrink-0 select-none">
+    <div class="flex justify-between items-center mb-6 shrink-0">
         <div>
             <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Strict Validation</h2>
             <p class="text-gray-600 dark:text-gray-400 text-sm mt-1">Run raw messages through the spec router to check for structural or tag errors.</p>
@@ -40,7 +40,7 @@
         :style="`height: ${validateInputHeight}px`"
         :class="{'select-none': dragging}"
       >
-            <label class="text-sm text-gray-600 dark:text-gray-500 font-bold uppercase tracking-widest mb-2 select-none">Target Message</label>
+            <label class="text-sm text-gray-600 dark:text-gray-500 font-bold uppercase tracking-widest mb-2">Target Message</label>
             <div class="relative mb-3 flex-1 flex flex-col min-h-0">
               <textarea 
                 id="validate-input"
@@ -76,10 +76,10 @@
         </div>
         
         <div class="flex-1 flex flex-col overflow-hidden border-t border-gray-200 dark:border-gray-800 pt-6">
-            <label class="text-sm text-gray-600 dark:text-gray-500 font-bold uppercase tracking-widest mb-2 select-none">Validation Report</label>
+            <label class="text-sm text-gray-600 dark:text-gray-500 font-bold uppercase tracking-widest mb-2">Validation Report</label>
             <div id="validate-output" class="flex-1 overflow-hidden flex flex-col">
                 <div class="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-lg p-4 flex-1 flex flex-col items-center justify-center">
-                    <span class="font-mono text-sm text-gray-500 dark:text-gray-600 select-none">Awaiting message input...</span>
+                    <span class="font-mono text-sm text-gray-500 dark:text-gray-600">Awaiting message input...</span>
                 </div>
             </div>
         </div>
@@ -95,7 +95,7 @@
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 
                       2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                  <span class="font-bold text-lg select-none">Status: FAILED ({{len .Observations}} Issues Found)</span>
+                  <span class="font-bold text-lg">Status: FAILED ({{len .Observations}} Issues Found)</span>
               </div>
               {{ if .MsgType }}
                   {{ template "partials/toolbox/validate/dict_btn" . }}
@@ -105,8 +105,8 @@
           <ul class="font-mono text-sm space-y-3">
               {{ range .Observations }}
               <li class="flex items-start space-x-3 bg-red-100/50 dark:bg-red-950/20 p-2 rounded">
-                  <span class="text-red-600 dark:text-red-400 font-bold mt-0.5 select-none">•</span>
-                  <span class="text-gray-800 dark:text-gray-300 leading-relaxed">{{.}}</span>
+                  <span class="text-red-600 dark:text-red-400 font-bold mt-0.5">•</span>
+                  <span class="text-gray-800 dark:text-gray-300 leading-relaxed select-text">{{.}}</span>
               </li>
               {{ end }}
           </ul>
@@ -117,7 +117,7 @@
               <div class="flex items-center space-x-2 text-green-600 dark:text-green-500">
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                  <span class="font-bold text-lg select-none">Status: PASSED</span>
+                  <span class="font-bold text-lg">Status: PASSED</span>
               </div>
               {{ if .MsgType }}
                   {{ template "partials/toolbox/validate/dict_btn" . }}

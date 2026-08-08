@@ -1,7 +1,7 @@
 {{define "partials/toolbox/finalize"}}
 <div x-show="toolboxTab === 'finalize'" style="display: none;" class="flex-1 flex flex-col overflow-hidden">
     <div class="flex justify-between items-center mb-6 shrink-0">
-        <div class="select-none">
+        <div>
             <h2 class="text-2xl font-bold text-gray-900 dark:text-white">FIX Finalize</h2>
             <p class="text-gray-600 dark:text-gray-400 text-sm mt-1">
                 Repair missing mandatory header fields and recalculate BodyLength (Tag 9) and CheckSum (Tag 10).
@@ -23,7 +23,7 @@
           :style="`height: ${finalizeInputHeight}px`"
           :class="{'select-none': dragging}"
         >
-            <label class="text-sm text-gray-600 dark:text-gray-500 font-bold uppercase tracking-widest mb-2 select-none">Raw Input</label>
+            <label class="text-sm text-gray-600 dark:text-gray-500 font-bold uppercase tracking-widest mb-2">Raw Input</label>
             <div class="relative mb-3 flex-1 flex flex-col min-h-0">
               <textarea 
                 id="finalize-input" 
@@ -60,7 +60,7 @@
         
         <div class="flex-1 flex flex-col overflow-hidden border-t border-gray-200 dark:border-gray-800 pt-6" x-data="{copied: false, rawOutput: ''}">
             <div class="flex justify-between items-end mb-2">
-                <label class="text-sm text-gray-600 dark:text-gray-500 font-bold uppercase tracking-widest select-none">Calculated Output</label>
+                <label class="text-sm text-gray-600 dark:text-gray-500 font-bold uppercase tracking-widest">Calculated Output</label>
                 <button 
                   class="text-xs bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 px-3 py-1.5 rounded transition border border-gray-300 dark:border-gray-700 
                     font-bold flex items-center space-x-1.5 cursor-pointer shadow-sm"

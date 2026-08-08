@@ -41,13 +41,13 @@
 
       <div class="space-y-1">
         <template x-if="muted.length === 0">
-          <div class="text-xs text-gray-500 dark:text-gray-600 italic select-none">No active mute rules.</div>
+          <div class="text-xs text-gray-500 dark:text-gray-600 italic">No active mute rules.</div>
         </template>
 
         <template x-for="rule in muted" :key="rule">
           <div class="flex items-center justify-between gap-2 text-[11px] font-mono text-gray-600 dark:text-gray-500 group">
             <div class="flex items-center gap-1.5 min-w-0">
-                <span class="truncate bg-white dark:bg-gray-900 px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-800" x-text="rule"></span>
+                <span class="truncate bg-white dark:bg-gray-900 px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-800 select-text" x-text="rule"></span>
                 <span class="text-gray-500 dark:text-gray-600 shrink-0" x-text="`(${getRuleHitCount(rule)} hidden)`"></span>
             </div>
             <button @click="unmute(rule)" class="text-red-500/70 hover:text-red-600 dark:hover:text-red-400 shrink-0 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity">delete</button>
@@ -71,7 +71,7 @@
           </svg>
 
           <!-- Uses dynamic post-mute count -->
-          <span class="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wider font-sans select-none">
+          <span class="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wider font-sans">
             Validation Errors (<span x-text="activeErrorCount"></span>)
           </span>
       </div>
@@ -91,8 +91,8 @@
             class="flex items-start justify-between gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/30 transition"
           >
               <div class="flex items-start space-x-3 min-w-0">
-                <span class="text-red-500/50 mt-1 shrink-0 font-mono text-[10px] select-none">►</span>
-                <span class="text-sm font-mono text-gray-800 dark:text-gray-300 leading-relaxed" x-text="err"></span>
+                <span class="text-red-500/50 mt-1 shrink-0 font-mono text-[10px]">►</span>
+                <span class="text-sm font-mono text-gray-800 dark:text-gray-300 leading-relaxed select-text" x-text="err"></span>
               </div>
               <button 
                 @click="muteExact(err)" 
