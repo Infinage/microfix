@@ -87,8 +87,14 @@ func (app *Application) handleAPIValidate(w http.ResponseWriter, r *http.Request
 		msgName = sp.Messages[msgType].Name
 	}
 
+	// Validation strictness determined by the config parameter
+	vmode := spec.ValidationBasic
+	if app.Store.Config().FixValidateStrict {
+		vmode = spec.ValidationStrict
+	}
+
 	// Spec Dictionary Validation
-	result, _ := app.Session().Router().Validate(&msg, spec.ValidationStrict)
+	result, _ := app.Session().Router().Validate(&msg, vmode)
 	if len(result) > 0 {
 		w.Header().Set("HX-Trigger", "toolbox-validation-failed")
 	} else {

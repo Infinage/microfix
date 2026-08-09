@@ -79,7 +79,7 @@ GLOBAL VARIABLES
   Note: Macro prefixes (e.g., $VARS, $LASTIN) are case-insensitive, but their 
   arguments, values and payload contents remain strictly case-sensitive.
 
-  -- System & State --
+SYSTEM & STATE
   $UNIQUE                   Random UUID (e.g., for ClOrdID generation)
   $UNIQUE[N]                Random alphanumeric string of length N (max 1000)
   $TIMESTAMP                Current UTC timestamp (YYYYMMDD-HH:MM:SS.000)
@@ -89,7 +89,7 @@ GLOBAL VARIABLES
   $SEQ_IN / $SEQ_OUT        Current internal Inbound/Outbound Sequence Number
   $ERROR                    Message of the last failed condition (e.g., from an if/while)
 
-  -- Context & Store --
+CONTEXT & STORE
   $CFG.<key>                Config values
   $VARS.<key>               Script-defined values (set via 'set' command)
   $ALIAS.<name>             Saved aliases
@@ -98,12 +98,13 @@ GLOBAL VARIABLES
                             Message is loaded into buffer upon a successful 'wait',
                             'expect', or explicit 'loadmsg'. Will fail if buffer is empty.
 
-  -- Tag Extraction & Slicing --
+TAG EXTRACTION & SLICING
   Supported syntax formats for $BUF, $LASTIN, and $LASTOUT tag extraction:
-    [Tag]                   Extract Tag (Instance defaults to 1)
-    [Tag,Inst]              Extract a specific Instance of a repeating Tag
-    [Tag,Inst,End]          Slice substring from index 0 to End
-    [Tag,Inst,Start,End]    Slice substring from Start index to End index
+  
+  [Tag]                     Extract Tag (Instance defaults to 1)
+  [Tag,Inst]                Extract a specific Instance of a repeating Tag
+  [Tag,Inst,End]            Slice substring from index 0 to End
+  [Tag,Inst,Start,End]      Slice substring from Start index to End index
 
   $BUF[T,...]               Extract tag 'T' from the buffered message.
                             (e.g., $BUF[35] or $BUF[448,2])
