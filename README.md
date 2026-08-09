@@ -50,14 +50,16 @@ MicroFIX includes first-class Light and Dark themes.
 
 ## Why MicroFIX?
 
+Unlike QuickFIX or other traditional engines where you must write an entire application layer against an API just to get started, **MicroFIX is a complete, out-of-the-box workstation**. Connecting, sending, validating, and scripting are all available immediately with zero code required.
+
 Developing FIX applications often means switching between packet captures, text logs, XML dictionaries, and ad-hoc test scripts. MicroFIX brings everything together in a single native application, combining live monitoring, message inspection, scripting, and protocol tooling into one consistent workflow.
 
-* **Test FIX Venues:** Simulate counterparties and validate raw FIX logs.
+* **Test FIX Venues:** Simulate counterparties and validate raw FIX logs instantly.
 * **Inspect Deeply:** Visual tree views for repeating groups and side-by-side message diffs.
 * **Automate Reliably:** Deterministic scripting with `wait`, `expect`, assertions, and variable injection.
 * **Continuous Logging:** Live log streaming that remains uninterrupted even during session reconnects and resets.
 * **Explore Dictionaries:** Browse message and field definitions with one-click message sampling.
-* **Offline Utilities:** Offline toolbox for decoding, validation, comparison and message generation.
+* **Offline Utilities:** Offline toolbox for decoding, validation, comparison, and message generation.
 
 ---
 
@@ -111,29 +113,12 @@ Get connected and send your first message in 2 minutes.
 Both `mxshell` and `mxgui` automatically load configuration from:
 
 ```text
-~/.mxrc
 ./.mxrc
+~/.mxrc
+
 ```
 
-If neither file exists, MicroFIX starts with sensible defaults.
-
-By default, MicroFIX uses:
-
-| Setting | Default |
-|---------|---------|
-| SenderCompID | `SENDER` |
-| TargetCompID | `TARGET` |
-| FIX Version | `FIX44` |
-| Heartbeat Interval | `30s` |
-| Listen Address | `0.0.0.0:1234` |
-| Script Timeout | `5s` |
-| Validation Mode | `Strict` |
-
-You can modify the configuration:
-
-- **MXGUI:** Session Settings page
-- **MXShell:** `config` command
-- **Manually:** Edit `~/.mxrc`
+If neither file exists, MicroFIX starts with sensible defaults. You can modify the configuration via the MXGUI Session Settings page, the MXShell `config` command, or manually editing the file.
 
 ### 2. Start a Session (CLI Example)
 
@@ -148,6 +133,7 @@ mxshell> send 35=A|98=0|108=30|
 
 # Print the logs
 mxshell> logs
+
 ```
 
 ---
@@ -159,14 +145,7 @@ mxshell> logs
 * **Manual Light & Dark Themes**: Choose the appearance that suits your preference.
 * **Live Session Monitor:** Zero-lag log streaming via Server-Sent Events capable of handling thousands of messages.
 * **Interactive Message Diff:** Compare FIX messages side-by-side to instantly spot protocol differences.
-
-#### Message Inspector
-
-Expand repeating groups, inspect components, and compare FIX messages side-by-side with decoded tag names and metadata.
-
-#### Dictionary Browser
-
-Search by tag, field name, message type, or component directly from the official FIX XML specs.
+* **Log Search & Navigation:** Filter or step through matches with regex search, then jump straight back to a message's original context without losing your place.
 
 ### Interactive Shell (`mxshell`)
 
@@ -182,11 +161,13 @@ Search by tag, field name, message type, or component directly from the official
 
 ### Productivity & Scripting
 
-Messages sent from both MXGUI and MXShell support the same expression and macro substitution engine.
+Messages sent from both MXGUI and MXShell support the same expression and macro substitution engine. Inject dynamic values using the `$` prefix to access UUIDs, timestamps, session sequence numbers, environment variables, or specific fields extracted directly from incoming messages (e.g., `$LASTIN[8,17]`).
 
-#### Deterministic Scripting
+For a full reference of available macros, aliases, and string slicing capabilities, see the [Scripting & Macros section in the FAQs](FAQs.md#scripting--macros).
 
-Scripts can be executed directly from MXGUI or MXShell using the exact same deterministic engine. Wait for and assert on specific message criteria using boolean logic:
+#### Deterministic Scripting Example
+
+Scripts can be executed directly from MXGUI or MXShell using the exact same deterministic engine.
 
 ```bash
 connect
@@ -224,61 +205,12 @@ disconnect
 
 Additional sample scripts (acceptor/client test harnesses, order routing examples, etc.) are available in the [`scripts/`](./scripts) folder.
 
-#### Global Variables
-
-Inject dynamic values into scripts, CLI commands, or GUI inputs using the `$` prefix.
-
-| System & State | Context & Store |
-| --- | --- |
-| `$UNIQUE` (Random UUID) | `$CFG.<key>` (Config values) |
-| `$TIMESTAMP` (UTC YYYYMMDD-HH:MM:SS) | `$VARS.<key>` (Script-defined values) |
-| `$DATE[+N]` (Date offset by N days) | `$ALIAS.<name>` (Saved aliases) |
-| `$STATUS` (Session State) | `$ENV.<name>` (Environment variables) |
-| `$SEQ_IN` / `$SEQ_OUT` | `$LASTIN[T,t,n]` / `$LASTOUT[T,t,n]` (Instance `n` of Tag `t` from last MsgType `T`) |
-
-#### Aliases
-
-Aliases allow frequently used FIX messages to be reused with parameter substitution.
-
-```bash
-# Define the alias
-set $ALIAS.AAPL 35=D|55=AAPL|54=1|38=500|40=2|
-
-# Invoke it in MXShell
-send -a AAPL
-
-# Invoke in scripts
-send $ALIAS.AAPL
-```
-
 ### Shared Protocol Engine
 
 * **Dictionary based validation:** MicroFIX supports multiple validation levels (None, Basic, Strict) backed by custom XML dictionaries.
 * **Automatic Admin Handling:** Automatically manages Logon, Logout, Heartbeats, Test Requests, and Sequence Resets.
 * **Flexible Input:** Paste raw `35=D|55=AAPL|...` and MicroFIX converts delimiters, computes `BodyLength`, and calculates `CheckSum` on the fly.
-* **Consistency:** Both MXGUI and MXShell use the exact same parser, validator, scripting engine, and session implementation.
-
----
-
-## Supported FIX Versions
-
-MicroFIX is fully dictionary-driven. It supports standard FIX versions natively and can load custom XML dictionaries for venue-specific extensions or proprietary dialects.
-
-Use the following exact values to load the internal dictionaries:
-
-| Protocol | Spec Config Value |
-| --- | --- |
-| FIX 4.0 | `FIX40` |
-| FIX 4.1 | `FIX41` |
-| FIX 4.2 | `FIX42` |
-| FIX 4.3 | `FIX43` |
-| FIX 4.4 | `FIX44` |
-| FIXT 1.1 | `FIXT11` |
-| FIX 5.0 | `FIX50` |
-| FIX 5.0 SP1 | `FIX50SP1` |
-| FIX 5.0 SP2 | `FIX50SP2` |
-
-> **Custom Dictionaries:** You may also provide an absolute or relative path to a custom XML file if your venue requires a modified dialect.
+* **Supported Versions:** Supports FIX 4.0 through 5.0 SP2 and FIXT 1.1 natively out of the box. See [Custom Dictionaries / Vendor Specs](FAQs.md#custom-dictionaries--vendor-specs) in the FAQs for details on loading your own vendor-specific dictionary.
 
 ---
 
@@ -303,7 +235,14 @@ jobs:
         
       - name: Run Order Flow Test
         run: mxshell -f tests/new_order_single.mxs
+
 ```
+
+---
+
+## FAQ
+
+Common questions on configuration, custom dictionaries, macros/aliases, and troubleshooting are answered in [FAQs](FAQs.md).
 
 ---
 
@@ -330,7 +269,7 @@ pkg/pretty      Console formatting utilities
 
 ## Roadmap
 
-* [ ] Script debugger with LSP-like support
+* [ ] Script to import 'aliases' from MiniFIX xml config
 * [ ] Replay recorded FIX sessions
 * [ ] Multiple simultaneous sessions
 * [ ] Performance improvements
