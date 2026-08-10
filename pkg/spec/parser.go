@@ -3,10 +3,12 @@ package spec
 import (
 	"embed"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"os"
 	"path"
 	"strings"
+	"sync"
 )
 
 // BoolYN handles the FIX 'Y'/'N' attribute mapping
@@ -73,10 +75,31 @@ type FieldDef struct {
 //go:embed xml/*.xml
 var defaultSpecs embed.FS
 
+// Cache the embedded spec load into memory.
+// Access behind a mutex for safe concurrent access
+var (
+	specCacheMu sync.RWMutex
+	specCache   = make(map[string]rawSpec)
+)
+
 // Parse the XML spec and return a faithful object representation
 func loadRawSpec(fpath string) (rawSpec, error) {
+	loadedFromEmbedStore := false
 	raw, err := os.ReadFile(fpath)
 	if err != nil {
+		// If file exists but we are having some access issues,
+		// bubble up the error rather than falling back
+		if !errors.Is(err, os.ErrNotExist) {
+			return rawSpec{}, err
+		}
+
+		specCacheMu.RLock()
+		if sp, ok := specCache[strings.TrimSuffix(fpath, ".xml")]; ok {
+			specCacheMu.RUnlock()
+			return sp, nil
+		}
+		specCacheMu.RUnlock()
+
 		ext := ""
 		if !strings.HasSuffix(fpath, ".xml") {
 			ext = ".xml"
@@ -86,6 +109,9 @@ func loadRawSpec(fpath string) (rawSpec, error) {
 		if err != nil {
 			return rawSpec{}, fmt.Errorf("Could not find spec %s in local or embedded path", fpath)
 		}
+
+		// Cache only the loads from immutable embedded store
+		loadedFromEmbedStore = true
 	}
 
 	// Load into raw struct
@@ -93,6 +119,12 @@ func loadRawSpec(fpath string) (rawSpec, error) {
 	err = xml.Unmarshal(raw, &data)
 	if err != nil {
 		return rawSpec{}, err
+	}
+
+	if loadedFromEmbedStore {
+		specCacheMu.Lock()
+		specCache[strings.TrimSuffix(fpath, ".xml")] = data
+		specCacheMu.Unlock()
 	}
 
 	return data, nil

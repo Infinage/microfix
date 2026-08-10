@@ -4,35 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/infinage/microfix/pkg/message"
 	"github.com/infinage/microfix/pkg/spec"
 )
-
-// --- Global Router Cache ---
-var (
-	cachedRouters = make(map[string]*spec.Router)
-	routerMutex   sync.Mutex
-)
-
-// getTestRouter loads a router once per version and reuses it for all subsequent test calls.
-func getTestRouter(t *testing.T, version string) *spec.Router {
-	routerMutex.Lock()
-	defer routerMutex.Unlock()
-
-	if r, ok := cachedRouters[version]; ok {
-		return r
-	}
-
-	r, err := spec.NewDefaultRouter(version)
-	if err != nil {
-		t.Fatalf("Failed to load router %s: %v", version, err)
-	}
-	cachedRouters[version] = r
-	return r
-}
 
 // --- Mocks ---
 func fieldFn(fields map[uint16]spec.FieldDef) func(uint16) (spec.FieldDef, bool) {
@@ -45,7 +21,10 @@ func fieldFn(fields map[uint16]spec.FieldDef) func(uint16) (spec.FieldDef, bool)
 // --- Tests ---
 
 func TestWalkSpecBasic_ParsesUntilEnd(t *testing.T) {
-	router := getTestRouter(t, "FIX44")
+	router, err := spec.NewDefaultRouter("FIX44")
+	if err != nil {
+		t.Fatalf("Failed to load router %v", err)
+	}
 
 	// Message: 11=ID1, 39=0 (Enum for New)
 	msg := message.Message{{Tag: 11, Value: "ID1"}, {Tag: 39, Value: "0"}}
@@ -63,7 +42,11 @@ func TestWalkSpecBasic_ParsesUntilEnd(t *testing.T) {
 }
 
 func TestWalkSpecBasic_StopsOnNotInContext(t *testing.T) {
-	router := getTestRouter(t, "FIX44")
+	router, err := spec.NewDefaultRouter("FIX44")
+	if err != nil {
+		t.Fatalf("Failed to load router %v", err)
+	}
+
 	notInContext := map[uint16]int{10: 0}
 
 	msg := message.Message{
@@ -83,7 +66,10 @@ func TestWalkSpecBasic_StopsOnNotInContext(t *testing.T) {
 }
 
 func TestWalkSpecBasic_HandlesUnknownTags(t *testing.T) {
-	router := getTestRouter(t, "FIX44")
+	router, err := spec.NewDefaultRouter("FIX44")
+	if err != nil {
+		t.Fatalf("Failed to load router %v", err)
+	}
 
 	msg := message.Message{{Tag: 11, Value: "ID1"}, {Tag: 9999, Value: "CUSTOM_DATA"}}
 
@@ -280,7 +266,10 @@ func TestInspectView_JSON_FullMessage(t *testing.T) {
 }
 
 func TestInspectView_NoMemorySpike(t *testing.T) {
-	router := getTestRouter(t, "FIXT11")
+	router, err := spec.NewDefaultRouter("FIXT11")
+	if err != nil {
+		t.Fatalf("Failed to load router %v", err)
+	}
 
 	testCases := []string{
 		// Sequence Reset
@@ -351,7 +340,11 @@ func TestWalkSpec_SoftBoundary_OOCBodyTags(t *testing.T) {
 }
 
 func TestInspectView_Counts(t *testing.T) {
-	ro := getTestRouter(t, "FIXT11")
+	ro, err := spec.NewDefaultRouter("FIXT11")
+	if err != nil {
+		t.Fatalf("Failed to load router %v", err)
+	}
+
 	raw := "8=FIXT.1.1|9=116|35=0|49=STRING|56=STRING|34=0|52=20260730-17:54:59.627|" +
 		"627=1|628=HOPCOMP|629=20260730-17:48:01.652|630=1|112=STRING|10=216|"
 
@@ -373,7 +366,10 @@ func TestInspectView_Counts(t *testing.T) {
 }
 
 func TestInspectView_Integration_OOCAndGroups(t *testing.T) {
-	router := getTestRouter(t, "FIX44")
+	router, err := spec.NewDefaultRouter("FIX44")
+	if err != nil {
+		t.Fatalf("Failed to load router %v", err)
+	}
 
 	// This is a Market Data Snapshot (MsgType=W).
 	// We inject Tag 11 (ClOrdID), which is valid in FIX44 but OUT OF CONTEXT for a Market Data message.
@@ -423,7 +419,11 @@ func TestInspectView_Integration_OOCAndGroups(t *testing.T) {
 }
 
 func TestInspectView_MessageWithSpaces(t *testing.T) {
-	router := getTestRouter(t, "FIX44")
+	router, err := spec.NewDefaultRouter("FIX44")
+	if err != nil {
+		t.Fatalf("Failed to load router %v", err)
+	}
+
 	testCases := []struct {
 		msg  string
 		pass bool
@@ -472,7 +472,10 @@ func TestInspectView_SampleAllMessages(t *testing.T) {
 	}
 
 	t.Run("FIXT_Multiplexing", func(t *testing.T) {
-		ro := getTestRouter(t, "FIX44.xml")
+		ro, err := spec.NewDefaultRouter("FIX44.xml")
+		if err != nil {
+			t.Fatalf("Failed to load router %v", err)
+		}
 		for msgId := range ro.ApplSpec().Messages {
 			t.Run(fmt.Sprintf("MsgID-%s", msgId), func(t *testing.T) {
 				t.Parallel() // Run for each message parallely
@@ -482,7 +485,10 @@ func TestInspectView_SampleAllMessages(t *testing.T) {
 	})
 
 	t.Run("FIXT_Multiplexing", func(t *testing.T) {
-		ro := getTestRouter(t, "FIXT11.xml")
+		ro, err := spec.NewDefaultRouter("FIXT11.xml")
+		if err != nil {
+			t.Fatalf("Failed to load router %v", err)
+		}
 		for applVerID := 2; applVerID <= 9; applVerID++ {
 			applVerIDStr := fmt.Sprint(applVerID)
 			if !ro.SetDefaultApplVerID(applVerIDStr) {
