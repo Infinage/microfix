@@ -112,8 +112,7 @@ func (app *Application) handleAPISend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	delim := msgRaw[len(msgRaw)-1:]
-	msg, err := message.MessageFromString(msgRaw, delim)
+	msg, err := message.MessageFromStringAuto(msgRaw)
 	if err != nil {
 		toast(w, app.templ, "error", fmt.Sprintf("Failed to parse input string: %s", err.Error()))
 		return

@@ -10,6 +10,9 @@ import (
 
 type Message []Field
 
+// MessageFromString parses a raw FIX string using the
+// explicitly provided delimiter (e.g., "|", "\x01", "^").
+// It expects the raw string to end with the delimiter token.
 func MessageFromString(raw string, sep string) (Message, error) {
 	numFields := strings.Count(raw, sep)
 	if numFields == 0 {
@@ -22,26 +25,38 @@ func MessageFromString(raw string, sep string) (Message, error) {
 			if field == "" {
 				break
 			}
-			return nil, fmt.Errorf("Last token is non empty")
+			return nil, fmt.Errorf("last token is non-empty (missing trailing delimiter %q)", sep)
 		}
 
 		// Allow values to have '=' in them, eg: tag 96 containing base 64 value
 		if eqCount := strings.Count(field, "="); eqCount < 1 {
-			return nil, fmt.Errorf("Must contain exactly one '=', found %v", eqCount)
+			return nil, fmt.Errorf("field missing '=' assignment operator in token: %q", field)
 		}
 
 		tagS, value, _ := strings.Cut(field, "=")
 		tag, err := strconv.Atoi(tagS)
 		if err != nil {
-			return nil, fmt.Errorf("Field token not an INT: %v", tagS)
+			return nil, fmt.Errorf("field tag is not an integer: %q", tagS)
 		} else if limit := math.MaxUint16; tag > limit {
-			return nil, fmt.Errorf("Tag exceeds maximum supported limit: %d", limit)
+			return nil, fmt.Errorf("tag exceeds maximum supported limit %d: %d", limit, tag)
 		}
 
 		result[nField] = Field{uint16(tag), value}
 	}
 
 	return result, nil
+}
+
+// MessageFromStringAuto parses a raw FIX string by automatically
+// inferring the delimiter from the last character of the message.
+func MessageFromStringAuto(raw string) (Message, error) {
+	// Minimum valid FIX string structure: "A=0|" (4 chars)
+	if len(raw) < 4 {
+		return nil, fmt.Errorf("FIX message must be atleast 4 chars long")
+	}
+
+	delim := raw[len(raw)-1:]
+	return MessageFromString(raw, delim)
 }
 
 // Serialize to string in the Wire Format

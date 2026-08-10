@@ -60,17 +60,9 @@ func (app *Application) handleAPIFinalize(w http.ResponseWriter, r *http.Request
 
 func (app *Application) handleAPIValidate(w http.ResponseWriter, r *http.Request) {
 	msgRaw := strings.TrimSpace(r.URL.Query().Get("validate-input"))
-	if len(msgRaw) < 4 {
-		w.Header().Set("HX-Trigger", "toolbox-validation-failed")
-		renderTemplate(app.templ, w, "partials/toolbox/validate/report", map[string]any{
-			"Observations": []string{"Structural Error: Input must be at least 4 chars long"},
-		})
-		return
-	}
 
 	// Try to parse the structural FIX message
-	delim := msgRaw[len(msgRaw)-1:]
-	msg, err := message.MessageFromString(msgRaw, delim)
+	msg, err := message.MessageFromStringAuto(msgRaw)
 	if err != nil {
 		w.Header().Set("HX-Trigger", "toolbox-validation-failed")
 		obs := []string{fmt.Sprintf("Structural Error: Invalid fix string input - %s", err.Error())}

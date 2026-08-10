@@ -304,6 +304,83 @@ func TestMessageFromString_Malformed(t *testing.T) {
 	}
 }
 
+func TestMessageFromStringAuto_Valid(t *testing.T) {
+	tests := []struct {
+		name     string
+		raw      string
+		wantLen  int
+		wantType string
+	}{
+		{
+			name:     "Pipe Delimiter",
+			raw:      "8=FIX.4.4|9=63|35=A|10=123|",
+			wantLen:  4,
+			wantType: "A",
+		},
+		{
+			name:     "SOH Delimiter",
+			raw:      "8=FIX.4.4\x019=63\x0135=D\x0110=123\x01",
+			wantLen:  4,
+			wantType: "D",
+		},
+		{
+			name:     "Value Contains Equals Sign (Base64)",
+			raw:      "8=FIX.4.4|35=B|96=aW5wdXQ=data==|10=123|",
+			wantLen:  4,
+			wantType: "B",
+		},
+		{
+			name:     "Minimal Valid Message",
+			raw:      "1=1|",
+			wantLen:  1,
+			wantType: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			msg, err := MessageFromStringAuto(tt.raw)
+			if err != nil {
+				t.Fatalf("MessageFromStringAuto(%q) unexpected error: %v", tt.raw, err)
+			}
+
+			if len(msg) != tt.wantLen {
+				t.Errorf("Expected %d fields, got %d", tt.wantLen, len(msg))
+			}
+
+			if tt.wantType != "" {
+				if val, _ := msg.Get(35); val != tt.wantType {
+					t.Errorf("Expected MsgType %q, got %q", tt.wantType, val)
+				}
+			}
+		})
+	}
+}
+
+func TestMessageFromStringAuto_Malformed(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  string
+	}{
+		{"Empty String", ""},
+		{"Under 4 Chars", "1=1"},
+		{"Missing Equals", "8FIX.4.4|"},
+		{"Bad Tag Non-Int", "ABC=Value|"},
+		{"Tag Exceeds Uint16 Limit", "65536=Value|"},
+		{"No Delimiters Found", "8=FIX.4.4"},
+		{"Missing Trailing Delimiter", "8=FIX.4.4|9=63|35=A|10=123"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := MessageFromStringAuto(tt.raw)
+			if err == nil {
+				t.Errorf("Expected error for %s (%q), but got nil", tt.name, tt.raw)
+			}
+		})
+	}
+}
+
 func TestChecksumAndBodyLength(t *testing.T) {
 	// 8=FIX.4.2|9=49|35=0|49=SENDER|56=TARGET|34=1|52=20230101-12:00:00|10=123|
 	msg := Message{

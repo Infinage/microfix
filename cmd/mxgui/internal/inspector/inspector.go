@@ -79,13 +79,8 @@ func NewInspectView(raw, logType string, router *spec.Router, vmode spec.Validat
 	// Cleanup spaces before passing forward
 	raw = strings.TrimSpace(raw)
 
-	var result = InspectView{RawFix: raw, LogType: logType}
-	if len(raw) < 4 {
-		result.Observations = append(result.Observations, "Input must be atleast 4 chars long")
-		return result
-	}
-
-	msg, err := message.MessageFromString(raw, raw[len(raw)-1:])
+	result := InspectView{RawFix: raw, LogType: logType}
+	msg, err := message.MessageFromStringAuto(raw)
 	if err != nil {
 		result.Observations = append(result.Observations, err.Error())
 		return result

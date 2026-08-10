@@ -112,8 +112,7 @@ func handleSend(ctx *ShellContext, args []string) {
 
 	// Parse the text into message struct
 	if err == nil {
-		delim := raw[len(raw)-1:]
-		msg, err = message.MessageFromString(raw, delim)
+		msg, err = message.MessageFromStringAuto(raw)
 	}
 
 	fmt.Println("\n─── Send Message ────────────────────────────────")

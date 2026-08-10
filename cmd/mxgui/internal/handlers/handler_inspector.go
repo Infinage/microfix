@@ -13,13 +13,7 @@ import (
 
 func (app *Application) handleAPIInspect(w http.ResponseWriter, r *http.Request) {
 	raw := strings.TrimSpace(r.URL.Query().Get("message"))
-	if len(raw) < 4 {
-		toast(w, app.templ, "error", "Input must be atleast 4 chars long")
-		return
-	}
-
-	delim := raw[len(raw)-1:]
-	_, err := message.MessageFromString(raw, delim)
+	_, err := message.MessageFromStringAuto(raw)
 	if err != nil {
 		toast(w, app.templ, "error", fmt.Sprintf("Failed to parse message: %s", err.Error()))
 		return
@@ -46,17 +40,12 @@ func (app *Application) handleAPIMessageDiff(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Invalid input
-	if len(sourceStr) < 4 || len(targetStr) < 4 {
-		renderTemplate(app.templ, w, "partials/stream/inspector/diff_malformed", map[string]string{"Error": "Input must be at least 4 chars long"})
-		return
-	}
-	source, err := message.MessageFromString(sourceStr, sourceStr[len(sourceStr)-1:])
+	source, err := message.MessageFromStringAuto(sourceStr)
 	if err != nil {
 		renderTemplate(app.templ, w, "partials/stream/inspector/diff_malformed", map[string]string{"Error": fmt.Sprintf("Malformed source string: %s", err.Error())})
 		return
 	}
-	target, err := message.MessageFromString(targetStr, targetStr[len(targetStr)-1:])
+	target, err := message.MessageFromStringAuto(targetStr)
 	if err != nil {
 		renderTemplate(app.templ, w, "partials/stream/inspector/diff_malformed", map[string]string{"Error": fmt.Sprintf("Malformed target string: %s", err.Error())})
 		return

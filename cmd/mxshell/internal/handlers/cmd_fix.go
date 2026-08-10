@@ -135,8 +135,7 @@ func queryFixSpec(ctx *ShellContext, sub, id string) {
 
 // Prettify and print the output matching against fix spec
 func decodeMessage(ctx *ShellContext, rawMsg string) {
-	delim := rawMsg[len(rawMsg)-1:]
-	msg, err := message.MessageFromString(rawMsg, delim)
+	msg, err := message.MessageFromStringAuto(rawMsg)
 	if err != nil {
 		fmt.Println("\n─── Decode Message ────────────────────────────────")
 		fmt.Printf("  Status : FAILED\n")
@@ -170,8 +169,7 @@ func finalizeRawMessage(_ *ShellContext, rawMsg string) {
 func validateMessage(ctx *ShellContext, rawMsg string) {
 	fmt.Println("\n─── FIX Validation ────────────────────────────────")
 
-	delim := rawMsg[len(rawMsg)-1:]
-	msg, err := message.MessageFromString(rawMsg, delim)
+	msg, err := message.MessageFromStringAuto(rawMsg)
 	if err != nil {
 		fmt.Printf("  Status : FAILED\n")
 		fmt.Printf("  Error  : %v\n", err)

@@ -135,8 +135,7 @@ func handleSend(ctx *ScriptContext, args []string) error {
 		return fmt.Errorf("invalid fix string, got empty")
 	}
 
-	delim := msgStr[len(msgStr)-1:]
-	msg, err := message.MessageFromString(msgStr, delim)
+	msg, err := message.MessageFromStringAuto(msgStr)
 	if err != nil {
 		return fmt.Errorf("invalid fix string: %w", err)
 	}

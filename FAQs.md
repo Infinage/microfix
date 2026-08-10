@@ -18,7 +18,15 @@
 
 ### What is MicroFIX and how does it differ from QuickFIX/other FIX engines?
 
-Unlike QuickFIX(/J/n) where you have to write an entire application layer against an API just to get started, **MicroFIX is a complete, out-of-the-box workstation**. Connecting, sending, validating, and scripting are all available immediately with zero code required. It acts as a native desktop GUI (`mxgui`) and an interactive CLI (`mxshell`) built on top of the *same* deterministic session, scripting, and validation engine. 
+Unlike QuickFIX(/J/n) where you have to write an entire application layer against an API just to get started, **MicroFIX is a complete, out-of-the-box workstation**. Connecting, sending, validating, and scripting are all available immediately with zero code required. It acts as a native desktop GUI (`mxgui`) and an interactive CLI (`mxshell`) built on top of the *same* deterministic session, scripting, and validation engine.
+
+### Why was MicroFIX built?
+
+MicroFIX was born out of the pain of dealing with legacy FIX testing tools. It started as a deep dive into Golang and the inner workings of the FIX protocol, with the goal of building an open-source tool that could benefit developers and testers who are tired of struggling with outdated, clunky interfaces.
+
+### Is MicroFIX free to use?
+
+Yes! It is fully free, open-source, and carries no strings attached. This will never change. As a consequence of being a free open-source project maintained in free time, some highly specific or unreasonable feature requests may be declined or deprioritized. You are always free to fork the codebase and modify it for your organization's specific needs.
 
 ### What's the difference between MXGUI and MXShell - which should I use?
 
@@ -124,6 +132,19 @@ Validation always runs at least at a **Basic** level (checksum, body length, req
 
 ## Scripting & Macros
 
+### Where can I read up on the basic syntax and available commands?
+
+If you are working in the terminal, run `mxshell -h` for a complete syntax reference. You can also view the scripting syntax directly in the Script Runner within MXGUI.
+
+### What is the difference between `$LASTIN`, `$LASTOUT`, `$BUF`, `$ALIAS`, and `$VARS`?
+
+Each macro prefix serves a specific lifecycle and purpose:
+
+* **`$LASTIN` / `$LASTOUT`:** Dynamic extractors valid only during an active session. They query the engine for the most recently processed message of a specific type. Because they pull live data, their values can change unexpectedly if a new message of that type arrives asynchronously. They are best used for quick, immediate lookups.
+* **`$BUF`:** A stable, script-local snapshot of a message. It contains the raw message explicitly loaded into the buffer via `wait`, `expect`, or `loadmsg`. Unlike `$LASTIN`/`$LASTOUT`, the buffer will not change asynchronously, making it safer and more performant when extracting multiple fields from the same message without risking race conditions.
+* **`$VARS`:** An ephemeral scratch namespace used to hold state (like loop counters or stored IDs) during script execution. These variables vanish when the script ends.
+* **`$ALIAS`:** Reusable text blobs loaded from your configuration. While they usually contain FIX templates, they are technically just dumb string fragments—meaning you cannot slice them like `$BUF` or `$LASTIN`. Aliases are persisted across runs, but only if you explicitly save the config (e.g., via the GUI or `config save` in MXShell). Headless CI runs do not persist aliases modified during execution.
+
 ### Where can I find the full list of global substitution variables?
 
 Variables can be injected into scripts, CLI commands, or GUI inputs using the `$` prefix.
@@ -148,7 +169,8 @@ Variables can be injected into scripts, CLI commands, or GUI inputs using the `$
 | --- | --- |
 | `$CFG.<key>` | Reads a value from the session configuration. |
 | `$VARS.<key>` | Reads a script-defined variable created with the `set` command. |
-| `$ALIAS.<name>` | Expands a saved alias. |
+| `$ALIAS.<name>` | Expands a saved alias template. |
+| `$ALIAS.<name>[params]` | Expands a saved alias and substitutes specific tag values at runtime (e.g., `$ALIAS.Order[54.2=2,55.2=GOOG]`). |
 | `$ENV.<name>` | Reads an environment variable. |
 | `$BUF` | The complete raw FIX message currently in the buffer. |
 
@@ -172,39 +194,50 @@ No - `$VARS`, `$vars`, and `$VaRs` are all treated the same, as are all other ma
 
 ### How do aliases work, and how do I parameterize them?
 
-Aliases are reusable FIX message templates stored under `$ALIAS.<name>` in `.mxrc` (or set at runtime). Rather than hardcoding values, combine them with macros so each send resolves fresh data instead of stale, copy-pasted fields.
+Aliases are reusable FIX message templates stored under `$ALIAS.<name>` in `.mxrc` (or set at runtime). Rather than hardcoding values, you can parameterize them in two ways:
+
+**1. Flat Substitution:** Embed macros directly into the alias string.
 
 ```bash
 # Define the alias
 set $ALIAS.AAPL 35=D|55=AAPL|54=1|38=$UNIQUE[3]|40=2|11=$UNIQUE|
 
-# Invoke it in MXShell
-send -a AAPL
-
-# Invoke in scripts
+# Send it
 send $ALIAS.AAPL
 
 ```
 
-A common pattern is a QuoteRequest/Quote flow where you want to immediately act on whatever quote you just received. Build the responding alias around `$LASTIN[...]` referencing the incoming Quote message, and MicroFIX resolves it against whatever was actually last received at send time.
+**2. Runtime Tag Substitution:** Reuse a base alias but override specific tags on the fly using bracket syntax: `[tag.instance=value, ...]`. (Instance is optional and defaults to 1).
 
-Aliases go beyond flat substitution too:
+```bash
+set $ALIAS.BaseOrder 35=D|55=AAPL|54=1|
+send $ALIAS.BaseOrder[55=TSLA,54=2]
 
-* **Slicing** - pull a specific byte range out of a message with `$BUF[Tag,Instance,Start,End]`, useful when a template only needs part of an existing payload.
-* **Randomized values** - `$UNIQUE[N]` generates a random value up to `N`, handy for order IDs, quantities, or client order refs.
-* **Nested macros** - an alias's resolved value is itself re-scanned for further macros (bounded to a safe depth to guard against circular references), so aliases can reference other aliases or variables in combination.
+```
+
+If a substituted value contains a comma, you must escape it with a backslash (`\,`). Note: MicroFIX supports complex recursive macro trees (aliases containing aliases containing variables), but if you build deep recursion trees, you must manually ensure that commas remain properly escaped down the call stack.
+
+### Can alias parameter substitution add missing fields?
+
+No, tag substitution is a strict override. If you try to substitute `112=ABC` into an alias that doesn't already contain tag 112, it will result in a hard failure.
+
+*Rationale:* Blindly inserting tags into a raw FIX string breaks structural validity. Inserting a field at random could inadvertently break a repeating group or corrupt the trailer. Therefore, substitution requires a fully valid boilerplate template with dummy values already in place. MicroFIX will substitute the values and auto-finalize the message length/checksums before sending.
+
+### Can I reference a message older than the most recent one (e.g., the 3rd last Quote)?
+
+No. `$LASTIN` and `$LASTOUT` use a simple, lightweight map structure to cache only the most recently seen message for a given `MsgType` (e.g., the last `35=D`). Handling deep history lookup by type would increase the engine's memory footprint for an exceedingly rare use case.
 
 ### Can I slice values extracted from FIX messages?
 
-Yes. For example, `$LASTIN[V,52,1,8]` extracts the first eight characters of tag `52`. This is useful when a FIX timestamp or other field contains multiple pieces of information and only part of the value is required.
-
-### How do I reference the last received/sent message's fields in a script or alias?
-
-Use `$LASTIN[MsgType,Tag,Instance]` / `$LASTOUT[MsgType,Tag,Instance]`, e.g. `$LASTIN[8,17]` grabs tag 17 (ExecID) from the last incoming Execution Report.
+Yes. For example, `$LASTIN[V,52,1,8]` extracts the first eight characters of tag `52`. This is useful when a FIX timestamp or other field contains multiple pieces of information and only part of the value is required. Note that string slicing is supported by `$LASTIN`, `$LASTOUT`, and `$BUF`, but *not* by `$ALIAS`.
 
 ### How do I load a specific past message into the buffer, without waiting for a new one?
 
-Use `loadmsg <in|out> <id>` to pull a specific message from session history straight into the buffer, so `$BUF[...]` can extract from it. This is useful when you want to re-inspect or re-slice an older message without needing to trigger a fresh `wait`/`expect` (which are the other two ways the buffer gets populated).
+Use loadmsg <in|out> <id> to pull a specific message from session history straight into the script buffer so $BUF[...] can extract from it. While this accomplishes the same thing as inspecting $LASTIN or $LASTOUT, it has two distinct advantages:
+
+1. Stability: $LASTIN and $LASTOUT can change unpredictably if a new message of that type arrives asynchronously in the background. The buffer ($BUF), however, is a stable snapshot that will never change until your next wait, expect, or loadmsg call.
+
+2. Performance: Executing multiple $BUF extractions against this stable snapshot is faster and more performant than repeatedly querying the live session engine with $LASTIN and $LASTOUT.
 
 ### How do I split a large script into multiple files?
 
@@ -216,7 +249,7 @@ Prefix it with `not`, e.g. `not isset VARS.Foo` or `if not assert 1 == 2`. It su
 
 ### How do I manually override the session's sequence numbers mid-test?
 
-Use `seq in <SeqNum>` / `seq out <SeqNum>` (or the equivalent `ResetSeqNumFlag`/reset options via `reset`). Moving the outbound sequence forward is always safe; forcing it backward, or forcing the inbound sequence to an arbitrary value, is intentionally permitted for chaos-testing scenarios but will likely desync you from a real counterparty - expect a disconnect or rejected messages afterward if you do this against anything other than a test harness.
+Use `seq in <SeqNum>` / `seq out <SeqNum>` (or the equivalent options via `reset`). Moving the outbound sequence forward is safe; forcing it backward, or forcing the inbound sequence to an arbitrary value, is intentionally permitted for chaos-testing scenarios but will likely desync you from a real counterparty - expect a disconnect or rejected messages afterward if you do this against anything other than a test harness.
 
 ### What's the deterministic scripting model - how do `wait`/`expect`/`assert` behave on timeout?
 
@@ -301,6 +334,12 @@ No. Both use the exact same parser, validator, message model, session engine, an
 Verify `IpAddr`/`Port` and Sender/TargetCompID match what the counterparty expects, and confirm nothing else is bound to the port if you're listening (acceptor mode). Check the Live Session Monitor / `logs` output for rejected Logon messages, which usually indicate a CompID or sequence number mismatch.
 
 Sometimes the rejection reason returned isn't detailed enough to diagnose from your side alone - if the mismatch isn't obvious from the logs, it's worth confirming directly with the counterparty what they expected to see.
+
+### Why wasn't my message sent when it had missing mandatory tags?
+
+If your message is structurally incomplete according to the dictionary, outbound validation will block it from sending. If you intentionally want to send an invalid message, check the send raw checkbox on MXGUI (or `send -r` in MXShell) to bypass the outbound dictionary checks.
+
+Note that MicroFIX will *never* automatically inject missing fields into a message before sending (aside from standard tags like Length and Checksum during finalization). It will only substitute *values* for fields that are already present in the string. Attempting to intelligently inject fields risks corrupting the structural validity of repeating groups and trailers.
 
 ### Why is my message failing strict validation?
 

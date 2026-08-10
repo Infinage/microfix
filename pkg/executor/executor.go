@@ -93,6 +93,8 @@ CONTEXT & STORE
   $CFG.<key>                Config values
   $VARS.<key>               Script-defined values (set via 'set' command)
   $ALIAS.<name>             Saved aliases
+  $ALIAS.<name>[params]     Alias with runtime field overrides. Instance defaults to 1.
+                            Syntax: [tag.instance=val,...] (e.g., $alias.Order[54.2=2,55.2=GOOG])
   $ENV.<name>               Environment variables
   $BUF                      Extract the entire raw FIX string currently in the buffer.
                             Message is loaded into buffer upon a successful 'wait',
