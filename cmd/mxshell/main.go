@@ -20,6 +20,9 @@ func main() {
 	} else if len(args) >= 3 && args[1] == "-f" && (len(args) == 3 || args[3] == "-v") {
 		// Headless script mode
 		cli.Script(strings.TrimSpace(args[2]), len(args) == 4)
+	} else if len(args) >= 3 && args[1] == "-x" {
+		// Extract alias from MiniFIX config
+		cli.ExtractFromMicroFIX(args[2])
 	} else {
 		// Print general help
 		cli.PrintHelp(args)

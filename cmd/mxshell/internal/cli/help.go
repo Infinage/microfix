@@ -12,6 +12,7 @@ func PrintHelp(args []string) {
 			"Usage:\n" +
 			"  mxshell                  Start interactive shell\n" +
 			"  mxshell -f <file> [-v]   Execute script in headless mode (-v for verbose logs)\n" +
+			"  mxshell -x <file>        Extract MicroFIX aliases from a MiniFIX XML config\n" +
 			"  mxshell -h               Display help\n\n")
 
 	// Detailed help with script syntax document

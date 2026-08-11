@@ -61,6 +61,9 @@ func MessageFromStringAuto(raw string) (Message, error) {
 
 // Serialize to string in the Wire Format
 func (msg *Message) String(sep string) string {
+	if len(*msg) == 0 {
+		return ""
+	}
 	var res []string
 	for _, field := range *msg {
 		res = append(res, field.ToWire())
