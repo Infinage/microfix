@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"path"
 	"strings"
+	"time"
+
+	"github.com/infinage/microfix/pkg/message"
 )
 
 type Router struct {
@@ -160,4 +163,42 @@ func (r *Router) Field(tag uint16) (FieldDef, bool) {
 	}
 
 	return FieldDef{}, false
+}
+
+// Salvage ensures a FIX message has the complete set of mandatory header
+// and trailer tags. Missing routing tags (35, 49, 56, 34) are injected with
+// default placeholders. Foundational state tags (8, 9, 52, 10) are strictly
+// overwritten to match the current router spec.
+func (ro *Router) Salvage(msg message.Message) message.Message {
+	// Populate a slice of mandatory field info
+	// we will attempt to salvage
+	type mandatoryField struct {
+		tag   uint16
+		value string
+		pos   int
+	}
+
+	// critical tags: [8, 9, 35, 49, 56, 34, 52, 10]
+	// Inserted with defaults if missing
+	// Otherwise overwritten only for [8, 9, 52, 10]
+	beginStr := ro.SessionSpec().BeginString()
+	sendingTime := time.Now().UTC().Format("20060102-15:04:05.000")
+	for _, rf := range []mandatoryField{
+		{tag: 8, value: beginStr, pos: 0},
+		{tag: 9, value: "", pos: 1},
+		{tag: 35, value: "0", pos: 2},
+		{tag: 49, value: "FROM", pos: 3},
+		{tag: 56, value: "TO", pos: 4},
+		{tag: 34, value: "1", pos: 5},
+		{tag: 52, value: sendingTime, pos: 6},
+	} {
+		if f, idx := msg.FindFrom(rf.tag, 0); idx == -1 {
+			msg.Insert(rf.pos, message.Field{Tag: rf.tag, Value: rf.value})
+		} else if rf.tag == 8 || rf.tag == 52 {
+			f.Value = rf.value
+		}
+	}
+
+	msg.Finalize() // Updates tag 9 and 10
+	return msg
 }

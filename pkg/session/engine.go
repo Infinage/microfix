@@ -173,7 +173,7 @@ func (engine *Engine) recordWrite(msg *message.Message, now time.Time) error {
 // Returns an error if missing tags: [8, 9, 35, 49, 56, 34, 52, 10] or on failing outbound validation.
 func (engine *Engine) finalizeMessage(msg *message.Message, now time.Time) error {
 	if !msg.Contains(8, 9, 35, 49, 56, 34, 52, 10) {
-		return fmt.Errorf("OUTBOUND missing required session fields: %s", msg.String("|"))
+		return fmt.Errorf("OUTBOUND missing required tags [8, 9, 35, 49, 56, 34, 52, 10]: %s", msg.String("|"))
 	}
 
 	// Set sender / target compId

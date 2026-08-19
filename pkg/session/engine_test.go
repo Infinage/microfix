@@ -348,7 +348,7 @@ func TestEngine_OutboundValidation(t *testing.T) {
 		err = engine.finalizeMessage(&msg, time.Now())
 		if err == nil {
 			t.Error("Expected FinalizeMessage to fail due to missing core tags, but it succeeded")
-		} else if !strings.Contains(err.Error(), "OUTBOUND missing required session fields") {
+		} else if !strings.Contains(err.Error(), "OUTBOUND missing required tags") {
 			t.Errorf("Expected core tag error, got: %v", err)
 		}
 	})

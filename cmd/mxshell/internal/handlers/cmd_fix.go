@@ -150,7 +150,7 @@ func decodeMessage(ctx *ShellContext, rawMsg string) {
 }
 
 // Recomputes the checksum and bodylen - inserts if missing
-func finalizeRawMessage(_ *ShellContext, rawMsg string) {
+func finalizeRawMessage(ctx *ShellContext, rawMsg string) {
 	delim := rawMsg[len(rawMsg)-1:]
 	msg, err := message.MessageFromString(rawMsg, delim)
 	if err != nil {
@@ -161,7 +161,7 @@ func finalizeRawMessage(_ *ShellContext, rawMsg string) {
 		return
 	}
 	fmt.Println("\n─── Finalized Message ─────────────────────────────────")
-	msg.Finalize()
+	msg = ctx.Session().Router().Salvage(msg)
 	fmt.Println(msg.String(delim))
 	fmt.Println("────────────────────────────────────────────────────")
 }

@@ -41,9 +41,11 @@ func TestExtractAliasFromMiniFIX_Happy(t *testing.T) {
     </transConf>
 </Config>`
 
-	aliases, err := ExtractAliasFromMiniFIX(strings.NewReader(xmlData))
+	aliases, failed, err := ExtractAliasFromMiniFIX(strings.NewReader(xmlData))
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
+	} else if len(failed) != 0 {
+		t.Fatalf("expected 0 failed items on happy path, got %d: %v", len(failed), failed)
 	}
 
 	// Table-driven test to spot check the parser logic
@@ -75,10 +77,43 @@ func TestExtractAliasFromMiniFIX_Happy(t *testing.T) {
 			t.Errorf("missing expected alias in map: %q", tc.name)
 			continue
 		}
-
-		if actual != tc.expected {
-			t.Errorf("alias %q:\nexpected: %q\ngot:      %q", tc.name, tc.expected, actual)
+		actualFixString := actual.String("|")
+		if actualFixString != tc.expected {
+			t.Errorf("alias %q:\nexpected: %q\ngot:      %q", tc.name, tc.expected, actualFixString)
 		}
+	}
+}
+
+// TestExtractAliasFromMiniFIX_PartialFailure verifies that individual malformed
+// strings are caught and appended to the failed slice without halting extraction.
+func TestExtractAliasFromMiniFIX_PartialFailure(t *testing.T) {
+	xmlData := `<Config><transConf><Software_MiniFIX_Transaction>
+        <count>2</count>
+        <item>
+            <first>GoodItem</first>
+            <second>0 0 1 0 5 +35=A</second>
+        </item>
+        <item>
+            <first>BadItem_MissingEquals</first>
+            <second>0 0 1 0 4 +35A</second>
+        </item>
+    </Software_MiniFIX_Transaction></transConf></Config>`
+
+	aliases, failed, err := ExtractAliasFromMiniFIX(strings.NewReader(xmlData))
+	if err != nil {
+		t.Fatalf("expected overall parse to succeed, but got error: %v", err)
+	}
+
+	if len(aliases) != 1 {
+		t.Errorf("expected exactly 1 successfully parsed alias, got %d", len(aliases))
+	} else if _, ok := aliases["GoodItem"]; !ok {
+		t.Errorf("expected 'GoodItem' to be in the aliases map")
+	}
+
+	if len(failed) != 1 {
+		t.Fatalf("expected exactly 1 failed alias, got %d", len(failed))
+	} else if failed[0] != "BadItem_MissingEquals" {
+		t.Errorf("expected failed alias to be 'BadItem_MissingEquals', got %q", failed[0])
 	}
 }
 
@@ -92,9 +127,9 @@ func TestExtractAliasFromMiniFIX_Unhappy(t *testing.T) {
 		{
 			name: "Count Mismatch",
 			xmlData: `<Config><transConf><Software_MiniFIX_Transaction>
-				<count>5</count>
-				<item><first>A</first><second>0 0 0 0</second></item>
-			</Software_MiniFIX_Transaction></transConf></Config>`,
+                <count>5</count>
+                <item><first>A</first><second>0 0 0 0</second></item>
+            </Software_MiniFIX_Transaction></transConf></Config>`,
 			expectError: true,
 			errContains: "expected 5 items, found 1",
 		},
@@ -108,13 +143,18 @@ func TestExtractAliasFromMiniFIX_Unhappy(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := ExtractAliasFromMiniFIX(strings.NewReader(tc.xmlData))
+			_, failed, err := ExtractAliasFromMiniFIX(strings.NewReader(tc.xmlData))
+
 			if tc.expectError {
 				if err == nil {
 					t.Fatalf("expected an error, but got none")
 				}
 				if !strings.Contains(err.Error(), tc.errContains) {
 					t.Errorf("expected error to contain %q, got: %v", tc.errContains, err)
+				}
+				// Fatal errors should not return a populated failed slice
+				if len(failed) != 0 {
+					t.Errorf("expected empty failed slice on fatal error, got %d items", len(failed))
 				}
 			} else if err != nil {
 				t.Fatalf("unexpected error: %v", err)
@@ -134,13 +174,13 @@ func TestParseMiniFIXTransaction_EdgeCases(t *testing.T) {
 			name:        "Empty String",
 			rawInput:    "",
 			expectError: true,
-			errContains: "expected: `%d %d %d %d ...`",
+			errContains: "expected: `%d %d %d %d",
 		},
 		{
 			name:        "Insufficient Header Prefix",
 			rawInput:    "0 0 1",
 			expectError: true,
-			errContains: "expected: `%d %d %d %d ...`",
+			errContains: "expected: `%d %d %d %d",
 		},
 		{
 			name:        "Missing Space After Size",
