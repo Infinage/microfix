@@ -269,7 +269,6 @@ pkg/pretty      Console formatting utilities
 
 ## Roadmap
 
-* [ ] Script to import 'aliases' from MiniFIX xml config
 * [ ] Replay recorded FIX sessions
 * [ ] Multiple simultaneous sessions
 * [ ] Performance improvements

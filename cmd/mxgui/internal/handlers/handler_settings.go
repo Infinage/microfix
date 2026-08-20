@@ -66,9 +66,12 @@ func (app *Application) handleAPISetAlias(w http.ResponseWriter, r *http.Request
 
 func (app *Application) handleAPIListAlias(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Query().Get("from") == "settings" {
-		renderTemplate(app.templ, w, "partials/settings/aliases", map[string]any{"Aliases": app.Store.Config().Alias})
+		renderTemplate(app.templ, w, "partials/settings/aliases", map[string]any{
+			"Aliases": app.Store.Config().Alias, "IsWailsApp": app.isWailsApp,
+		})
 	} else {
-		renderTemplate(app.templ, w, "partials/stream/send_form/select/aliases", map[string]any{"Aliases": app.Store.Config().Alias})
+		renderTemplate(app.templ, w, "partials/stream/send_form/select/aliases",
+			map[string]any{"Aliases": app.Store.Config().Alias})
 	}
 }
 
@@ -194,4 +197,45 @@ func (app *Application) handleAPIConfigSpecPathCheck(w http.ResponseWriter, r *h
 	}
 
 	renderTemplate(app.templ, w, "partials/settings/config/spec_path_check", checkResults)
+}
+
+func (app *Application) handleAPIAliasImport(w http.ResponseWriter, r *http.Request) {
+	// Read JSON payload
+	payloadStr := r.FormValue("payload")
+	if payloadStr == "" {
+		toast(w, app.templ, "error", "No alias data received")
+		return
+	}
+
+	// Define the structure expected from the frontend
+	var importedAliases []struct {
+		Name     string `json:"name"`
+		Template string `json:"template"`
+		Selected bool   `json:"selected"`
+	}
+
+	// Unmarshal the JSON array
+	if err := json.Unmarshal([]byte(payloadStr), &importedAliases); err != nil {
+		toast(w, app.templ, "error", "Failed to decode alias payload")
+		return
+	}
+
+	// Save to the store (overwriting duplicates)
+	insertCount, updateCount := 0, 0
+	for _, alias := range importedAliases {
+		_, ok, err := app.Store.Set("ALIAS."+alias.Name, alias.Template)
+		if ok {
+			updateCount++
+		} else if err == nil {
+			insertCount++
+		}
+	}
+
+	// Trigger the alias table refresh and show a success toast
+	w.Header().Set("HX-Trigger", "refresh-alias")
+	renderTemplate(app.templ, w, "partials/global/toast", map[string]string{
+		"type": "success",
+		"message": fmt.Sprintf("Imported %d/%d aliases (inserts: %d, updates: %d).",
+			insertCount+updateCount, len(importedAliases), insertCount, updateCount),
+	})
 }

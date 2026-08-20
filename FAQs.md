@@ -126,7 +126,25 @@ Validation always runs at least at a **Basic** level (checksum, body length, req
 
 ### Migrating from MiniFIX: how do I convert my existing MiniFIX XML export into a microfix `.mxrc`?
 
-**Work in progress.** A converter is planned that will translate MiniFIX's `baseConf` (SenderCompID/TargetCompID/heartbeat/FIX version/connect history) and `transConf` templates directly into an equivalent `.mxrc`, including `Alias` entries. Until it ships, recreate your session config and templates by hand using the `.mxrc` format shown above.
+You can extract your MiniFIX `transConf` templates and import them as MicroFIX aliases using either the CLI or the GUI. Both methods will report the number of successfully parsed and failed aliases.
+
+**Option 1: Via the GUI (Recommended)**
+
+1. Open the UI and navigate to **Settings > Aliases** (or use the shortcut `Alt + A`).
+2. Click the **Import...** button and select your MiniFIX `.xml` file from the dialog.
+3. The review modal will display all successfully extracted transactions and highlight any that failed to parse.
+4. Use the search bar and checkboxes to filter and select exactly which aliases you want to keep.
+5. Click import. *Note: Existing aliases with the same name will be overwritten, and changes are saved automatically.*
+
+**Option 2: Via the CLI**
+You can use the `mxshell` tool to extract the aliases directly to your terminal:
+
+```bash
+mxshell -x minifix.xml
+
+```
+
+This will print a summary of the extraction followed by a JSON object containing the successfully parsed templates. Copy the resulting JSON output and paste it directly into the `"Alias"` block inside your `.mxrc` configuration file.
 
 ---
 

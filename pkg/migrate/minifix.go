@@ -77,7 +77,7 @@ func parseMiniFIXTransaction(raw string) (message.Message, error) {
 	return msg, nil
 }
 
-// parseMiniFIXTransactions converts loaded MiniFIX transactions into MicroFIX aliases. 
+// parseMiniFIXTransactions converts loaded MiniFIX transactions into MicroFIX aliases.
 // It returns the successfully parsed aliases and the names of transactions that could not be parsed.
 func parseMiniFIXTransactions(mcfg minifixConfig) (alias map[string]message.Message, failed []string, err error) {
 	if actualCount := len(mcfg.Items); mcfg.Count != actualCount {

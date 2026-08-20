@@ -140,7 +140,8 @@ func (s *Store) Get(key string) (string, bool, error) {
 }
 
 // Set updates a value in the store and returns the previous value, a boolean
-// indicating if it was an update to an existing key, and an error.
+// indicating if it was an update to an existing key, and an error. Keys must
+// be passed without '$' prefix.
 func (s *Store) Set(key, value string) (string, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

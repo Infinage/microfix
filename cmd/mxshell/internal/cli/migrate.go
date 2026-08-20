@@ -41,7 +41,7 @@ func ExtractFromMicroFIX(fpath string) {
 	alias := make(map[string]string, len(aliasMsg))
 	for name, msg := range aliasMsg {
 		msg := ro.Salvage(msg)
-		alias[name] = msg.String("|")
+		alias[name] = msg.String("\x01")
 	}
 
 	jsonRes, err := json.MarshalIndent(alias, "", "  ")
@@ -56,6 +56,6 @@ func ExtractFromMicroFIX(fpath string) {
 	}
 
 	// Print the count + actual JSON payload to stdout
-	fmt.Fprintf(os.Stderr, "Successfully extracted %d/%d aliases.\n", len(alias), len(alias) + len(failed))
+	fmt.Fprintf(os.Stderr, "Successfully extracted %d/%d aliases.\n", len(alias), len(alias)+len(failed))
 	fmt.Println(string(jsonRes))
 }

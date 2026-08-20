@@ -1,6 +1,7 @@
 package spec
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -94,6 +95,55 @@ func TestRouter_Salvage(t *testing.T) {
 				if !strings.Contains(outputStr, expectedVal) {
 					t.Errorf("Expected salvaged message to contain %q, but it didn't. Result: %s", expectedVal, outputStr)
 				}
+			}
+		})
+	}
+}
+
+func TestRouter_SalvageOrdering(t *testing.T) {
+	ro, err := NewDefaultRouter("FIX40")
+	if err != nil {
+		t.Fatalf("Failed to load router setup: %v", err)
+	}
+
+	orderTests := []struct {
+		name          string
+		input         string
+		expectedOrder []uint16
+	}{
+		{
+			name:          "Body Tag precedes header",
+			input:         "11=TEST|8=FIX.4.4|35=D|",
+			expectedOrder: []uint16{11, 8, 9, 35, 49, 56, 34, 52, 10},
+		},
+		{
+			name:          "Scrambled header tags",
+			input:         "35=D|8=FIX.4.2|56=TO|",
+			expectedOrder: []uint16{35, 8, 9, 56, 49, 34, 52, 10},
+		},
+		{
+			name:          "Single tag",
+			input:         "11=MICROFIX|",
+			expectedOrder: []uint16{8, 9, 35, 49, 56, 34, 52, 11, 10},
+		},
+	}
+
+	for _, tc := range orderTests {
+		t.Run(tc.name, func(t *testing.T) {
+			msg, err := message.MessageFromString(tc.input, "|")
+			if err != nil {
+				t.Errorf("Unexpected error parsing %q: %v", tc.input, err)
+			}
+
+			salvagedMsg := ro.Salvage(msg)
+
+			// Extract just the tags to compare the ordering
+			var actualOrder []uint16
+			for _, field := range salvagedMsg {
+				actualOrder = append(actualOrder, field.Tag)
+			}
+			if !slices.Equal(actualOrder, tc.expectedOrder) {
+				t.Errorf("Expected %v, got %v", tc.expectedOrder, actualOrder)
 			}
 		})
 	}

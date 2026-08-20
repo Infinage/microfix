@@ -1,0 +1,158 @@
+{{define "partials/modals/import_alias"}}
+<div 
+  x-data="{
+    search: '',
+    isLoading: false,
+    aliases: [], failed: [],
+
+    {{if .ParsedAliases}}
+      aliases: {{.ParsedAliases}},
+    {{end}}
+
+    {{if .FailedAliases}}
+      failed: {{.FailedAliases}},
+    {{end}}
+    
+    get filteredAliases() {
+        let result = this.aliases;
+        if (this.search !== '') {
+            const lowerSearch = this.search.toLowerCase();
+            result = result.filter(a => 
+                a.name.toLowerCase().includes(lowerSearch) || 
+                a.template.toLowerCase().includes(lowerSearch)
+            );
+        }
+        return result;
+    },
+
+    get allFilteredSelected() {
+        const filtered = this.filteredAliases;
+        return filtered.length > 0 && filtered.every(a => a.selected);
+    },
+    
+    get selectedCount() {
+        return this.aliases.filter(a => a.selected).length;
+    },
+    
+    toggleAllFiltered() {
+        const selectAll = !this.allFilteredSelected;
+        this.filteredAliases.forEach(a => a.selected = selectAll);
+    },
+
+    invertSelectionFiltered() {
+        this.filteredAliases.forEach(a => a.selected = !a.selected);
+    },
+  }"
+  @keydown.escape.window="$root.remove()"
+  @click="$root.remove()"
+  class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+>
+  
+  <!-- The Modal Card -->
+  <div 
+    @click.stop
+    class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 
+      rounded-lg shadow-2xl w-full max-w-4xl mx-4 p-5 sm:p-6 flex flex-col max-h-[90vh] relative"
+  >
+      <div class="flex items-center space-x-3 mb-4 shrink-0">
+          <h3 class="text-gray-900 dark:text-white font-bold text-lg">Review Imported Aliases</h3>
+          <span class="bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-400 font-mono text-xs px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-800">
+              Source: {{.FormatDetected}}
+          </span>
+      </div>
+
+      <div class="flex flex-col flex-1 min-h-0">
+          
+          <!-- Failed Items Alert -->
+          <template x-if="failed.length > 0">
+              <div class="mb-4 bg-amber-50 dark:bg-amber-950 border-l-4 border-amber-500 p-3 shrink-0 rounded-r shadow-sm">
+                  <div class="flex">
+                      <div class="flex-shrink-0">
+                          <svg class="h-5 w-5 text-amber-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 
+                              0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                          </svg>
+                      </div>
+                      <div class="ml-3">
+                          <h3 class="text-sm font-medium text-amber-800 dark:text-amber-200">
+                              <span x-text="failed.length"></span> alias(es) failed to parse and were skipped.
+                          </h3>
+                          <div class="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                              <p class="font-mono truncate max-w-xl" x-text="failed.join(', ')"></p>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </template>
+
+          <!-- Toolbar -->
+          <div class="flex justify-between items-center mb-3 shrink-0 gap-4">
+              <div class="flex items-center gap-3">
+                  <input type="text" x-model="search" placeholder="Filter aliases..." class="w-64 bg-white dark:bg-gray-950 border border-gray-300 
+                    dark:border-gray-700 rounded px-3 py-1.5 text-sm font-mono focus:outline-none focus:border-blue-500">
+              </div>
+              <button @click="invertSelectionFiltered()" type="button" 
+                  title="Flip selected/unselected for every alias currently filtered"
+                  class="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer">
+                  Invert Selection
+              </button>
+          </div>
+
+          <!-- Data Table -->
+          <div class="border border-gray-200 dark:border-gray-800 rounded-lg overflow-y-auto flex-1 bg-white dark:bg-gray-900 shadow-inner">
+              <table class="w-full text-left text-sm font-mono">
+                  <thead class="sticky top-0 bg-gray-50 dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 uppercase text-xs text-gray-600 dark:text-gray-500">
+                      <tr>
+                          <th class="p-3 w-10 text-center">
+                              <input type="checkbox" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" 
+                                  title="Select or deselect all aliases currently filtered"
+                                  :checked="allFilteredSelected" @click="toggleAllFiltered()">
+                          </th>
+                          <th class="p-3 w-1/3">Name</th>
+                          <th class="p-3">Template Payload</th>
+                      </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
+                      <template x-for="alias in filteredAliases" :key="alias.name">
+                          <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition cursor-pointer" @click="alias.selected = !alias.selected">
+                              <td class="p-3 text-center">
+                                  <input type="checkbox" x-model="alias.selected" @click.stop class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                              </td>
+                              <td class="p-3 font-bold text-gray-900 dark:text-white truncate max-w-[150px]" :title="alias.name" x-text="alias.name"></td>
+                              <td class="p-3 text-blue-700 dark:text-blue-400 truncate max-w-sm xl:max-w-md text-xs" :title="alias.template" 
+                                x-text="alias.template.replaceAll('\x01', '|')"></td>
+                          </tr>
+                      </template>
+                      <tr x-show="filteredAliases.length === 0">
+                          <td colspan="3" class="p-6 text-center text-gray-500 text-sm">No aliases match your filter.</td>
+                      </tr>
+                  </tbody>
+              </table>
+          </div>
+      </div>
+
+      <div class="mt-4 flex justify-end space-x-3 shrink-0 pt-2 border-t border-gray-200 dark:border-gray-800">
+          <!-- Uses $root.remove() to destroy the injected modal natively -->
+          <button type="button" @click="$root.remove()" 
+            class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition cursor-pointer"
+          >Cancel</button>
+          
+          <button 
+            hx-swap="none" hx-post="/api/alias/import" 
+            :hx-vals="JSON.stringify({ payload: JSON.stringify(aliases.filter(a => a.selected)) })"
+            @htmx:before-request="isLoading = true" 
+            @htmx:after-request="
+                isLoading = false; 
+                if($event.detail.successful) { 
+                    $root.remove(); 
+                }
+            "
+            :disabled="selectedCount === 0 || isLoading" 
+            class="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded font-bold transition shadow-lg cursor-pointer"
+          >
+            <span x-text="isLoading ? 'Saving...' : `Import Selected (${selectedCount})`"></span>
+          </button>
+      </div>
+  </div>
+</div>
+{{end}}

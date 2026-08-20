@@ -266,6 +266,7 @@ func (app *Application) webRoutes() http.Handler {
 	mux.HandleFunc("DELETE /api/alias/delete/{aliasName}", app.handleAPIDeleteAlias)
 	mux.HandleFunc("POST /api/alias/set", app.handleAPISetAlias)
 	mux.HandleFunc("GET /api/alias/check/name", app.handleAPIAliasNameCheck)
+	mux.HandleFunc("POST /api/alias/import", app.handleAPIAliasImport)
 
 	mux.HandleFunc("POST /api/config", app.handleAPISaveConfig)
 	mux.HandleFunc("POST /api/config/reset", app.handleAPIResetConfig)
@@ -290,6 +291,7 @@ func (app *Application) wailsRoutes() http.Handler {
 	mux.HandleFunc("POST /wails/config/import", app.handleWailsImportConfig)
 	mux.HandleFunc("GET /wails/config/export", app.handleWailsExportConfig)
 	mux.HandleFunc("GET /wails/logs/export", app.handleWailsExportLogs)
+	mux.HandleFunc("POST /wails/alias/import", app.handleWailsImportAlias)
 	return app.noCacheMiddleware(mux)
 }
 

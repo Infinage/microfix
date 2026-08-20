@@ -175,8 +175,11 @@ func (ro *Router) Salvage(msg message.Message) message.Message {
 	type mandatoryField struct {
 		tag   uint16
 		value string
-		pos   int
 	}
+
+	// The mandatory tags are inserted in relative order
+	// We track where the last mandatory tag was seen / inserted
+	var pos int
 
 	// critical tags: [8, 9, 35, 49, 56, 34, 52, 10]
 	// Inserted with defaults if missing
@@ -184,19 +187,25 @@ func (ro *Router) Salvage(msg message.Message) message.Message {
 	beginStr := ro.SessionSpec().BeginString()
 	sendingTime := time.Now().UTC().Format("20060102-15:04:05.000")
 	for _, rf := range []mandatoryField{
-		{tag: 8, value: beginStr, pos: 0},
-		{tag: 9, value: "", pos: 1},
-		{tag: 35, value: "0", pos: 2},
-		{tag: 49, value: "FROM", pos: 3},
-		{tag: 56, value: "TO", pos: 4},
-		{tag: 34, value: "1", pos: 5},
-		{tag: 52, value: sendingTime, pos: 6},
+		{tag: 8, value: beginStr},
+		{tag: 9, value: ""},
+		{tag: 35, value: "0"},
+		{tag: 49, value: "FROM"},
+		{tag: 56, value: "TO"},
+		{tag: 34, value: "1"},
+		{tag: 52, value: sendingTime},
 	} {
 		if f, idx := msg.FindFrom(rf.tag, 0); idx == -1 {
-			msg.Insert(rf.pos, message.Field{Tag: rf.tag, Value: rf.value})
-		} else if rf.tag == 8 || rf.tag == 52 {
-			f.Value = rf.value
+			msg.Insert(pos, message.Field{Tag: rf.tag, Value: rf.value})
+		} else {
+			if rf.tag == 8 || rf.tag == 52 {
+				f.Value = rf.value // force update begin string and sending time
+			}
+			if pos < idx {
+				pos = idx // Only move forward, may have mandatory tags out of order
+			}
 		}
+		pos++
 	}
 
 	msg.Finalize() // Updates tag 9 and 10

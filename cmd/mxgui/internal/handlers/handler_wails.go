@@ -1,9 +1,15 @@
 package gui
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"path"
+	"strings"
 
+	"github.com/infinage/microfix/pkg/message"
+	"github.com/infinage/microfix/pkg/migrate"
 	"github.com/infinage/microfix/pkg/session"
 	"github.com/infinage/microfix/pkg/store"
 )
@@ -101,4 +107,85 @@ func (app *Application) handleWailsExportLogs(w http.ResponseWriter, _ *http.Req
 	}
 
 	toast(w, app.templ, "success", fmt.Sprintf("Logs written to '%s'", fpath))
+}
+
+func (app *Application) handleWailsImportAlias(w http.ResponseWriter, _ *http.Request) {
+	// OpenFile Dialog from wails runtime
+	dialog := app.wails.Dialog.OpenFile()
+	dialog.SetTitle("Import Alias")
+	dialog.AddFilter("MicroFIX Config", "*.mxrc")
+	dialog.AddFilter("MiniFIX Config", "*.xml")
+
+	// Show the dialog. This blocks until the user selects a file or cancels.
+	fpath, err := dialog.PromptForSingleSelection()
+	if err != nil || fpath == "" {
+		toast(w, app.templ, "error", "Failed to select file")
+		return
+	}
+
+	var parsedAliases []map[string]any
+	var failedAliases []string
+	var formatDetected string
+
+	switch ext := strings.ToLower(path.Ext(fpath)); ext {
+	case ".mxrc":
+		var st *store.Store
+		formatDetected = "MicroFIX (.mxrc)"
+		if st, err = store.NewStoreFromPath(fpath); err == nil {
+			for name, templateStr := range st.Config().Alias {
+				parsedAliases = append(parsedAliases, map[string]any{
+					"name":     name,
+					"template": templateStr,
+					"selected": true,
+				})
+			}
+		}
+
+	case ".xml":
+		var file *os.File
+		formatDetected = "MiniFIX (.xml)"
+		aliasMap := make(map[string]message.Message)
+		if file, err = os.Open(fpath); err == nil {
+			defer file.Close()
+			if aliasMap, failedAliases, err = migrate.ExtractAliasFromMiniFIX(file); err == nil {
+				ro := app.Session().Router()
+				for name, msg := range aliasMap {
+					msg = ro.Salvage(msg)
+					parsedAliases = append(parsedAliases, map[string]any{
+						"name":     name,
+						"template": msg.String("\x01"),
+						"selected": true,
+					})
+				}
+			}
+		}
+
+	default: // Wails will disallow selecting files with unknown extension already
+		err = fmt.Errorf("unsupported config format: %s", ext)
+	}
+
+	if err == nil && len(parsedAliases) == 0 {
+		err = fmt.Errorf("no aliases found - is this a valid %s file?", formatDetected)
+	}
+
+	if err != nil {
+		toast(w, app.templ, "error", fmt.Sprintf("Failed to load config: %s", err.Error()))
+		return
+	}
+
+	// Marshal data to JSON strings for safe frontend injection
+	aliasesJSON, _ := json.Marshal(parsedAliases)
+	if string(aliasesJSON) == "null" {
+		aliasesJSON = []byte("[]")
+	}
+	failedJSON, _ := json.Marshal(failedAliases)
+	if string(failedJSON) == "null" {
+		failedJSON = []byte("[]")
+	}
+
+	renderTemplate(app.templ, w, "partials/modals/import_alias", map[string]any{
+		"FormatDetected": formatDetected,
+		"ParsedAliases":  string(aliasesJSON),
+		"FailedAliases":  string(failedJSON),
+	})
 }
